@@ -1,0 +1,13 @@
+[package]
+name = "kurobako"
+version = "0.0.1"
+authors = ["Takeru Ohta <phjgt308@gmail.com>"]
+edition = "2018"
+publish = false
+
+[dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+serde = "1"
+serde_derive = "1"
+serde_json = "1"
+structopt = "0.2"
