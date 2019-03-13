@@ -53,23 +53,6 @@ fn run_problem<P: Problem>(problem: P) {
     }
 }
 
-// #[derive(Debug, Serialize, Deserialize)]
-// struct History {
-//     optimizer_name: String,
-//     problem_name: String,
-//     entries: Entry,
-// }
-
-// #[derive(Debug, Serialize, Deserialize)]
-// struct Entry {
-//     start_time: Duration,
-//     ask_time: Duration,
-//     eval_time: Duration,
-//     end_time: Duration,
-//     params: Vec<f64>,
-//     score: f64,
-// }
-
 #[derive(Debug, StructOpt)]
 struct AckleyProblem {
     #[structopt(long, default_value = "2")]
