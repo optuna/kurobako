@@ -1,12 +1,14 @@
 use crate::distribution::Distribution;
 use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;
+use std::ops::Range;
 use structopt::StructOpt;
+use yamakan::SearchSpace;
 
 pub trait Problem: StructOpt + Serialize + for<'a> Deserialize<'a> {
     const NAME: &'static str;
 
-    fn search_space(&self) -> Vec<Distribution>;
+    fn problem_space(&self) -> ProblemSpace;
     fn evaluate(&self, params: &[f64]) -> f64;
 }
 
@@ -18,13 +20,15 @@ pub struct AckleyProblem {
 impl Problem for AckleyProblem {
     const NAME: &'static str = "ackley";
 
-    fn search_space(&self) -> Vec<Distribution> {
-        (0..self.dim)
-            .map(|_| Distribution::Uniform {
-                low: -10.0,
-                high: 30.0,
-            })
-            .collect()
+    fn problem_space(&self) -> ProblemSpace {
+        ProblemSpace(
+            (0..self.dim)
+                .map(|_| Distribution::Uniform {
+                    low: -10.0,
+                    high: 30.0,
+                })
+                .collect(),
+        )
     }
 
     fn evaluate(&self, xs: &[f64]) -> f64 {
@@ -35,5 +39,27 @@ impl Problem for AckleyProblem {
         let d = -a * (-b * (1.0 / dim * xs.iter().map(|&x| x.powi(2)).sum::<f64>()).sqrt()).exp();
         let e = (1.0 / dim * xs.iter().map(|&x| (x * c).cos()).sum::<f64>()).exp() + a + 1f64.exp();
         d - e
+    }
+}
+
+#[derive(Debug)]
+pub struct ProblemSpace(Vec<Distribution>);
+impl SearchSpace for ProblemSpace {
+    type ExternalParam = Vec<f64>;
+    type InternalParam = Vec<f64>;
+
+    fn internal_range(&self) -> Range<Self::InternalParam> {
+        Range {
+            start: self.0.iter().map(|d| d.low()).collect(),
+            end: self.0.iter().map(|d| d.high()).collect(),
+        }
+    }
+
+    fn to_internal(&self, param: &Self::ExternalParam) -> Self::InternalParam {
+        param.clone()
+    }
+
+    fn to_external(&self, param: &Self::InternalParam) -> Self::ExternalParam {
+        param.clone()
     }
 }
