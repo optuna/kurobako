@@ -6,10 +6,35 @@ use structopt::StructOpt;
 use yamakan::SearchSpace;
 
 pub trait Problem: StructOpt + Serialize + for<'a> Deserialize<'a> {
-    const NAME: &'static str;
-
+    fn name(&self) -> &str;
     fn problem_space(&self) -> ProblemSpace;
     fn evaluate(&self, params: &[f64]) -> f64;
+}
+
+#[derive(Debug, StructOpt, Serialize, Deserialize)]
+#[structopt(rename_all = "kebab-case")]
+#[serde(rename_all = "kebab-case")]
+pub enum ProblemSpec {
+    Ackley(AckleyProblem),
+}
+impl Problem for ProblemSpec {
+    fn name(&self) -> &str {
+        match self {
+            ProblemSpec::Ackley(x) => x.name(),
+        }
+    }
+
+    fn problem_space(&self) -> ProblemSpace {
+        match self {
+            ProblemSpec::Ackley(x) => x.problem_space(),
+        }
+    }
+
+    fn evaluate(&self, params: &[f64]) -> f64 {
+        match self {
+            ProblemSpec::Ackley(x) => x.evaluate(params),
+        }
+    }
 }
 
 #[derive(Debug, StructOpt, Serialize, Deserialize)]
@@ -18,7 +43,9 @@ pub struct AckleyProblem {
     pub dim: usize,
 }
 impl Problem for AckleyProblem {
-    const NAME: &'static str = "ackley";
+    fn name(&self) -> &str {
+        "ackley"
+    }
 
     fn problem_space(&self) -> ProblemSpace {
         ProblemSpace(
@@ -44,6 +71,11 @@ impl Problem for AckleyProblem {
 
 #[derive(Debug)]
 pub struct ProblemSpace(Vec<Distribution>);
+impl ProblemSpace {
+    pub fn distributions(&self) -> &[Distribution] {
+        &self.0
+    }
+}
 impl SearchSpace for ProblemSpace {
     type ExternalParam = Vec<f64>;
     type InternalParam = Vec<f64>;
