@@ -5,6 +5,15 @@ pub type DateTime = chrono::DateTime<chrono::Local>;
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct Timestamp(f64);
+impl Timestamp {
+    pub fn new(seconds: f64) -> Self {
+        Self(seconds)
+    }
+
+    pub fn as_seconds(&self) -> f64 {
+        self.0
+    }
+}
 
 #[derive(Debug)]
 pub struct Stopwatch(Instant);

@@ -6,6 +6,17 @@ pub struct TrialRecord {
     pub evals: Vec<EvalRecord>,
     pub complete: bool,
 }
+impl TrialRecord {
+    pub fn value(&self) -> Option<f64> {
+        self.evals.last().map(|x| x.value)
+    }
+
+    pub fn end_time(&self) -> Timestamp {
+        self.evals
+            .last()
+            .map_or(Timestamp::new(0.0), |x| x.end_time)
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AskRecord {
