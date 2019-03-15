@@ -64,8 +64,9 @@ impl Problem for AckleyProblem {
         let b = 0.2;
         let c = 2.0 * PI;
         let d = -a * (-b * (1.0 / dim * xs.iter().map(|&x| x.powi(2)).sum::<f64>()).sqrt()).exp();
-        let e = (1.0 / dim * xs.iter().map(|&x| (x * c).cos()).sum::<f64>()).exp() + a + 1f64.exp();
-        d - e
+        let e = (1.0 / dim * xs.iter().map(|&x| (x * c).cos()).sum::<f64>()).exp();
+        let f = a + 1f64.exp();
+        d - e + f
     }
 }
 
@@ -93,5 +94,17 @@ impl SearchSpace for ProblemSpace {
 
     fn to_external(&self, param: &Self::InternalParam) -> Self::ExternalParam {
         param.clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ackley_works() {
+        let p = AckleyProblem { dim: 2 };
+        let v = p.evaluate(&[-0.991579880560538, 0.7860986559165095]);
+        assert_eq!(v, 4.151720074504926);
     }
 }
