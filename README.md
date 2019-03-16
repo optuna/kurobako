@@ -1,7 +1,12 @@
 kurobako
 =========
 
+A black-box optimization benchmark framework.
+
 "kurobako" is a Japanese translation of "black box".
+
+Memo
+-----
 
 - https://github.com/sigopt/evalset
 
