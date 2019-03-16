@@ -70,7 +70,7 @@ impl Problem for AckleyProblem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ProblemSpace(Vec<Distribution>);
 impl ProblemSpace {
     pub fn distributions(&self) -> &[Distribution] {
