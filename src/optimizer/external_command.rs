@@ -42,8 +42,8 @@ impl Drop for ExternalCommandOptimizer {
 
 #[derive(Debug, StructOpt, Serialize, Deserialize)]
 pub struct ExternalCommandOptimizerBuilder {
-    name: PathBuf,
-    args: Vec<String>,
+    pub name: PathBuf,
+    pub args: Vec<String>,
 }
 impl OptimizerBuilder for ExternalCommandOptimizerBuilder {
     type Optimizer = ExternalCommandOptimizer;

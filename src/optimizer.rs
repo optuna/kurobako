@@ -12,8 +12,10 @@ use yamakan::spaces::F64;
 use yamakan::Optimizer;
 
 pub use self::external_command::{ExternalCommandOptimizer, ExternalCommandOptimizerBuilder};
+pub use self::optuna::{OptunaOptimizer, OptunaOptimizerBuilder};
 
 mod external_command;
+mod optuna;
 
 pub trait OptimizerBuilder: StructOpt + Serialize + for<'a> Deserialize<'a> {
     type Optimizer: Optimizer<Param = Vec<f64>, Value = f64>;
@@ -28,6 +30,7 @@ pub trait OptimizerBuilder: StructOpt + Serialize + for<'a> Deserialize<'a> {
 pub enum OptimizerSpec {
     Random(RandomOptimizerBuilder),
     Tpe(TpeOptimizerBuilder),
+    Optuna(OptunaOptimizerBuilder),
     Command(ExternalCommandOptimizerBuilder),
 }
 impl OptimizerBuilder for OptimizerSpec {
@@ -37,6 +40,7 @@ impl OptimizerBuilder for OptimizerSpec {
         match self {
             OptimizerSpec::Random(x) => x.optimizer_name(),
             OptimizerSpec::Tpe(x) => x.optimizer_name(),
+            OptimizerSpec::Optuna(x) => x.optimizer_name(),
             OptimizerSpec::Command(x) => x.optimizer_name(),
         }
     }
@@ -45,6 +49,7 @@ impl OptimizerBuilder for OptimizerSpec {
         match self {
             OptimizerSpec::Random(x) => x.build(problem_space).map(UnionOptimizer::Random),
             OptimizerSpec::Tpe(x) => x.build(problem_space).map(UnionOptimizer::Tpe),
+            OptimizerSpec::Optuna(x) => x.build(problem_space).map(UnionOptimizer::Optuna),
             OptimizerSpec::Command(x) => x.build(problem_space).map(UnionOptimizer::Command),
         }
     }
@@ -55,6 +60,7 @@ impl OptimizerBuilder for OptimizerSpec {
 pub enum UnionOptimizer {
     Random(RandomOptimizer),
     Tpe(TpeOptimizer),
+    Optuna(OptunaOptimizer),
     Command(ExternalCommandOptimizer),
 }
 impl Optimizer for UnionOptimizer {
@@ -65,6 +71,7 @@ impl Optimizer for UnionOptimizer {
         match self {
             UnionOptimizer::Random(x) => x.ask(rng),
             UnionOptimizer::Tpe(x) => x.ask(rng),
+            UnionOptimizer::Optuna(x) => x.ask(rng),
             UnionOptimizer::Command(x) => x.ask(rng),
         }
     }
@@ -73,6 +80,7 @@ impl Optimizer for UnionOptimizer {
         match self {
             UnionOptimizer::Random(x) => x.tell(param, value),
             UnionOptimizer::Tpe(x) => x.tell(param, value),
+            UnionOptimizer::Optuna(x) => x.tell(param, value),
             UnionOptimizer::Command(x) => x.tell(param, value),
         }
     }
