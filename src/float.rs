@@ -8,7 +8,7 @@ impl NonNanF64 {
         Self(x)
     }
 
-    // pub fn as_f64(self) -> f64 {
+    // pub fn get(self) -> f64 {
     //     self.0
     // }
 }
