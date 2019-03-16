@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;
 use std::ops::Range;
 use structopt::StructOpt;
-use yamakan::SearchSpace;
+use yamakan::ParamSpace;
 
 pub trait Problem: StructOpt + Serialize + for<'a> Deserialize<'a> {
     fn name(&self) -> &str;
@@ -77,22 +77,22 @@ impl ProblemSpace {
         &self.0
     }
 }
-impl SearchSpace for ProblemSpace {
-    type ExternalParam = Vec<f64>;
-    type InternalParam = Vec<f64>;
+impl ParamSpace for ProblemSpace {
+    type External = Vec<f64>;
+    type Internal = Vec<f64>;
 
-    fn internal_range(&self) -> Range<Self::InternalParam> {
+    fn internal_range(&self) -> Range<Self::Internal> {
         Range {
             start: self.0.iter().map(|d| d.low()).collect(),
             end: self.0.iter().map(|d| d.high()).collect(),
         }
     }
 
-    fn to_internal(&self, param: &Self::ExternalParam) -> Self::InternalParam {
+    fn internalize(&self, param: &Self::External) -> Self::Internal {
         param.clone()
     }
 
-    fn to_external(&self, param: &Self::InternalParam) -> Self::ExternalParam {
+    fn externalize(&self, param: &Self::Internal) -> Self::External {
         param.clone()
     }
 }

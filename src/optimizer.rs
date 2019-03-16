@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 use yamakan;
 use yamakan::optimizers::random::RandomOptimizer as InnerRandomOptimizer;
-use yamakan::spaces::UniformF64;
+use yamakan::spaces::F64;
 use yamakan::Optimizer;
 
 pub trait OptimizerBuilder: StructOpt + Serialize + for<'a> Deserialize<'a> {
@@ -62,7 +62,7 @@ impl Optimizer for UnionOptimizer {
 
 #[derive(Debug)]
 pub struct RandomOptimizer {
-    inner: Vec<InnerRandomOptimizer<UniformF64, f64>>,
+    inner: Vec<InnerRandomOptimizer<F64, f64>>,
 }
 impl Optimizer for RandomOptimizer {
     type Param = Vec<f64>;
@@ -90,7 +90,7 @@ impl OptimizerBuilder for RandomOptimizerBuilder {
             .iter()
             .map(|d| {
                 let Distribution::Uniform { low, high } = *d;
-                InnerRandomOptimizer::new(UniformF64 { low, high })
+                InnerRandomOptimizer::new(F64 { low, high })
             })
             .collect();
         Ok(RandomOptimizer { inner })
