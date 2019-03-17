@@ -5,6 +5,12 @@ use std::ops::Range;
 use structopt::StructOpt;
 use yamakan::ParamSpace;
 
+pub use self::adjiman::AdjimanProblem;
+pub use self::alpine::{Alpine01Problem, Alpine02Problem};
+
+mod adjiman;
+mod alpine;
+
 pub trait Problem: StructOpt + Serialize + for<'a> Deserialize<'a> {
     fn name(&self) -> &str;
     fn problem_space(&self) -> ProblemSpace;
@@ -16,23 +22,35 @@ pub trait Problem: StructOpt + Serialize + for<'a> Deserialize<'a> {
 #[serde(rename_all = "kebab-case")]
 pub enum ProblemSpec {
     Ackley(AckleyProblem),
+    Adjiman(AdjimanProblem),
+    Alpine01(Alpine01Problem),
+    Alpine02(Alpine02Problem),
 }
 impl Problem for ProblemSpec {
     fn name(&self) -> &str {
         match self {
             ProblemSpec::Ackley(x) => x.name(),
+            ProblemSpec::Adjiman(x) => x.name(),
+            ProblemSpec::Alpine01(x) => x.name(),
+            ProblemSpec::Alpine02(x) => x.name(),
         }
     }
 
     fn problem_space(&self) -> ProblemSpace {
         match self {
             ProblemSpec::Ackley(x) => x.problem_space(),
+            ProblemSpec::Adjiman(x) => x.problem_space(),
+            ProblemSpec::Alpine01(x) => x.problem_space(),
+            ProblemSpec::Alpine02(x) => x.problem_space(),
         }
     }
 
     fn evaluate(&self, params: &[f64]) -> f64 {
         match self {
             ProblemSpec::Ackley(x) => x.evaluate(params),
+            ProblemSpec::Adjiman(x) => x.evaluate(params),
+            ProblemSpec::Alpine01(x) => x.evaluate(params),
+            ProblemSpec::Alpine02(x) => x.evaluate(params),
         }
     }
 }
