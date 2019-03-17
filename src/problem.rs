@@ -10,6 +10,8 @@ pub use self::alpine::{Alpine01Problem, Alpine02Problem};
 
 mod adjiman;
 mod alpine;
+mod external_command;
+mod sigopt;
 
 pub trait Problem: StructOpt + Serialize + for<'a> Deserialize<'a> {
     fn name(&self) -> &str;
