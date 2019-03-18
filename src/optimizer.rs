@@ -1,6 +1,6 @@
 use crate::distribution::Distribution;
 use crate::float::NonNanF64;
-use crate::problem::ProblemSpace;
+use crate::problems::ProblemSpace;
 use failure::Error;
 use rand::Rng;
 use serde::{Deserialize, Serialize};

@@ -3,7 +3,7 @@ extern crate structopt;
 
 use failure::Error;
 use kurobako::optimizer::OptimizerSpec;
-use kurobako::problem::ProblemSpec;
+use kurobako::problems::ProblemSpec;
 use kurobako::runner::{RunSpec, Runner};
 use kurobako::study::StudyRecord;
 use kurobako::summary::StudySummary;

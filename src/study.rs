@@ -1,6 +1,6 @@
 use crate::float::NonNanF64;
 use crate::optimizer::OptimizerBuilder;
-use crate::problem::Problem;
+use crate::problems::Problem;
 use crate::time::DateTime;
 use crate::trial::TrialRecord;
 use chrono::Local;

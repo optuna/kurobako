@@ -1,5 +1,5 @@
 use crate::optimizer::{OptimizerBuilder, OptimizerSpec};
-use crate::problem::{Problem, ProblemSpec};
+use crate::problems::{Problem, ProblemSpec};
 use crate::study::StudyRecord;
 use crate::time::Stopwatch;
 use crate::trial::{AskRecord, EvalRecord, TrialRecord};
@@ -35,7 +35,7 @@ impl<R: Rng> Runner<R> {
         let watch = Stopwatch::new();
         for _ in 0..budget {
             let ask = AskRecord::with(&watch, || optimizer.ask(&mut self.rng));
-            let eval = EvalRecord::with(&watch, || problem.evaluate(&ask.params));
+            let eval = EvalRecord::with(&watch, || problem.evaluate(&ask.params).expect("TODO"));
             optimizer.tell(ask.params.clone(), eval.value);
 
             study_record.trials.push(TrialRecord {
