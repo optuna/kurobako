@@ -9,13 +9,30 @@ use yamakan::ParamSpace;
 pub trait ProblemSpec: StructOpt + Serialize + for<'a> Deserialize<'a> {
     type Problem: Problem;
 
-    fn build(&self) -> Fallible<Self::Problem>;
+    fn build(&self, params: &[f64]) -> Fallible<Self::Problem>;
 }
 
 pub trait Problem: Sized {
     fn name(&self) -> &str;
     fn problem_space(&self) -> ProblemSpace;
-    fn evaluate(&self, params: &[f64], budget: &mut Budget) -> Fallible<Option<f64>>;
+}
+
+pub trait Eval: Problem {
+    fn eval(&self) -> Fallible<f64>;
+}
+
+pub trait PartialEval: Problem {
+    fn total_eval_cost_hint(&self) -> usize;
+    fn partial_eval(&mut self, budget: &mut Budget) -> Fallible<(bool, f64)>;
+}
+
+pub trait AdaptivePartialEval: Problem + Sized {
+    fn total_eval_cost_hint(&self) -> usize;
+    fn adaptive_partial_eval(
+        &mut self,
+        params: &[f64],
+        budget: &mut Budget,
+    ) -> Fallible<(bool, f64)>;
     fn try_close(&self) -> Fallible<Self>;
 }
 
