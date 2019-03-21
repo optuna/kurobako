@@ -5,7 +5,7 @@ extern crate serde_derive;
 #[macro_use]
 extern crate structopt;
 
-pub use self::problem::{Problem, ProblemSpace, ProblemSpec};
+pub use self::problem::{Evaluate, Problem, ProblemSpace, ProblemSpec};
 
 pub mod distribution;
 pub mod optimizer;

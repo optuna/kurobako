@@ -1,10 +1,47 @@
 use crate::distribution::Distribution;
-use failure::{Error, Fallible};
+use failure::Fallible;
 use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;
 use std::ops::Range;
 use structopt::StructOpt;
 use yamakan::ParamSpace;
+
+pub use self::command::{CommandProblem, CommandProblemSpec};
+
+mod command;
+
+#[derive(Debug, StructOpt, Serialize, Deserialize)]
+pub enum OneshotProblemSpec {
+    Command(CommandProblemSpec),
+}
+impl crate::ProblemSpec for OneshotProblemSpec {
+    // TODO
+    type Problem = OneshotProblem;
+
+    fn build(&self, params: &[f64]) -> Fallible<Self::Problem> {
+        match self {
+            OneshotProblemSpec::Command(p) => p.build(params).map(OneshotProblem::Command),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum OneshotProblem {
+    Command(CommandProblem),
+}
+impl crate::Problem for OneshotProblem {
+    fn name(&self) -> &str {
+        match self {
+            OneshotProblem::Command(p) => p.name(),
+        }
+    }
+
+    fn problem_space(&self) -> crate::ProblemSpace {
+        match self {
+            OneshotProblem::Command(p) => p.problem_space(),
+        }
+    }
+}
 
 // pub use self::adjiman::AdjimanProblem;
 // pub use self::alpine::{Alpine01Problem, Alpine02Problem};
