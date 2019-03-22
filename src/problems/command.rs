@@ -1,3 +1,4 @@
+use crate::serde_json_line;
 use crate::{Evaluate, Problem, ProblemSpace, ProblemSpec};
 use failure::Fallible;
 use std::cell::RefCell;
@@ -16,13 +17,6 @@ impl ProblemSpec for CommandProblemSpec {
     type Problem = CommandProblem;
 
     fn make_problem(&self) -> Fallible<Self::Problem> {
-        let name = self
-            .path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .ok_or_else(|| format_err!("Invalid Path"))?
-            .to_owned();
-
         let mut child = Command::new(&self.path)
             .args(&self.args)
             .stdin(Stdio::piped())
@@ -36,9 +30,8 @@ impl ProblemSpec for CommandProblemSpec {
                 .take()
                 .ok_or_else(|| format_err!("No stdout"))?,
         );
-        let info: ProblemInfo = serde_json::from_reader(&mut stdout)?;
+        let info: ProblemInfo = serde_json_line::from_reader(&mut stdout)?;
         Ok(CommandProblem {
-            name,
             info,
             child,
             stdin: Rc::new(RefCell::new(stdin)),
@@ -50,7 +43,6 @@ impl ProblemSpec for CommandProblemSpec {
 
 #[derive(Debug)]
 pub struct CommandProblem {
-    name: String,
     info: ProblemInfo,
     child: Child,
     stdin: Rc<RefCell<ChildStdin>>,
@@ -59,10 +51,6 @@ pub struct CommandProblem {
 }
 impl Problem for CommandProblem {
     type Evaluator = CommandEvaluator;
-
-    fn name(&self) -> &str {
-        &self.name
-    }
 
     fn problem_space(&self) -> ProblemSpace {
         self.info.problem_space.clone()
@@ -92,6 +80,11 @@ impl Problem for CommandProblem {
         })
     }
 }
+impl Drop for CommandProblem {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+    }
+}
 
 #[derive(Debug)]
 pub struct CommandEvaluator {
@@ -112,7 +105,7 @@ impl Evaluate for CommandEvaluator {
             serde_json::to_string(&m)?
         )?;
 
-        let m: EvalResMessage = serde_json::from_reader(&mut *self.stdout.borrow_mut())?;
+        let m: EvalResMessage = serde_json_line::from_reader(&mut *self.stdout.borrow_mut())?;
         budget.consume(m.cost);
         Ok(m.value)
     }

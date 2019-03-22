@@ -18,3 +18,4 @@ pub mod trial;
 
 mod float;
 mod problem;
+mod serde_json_line;

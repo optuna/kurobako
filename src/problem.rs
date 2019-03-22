@@ -15,7 +15,6 @@ pub trait ProblemSpec: StructOpt + Serialize + for<'a> Deserialize<'a> {
 pub trait Problem {
     type Evaluator: Evaluate;
 
-    fn name(&self) -> &str;
     fn problem_space(&self) -> ProblemSpace;
     fn evaluation_cost_hint(&self) -> usize;
     fn make_evaluator(&mut self, params: &[f64]) -> Fallible<Self::Evaluator>;
