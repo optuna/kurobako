@@ -1,5 +1,5 @@
 use super::OptimizerBuilder;
-use crate::problems::ProblemSpace;
+use crate::ProblemSpace;
 use failure::Error;
 use rand::Rng;
 use serde_json::{self, json};

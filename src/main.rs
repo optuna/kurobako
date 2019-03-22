@@ -3,7 +3,7 @@ extern crate structopt;
 
 use failure::Error;
 use kurobako::optimizer::OptimizerSpec;
-use kurobako::problems::ProblemSpec;
+use kurobako::problems::BuiltinProblemSpec;
 use kurobako::runner::{RunSpec, Runner};
 use kurobako::study::StudyRecord;
 use kurobako::summary::StudySummary;
@@ -13,7 +13,7 @@ use structopt::StructOpt as _;
 #[structopt(rename_all = "kebab-case")]
 enum Opt {
     Optimizer(OptimizerSpec),
-    Problem(ProblemSpec),
+    Problem(BuiltinProblemSpec),
     Run,
     Summary,
 }

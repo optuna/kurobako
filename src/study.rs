@@ -1,8 +1,8 @@
 use crate::float::NonNanF64;
 use crate::optimizer::OptimizerBuilder;
-use crate::problems::Problem;
 use crate::time::DateTime;
 use crate::trial::TrialRecord;
+use crate::ProblemSpec;
 use chrono::Local;
 use failure::Error;
 use serde_json::Value as JsonValue;
@@ -20,7 +20,7 @@ impl StudyRecord {
     pub fn new<O, P>(optimizer_builder: &O, problem: &P, budget: usize) -> Result<Self, Error>
     where
         O: OptimizerBuilder,
-        P: Problem,
+        P: ProblemSpec,
     {
         Ok(StudyRecord {
             optimizer: serde_json::to_value(optimizer_builder)?,

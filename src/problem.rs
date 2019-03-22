@@ -18,14 +18,14 @@ pub trait Problem {
     fn name(&self) -> &str;
     fn problem_space(&self) -> ProblemSpace;
     fn evaluation_cost_hint(&self) -> usize;
-    fn make_evaluator(&self, params: &[f64]) -> Fallible<Self::Evaluator>;
+    fn make_evaluator(&mut self, params: &[f64]) -> Fallible<Self::Evaluator>;
 }
 
 pub trait Evaluate {
     fn evaluate(&mut self, budget: &mut Budget) -> Fallible<f64>;
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProblemSpace(Vec<Distribution>);
 impl ProblemSpace {
     pub fn new(distributions: Vec<Distribution>) -> Self {
