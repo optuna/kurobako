@@ -1,5 +1,5 @@
 use super::command::{CommandEvaluator, CommandProblem, CommandProblemSpec};
-use crate::{Evaluate, Problem, ProblemSpace, ProblemSpec};
+use crate::{Evaluate, Problem, ProblemSpace, ProblemSpec, ValueRange};
 use failure::Fallible;
 use std::fs;
 use std::io::Write as _;
@@ -280,6 +280,10 @@ impl Problem for SigoptProblem {
 
     fn evaluation_cost_hint(&self) -> usize {
         self.inner.evaluation_cost_hint()
+    }
+
+    fn value_range(&self) -> ValueRange {
+        self.inner.value_range()
     }
 
     fn make_evaluator(&mut self, params: &[f64]) -> Fallible<Self::Evaluator> {

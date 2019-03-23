@@ -1,5 +1,5 @@
 use crate::serde_json_line;
-use crate::{Evaluate, Problem, ProblemSpace, ProblemSpec};
+use crate::{Evaluate, Problem, ProblemSpace, ProblemSpec, ValueRange};
 use failure::Fallible;
 use std::cell::RefCell;
 use std::io::{BufReader, Write as _};
@@ -58,6 +58,10 @@ impl Problem for CommandProblem {
 
     fn evaluation_cost_hint(&self) -> usize {
         self.info.cost_hint
+    }
+
+    fn value_range(&self) -> ValueRange {
+        self.info.value_range
     }
 
     fn make_evaluator(&mut self, params: &[f64]) -> Fallible<Self::Evaluator> {
@@ -126,6 +130,7 @@ impl Drop for CommandEvaluator {
 struct ProblemInfo {
     cost_hint: usize,
     problem_space: ProblemSpace,
+    value_range: ValueRange,
 }
 
 #[derive(Debug, Serialize)]

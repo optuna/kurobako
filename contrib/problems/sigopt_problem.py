@@ -25,6 +25,7 @@ else:
 info = {
     "problem_space": [{"uniform": {"low": low, "high": high}} for low, high in test_function.bounds],
     "cost_hint": 1,
+    "value_range": {"mix": test_function.fmin, "max": test_function.fmax},
 }
 print(json.dumps(info))
 
@@ -49,6 +50,7 @@ class Evaluator(object):
         else:
             params = self.id_to_params[req['eval_id']]
             y = test_function.do_evaluate(np.asarray(params))
+
             self.id_to_value[req['eval_id']] = y
             print(json.dumps({'value': y, 'cost': 1}))
 

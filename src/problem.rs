@@ -1,4 +1,5 @@
 use crate::distribution::Distribution;
+use crate::ValueRange;
 use failure::Fallible;
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
@@ -17,6 +18,7 @@ pub trait Problem {
 
     fn problem_space(&self) -> ProblemSpace;
     fn evaluation_cost_hint(&self) -> usize;
+    fn value_range(&self) -> ValueRange;
     fn make_evaluator(&mut self, params: &[f64]) -> Fallible<Self::Evaluator>;
 }
 

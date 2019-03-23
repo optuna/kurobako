@@ -1,4 +1,4 @@
-use crate::{Evaluate, Problem, ProblemSpace, ProblemSpec};
+use crate::{Evaluate, Problem, ProblemSpace, ProblemSpec, ValueRange};
 use failure::Fallible;
 use yamakan::budget::Budget;
 
@@ -42,6 +42,13 @@ impl Problem for BuiltinProblem {
         match self {
             BuiltinProblem::Command(p) => p.evaluation_cost_hint(),
             BuiltinProblem::Sigopt(p) => p.evaluation_cost_hint(),
+        }
+    }
+
+    fn value_range(&self) -> ValueRange {
+        match self {
+            BuiltinProblem::Command(p) => p.value_range(),
+            BuiltinProblem::Sigopt(p) => p.value_range(),
         }
     }
 

@@ -19,3 +19,9 @@ pub mod trial;
 mod float;
 mod problem;
 mod serde_json_line;
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct ValueRange {
+    pub min: f64,
+    pub max: f64,
+}
