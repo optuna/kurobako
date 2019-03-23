@@ -4,6 +4,7 @@ use crate::ProblemSpace;
 use failure::Error;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::num::NonZeroUsize;
 use structopt::StructOpt;
 use yamakan;
 use yamakan::optimizers::random::RandomOptimizer as InnerRandomOptimizer;
@@ -110,9 +111,29 @@ impl Optimizer for TpeOptimizer {
     }
 }
 
+fn is_24(n: &usize) -> bool {
+    *n == 24
+}
+
+fn is_false(b: &bool) -> bool {
+    !*b
+}
+
+fn default_ei_candidates() -> usize {
+    24
+}
+
 #[derive(Debug, Default, StructOpt, Serialize, Deserialize)]
+#[structopt(rename_all = "kebab-case")]
+#[serde(rename_all = "kebab-case")]
 pub struct TpeOptimizerBuilder {
-    // TODO: options
+    #[serde(skip_serializing_if = "is_24", default = "default_ei_candidates")]
+    #[structopt(long, default_value = "24")]
+    pub ei_candidates: usize,
+
+    #[serde(skip_serializing_if = "is_false", default)]
+    #[structopt(long)]
+    pub prior_uniform: bool,
 }
 impl OptimizerBuilder for TpeOptimizerBuilder {
     type Optimizer = TpeOptimizer;
@@ -127,7 +148,10 @@ impl OptimizerBuilder for TpeOptimizerBuilder {
             .iter()
             .map(|d| {
                 let Distribution::Uniform { low, high } = *d;
-                tpe::TpeNumericalOptimizer::new(F64 { low, high })
+                let options = tpe::TpeOptions::default()
+                    .prior_uniform(self.prior_uniform)
+                    .ei_candidates(NonZeroUsize::new(self.ei_candidates).expect("TODO"));
+                tpe::TpeNumericalOptimizer::with_options(F64 { low, high }, options)
             })
             .collect();
         Ok(TpeOptimizer { inner })

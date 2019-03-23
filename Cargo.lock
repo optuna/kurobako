@@ -514,7 +514,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "yamakan"
 version = "0.0.1"
-source = "git+git://github.com/sile/yamakan.git#d938f19999cf232326b9056769fe00dac057aebe"
+source = "git+git://github.com/sile/yamakan.git#fd319c0894b99b82e13deb440b08ec6de56420ad"
 dependencies = [
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
