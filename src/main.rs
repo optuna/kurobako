@@ -14,6 +14,7 @@ use structopt::StructOpt as _;
 enum Opt {
     Optimizer(OptimizerSpec),
     Problem(BuiltinProblemSpec),
+    ProblemSuite,
     Run,
     Summary,
 }
@@ -23,6 +24,7 @@ fn main() -> Result<(), Error> {
     match opt {
         Opt::Optimizer(o) => serde_json::to_writer(std::io::stdout().lock(), &o)?,
         Opt::Problem(p) => serde_json::to_writer(std::io::stdout().lock(), &p)?,
+        Opt::ProblemSuite => panic!(),
         Opt::Run => {
             handle_run_command()?;
         }

@@ -1,9 +1,8 @@
 use crate::{Evaluate, Problem, ProblemSpace, ProblemSpec, ValueRange};
 use failure::Fallible;
+use kurobako_core::problems::command;
+use kurobako_sigopt::problems::sigopt;
 use yamakan::budget::Budget;
-
-pub mod command;
-pub mod sigopt;
 
 #[derive(Debug, StructOpt, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]

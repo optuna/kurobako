@@ -1,6 +1,7 @@
-use super::command::{CommandEvaluator, CommandProblem, CommandProblemSpec};
-use crate::{Evaluate, Problem, ProblemSpace, ProblemSpec, ValueRange};
 use failure::Fallible;
+use kurobako_core::problem::{Evaluate, Problem, ProblemSpace, ProblemSpec};
+use kurobako_core::problems::command::{CommandEvaluator, CommandProblem, CommandProblemSpec};
+use kurobako_core::ValueRange;
 use std::fs;
 use std::io::Write as _;
 use tempfile::NamedTempFile;
@@ -239,7 +240,7 @@ impl ProblemSpec for SigoptProblemSpec {
     type Problem = SigoptProblem;
 
     fn make_problem(&self) -> Fallible<Self::Problem> {
-        let python_code = include_str!("../../contrib/problems/sigopt_problem.py");
+        let python_code = include_str!("../../../contrib/problems/sigopt_problem.py");
 
         let mut temp = NamedTempFile::new()?;
         write!(temp.as_file_mut(), "{}", python_code)?;

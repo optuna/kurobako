@@ -16,6 +16,8 @@ codecov = {repository = "sile/kurobako"}
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
 failure = "0.1"
+kurobako_core = { path = "kurobako_core" }
+kurobako_sigopt = { path = "kurobako_sigopt" }
 rand = "0.6"
 serde = "1"
 serde_derive = "1"
@@ -24,3 +26,6 @@ structopt = "0.2"
 tempfile = "3"
 # yamakan = "0.0"
 yamakan = { git = "git://github.com/sile/yamakan.git" }
+
+[workspace]
+members = ["kurobako_core", "kurobako_sigopt"]
