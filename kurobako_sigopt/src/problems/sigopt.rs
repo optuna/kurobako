@@ -19,7 +19,7 @@ macro_rules! define_sigopt_problem_spec {
 
                 #[serde(skip_serializing_if = "Option::is_none")]
                 #[structopt(long)]
-                res: Option<u32>,
+                res: Option<f64>,
             }),*
         }
         impl SigoptProblemSpec {
@@ -35,7 +35,7 @@ macro_rules! define_sigopt_problem_spec {
                 }
             }
 
-            pub fn res(&self) -> Option<u32> {
+            pub fn res(&self) -> Option<f64> {
                 match *self {
                     $(SigoptProblemSpec::$name { res, .. } => res),*
                 }

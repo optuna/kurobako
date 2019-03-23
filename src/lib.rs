@@ -10,6 +10,7 @@ pub use kurobako_core::problem::{Evaluate, Problem, ProblemSpace, ProblemSpec};
 pub use kurobako_core::ValueRange;
 
 pub mod optimizer;
+pub mod problem_suites;
 pub mod problems;
 pub mod runner;
 pub mod study;
