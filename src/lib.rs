@@ -29,6 +29,10 @@ impl Name {
     pub fn new(v: serde_json::Value) -> Self {
         Name(v)
     }
+
+    pub fn as_json(&self) -> &serde_json::Value {
+        &self.0
+    }
 }
 impl Eq for Name {}
 impl PartialOrd for Name {

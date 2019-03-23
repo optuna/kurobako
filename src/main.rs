@@ -1,14 +1,14 @@
 #[macro_use]
 extern crate structopt;
 
-use failure::Error;
+use failure::{bail, Error};
 use kurobako::benchmark::BenchmarkSpec;
 use kurobako::optimizer::OptimizerSpec;
 use kurobako::optimizer_suites::{BuiltinOptimizerSuite, OptimizerSuite};
 use kurobako::problem_suites::{BuiltinProblemSuite, ProblemSuite};
 use kurobako::problems::BuiltinProblemSpec;
 use kurobako::runner::Runner;
-use kurobako::stats::Stats;
+use kurobako::stats::{Stats, StatsSummary};
 use kurobako::study::StudyRecord;
 use kurobako::summary::StudySummary;
 use structopt::StructOpt as _;
@@ -23,7 +23,40 @@ enum Opt {
     Benchmark(BenchmarkSpec),
     Run,
     Summary,
-    Stats,
+    Stats(StatsOpt),
+}
+
+#[derive(Debug, StructOpt)]
+#[structopt(rename_all = "kebab-case")]
+struct StatsOpt {
+    #[structopt(long)]
+    format: OutputFormat,
+
+    #[structopt(long, raw(possible_values = "&[\"json\", \"markdown\"]"))]
+    summary: bool,
+}
+
+#[derive(Debug, StructOpt)]
+#[structopt(rename_all = "kebab-case")]
+enum OutputFormat {
+    Json,
+    Markdown,
+}
+impl Default for OutputFormat {
+    fn default() -> Self {
+        OutputFormat::Json
+    }
+}
+impl std::str::FromStr for OutputFormat {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Error> {
+        match s {
+            "json" => Ok(OutputFormat::Json),
+            "markdown" => Ok(OutputFormat::Markdown),
+            _ => bail!("Uknown output format: {:?}", s),
+        }
+    }
 }
 
 fn main() -> Result<(), Error> {
@@ -45,8 +78,8 @@ fn main() -> Result<(), Error> {
         Opt::Summary => {
             handle_summary_command()?;
         }
-        Opt::Stats => {
-            handle_stats_command()?;
+        Opt::Stats(opt) => {
+            handle_stats_command(opt)?;
         }
     }
     Ok(())
@@ -77,9 +110,28 @@ fn handle_summary_command() -> Result<(), Error> {
     Ok(())
 }
 
-fn handle_stats_command() -> Result<(), Error> {
+fn handle_stats_command(opt: StatsOpt) -> Result<(), Error> {
     let studies: Vec<StudyRecord> = serde_json::from_reader(std::io::stdin().lock())?;
     let stats = Stats::new(&studies);
-    serde_json::to_writer(std::io::stdout().lock(), &stats)?;
+    if opt.summary {
+        let summary = StatsSummary::new(&stats);
+        match opt.format {
+            OutputFormat::Json => {
+                serde_json::to_writer(std::io::stdout().lock(), &summary)?;
+            }
+            OutputFormat::Markdown => {
+                summary.write_markdown(std::io::stdout().lock())?;
+            }
+        }
+    } else {
+        match opt.format {
+            OutputFormat::Json => {
+                serde_json::to_writer(std::io::stdout().lock(), &stats)?;
+            }
+            OutputFormat::Markdown => {
+                stats.write_markdown(std::io::stdout().lock())?;
+            }
+        }
+    }
     Ok(())
 }
