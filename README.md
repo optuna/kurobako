@@ -18,4 +18,6 @@ Memo
 
 ```console
 $ echo '[{"problem":'(cargo run -- problem ackley)', "optimizer":'(cargo run -- optimizer random)', "budget":10}]' | cargo run -- run | jq .q
+
+$ cargo run -- benchmark --problems (cargo run -- problem-suite sigopt auc) --optimizers (cargo run -- optimizer-suite)
 ```

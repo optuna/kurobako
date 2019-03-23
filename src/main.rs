@@ -2,6 +2,7 @@
 extern crate structopt;
 
 use failure::Error;
+use kurobako::benchmark::BenchmarkSpec;
 use kurobako::optimizer::OptimizerSpec;
 use kurobako::optimizer_suites::{BuiltinOptimizerSuite, OptimizerSuite};
 use kurobako::problem_suites::{BuiltinProblemSuite, ProblemSuite};
@@ -18,6 +19,7 @@ enum Opt {
     OptimizerSuite(BuiltinOptimizerSuite),
     Problem(BuiltinProblemSpec),
     ProblemSuite(BuiltinProblemSuite),
+    Benchmark(BenchmarkSpec),
     Run,
     Summary,
 }
@@ -34,6 +36,7 @@ fn main() -> Result<(), Error> {
             std::io::stdout().lock(),
             &p.problem_specs().collect::<Vec<_>>(),
         )?,
+        Opt::Benchmark(b) => serde_json::to_writer(std::io::stdout().lock(), &b)?,
         Opt::Run => {
             handle_run_command()?;
         }

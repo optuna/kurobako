@@ -9,6 +9,7 @@ pub use kurobako_core::distribution;
 pub use kurobako_core::problem::{Evaluate, Problem, ProblemSpace, ProblemSpec};
 pub use kurobako_core::ValueRange;
 
+pub mod benchmark;
 pub mod optimizer;
 pub mod optimizer_suites;
 pub mod problem_suites;
