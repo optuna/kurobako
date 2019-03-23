@@ -38,6 +38,10 @@ impl AskRecord {
             end_time,
         }
     }
+
+    pub fn latency(&self) -> f64 {
+        self.end_time.as_seconds() - self.start_time.as_seconds()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

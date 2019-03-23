@@ -1,11 +1,11 @@
 use crate::study::StudyRecord;
 use crate::trial::TrialRecord;
-use serde_json::Value as JsonValue;
+use crate::Name;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StudySummary {
-    pub optimizer: JsonValue,
-    pub problem: JsonValue,
+    pub optimizer: Name,
+    pub problem: Name,
     pub best: Option<TrialSummary>,
     pub trials: usize,
     pub elapsed_time: f64,

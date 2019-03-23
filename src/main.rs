@@ -8,6 +8,7 @@ use kurobako::optimizer_suites::{BuiltinOptimizerSuite, OptimizerSuite};
 use kurobako::problem_suites::{BuiltinProblemSuite, ProblemSuite};
 use kurobako::problems::BuiltinProblemSpec;
 use kurobako::runner::Runner;
+use kurobako::stats::Stats;
 use kurobako::study::StudyRecord;
 use kurobako::summary::StudySummary;
 use structopt::StructOpt as _;
@@ -22,6 +23,7 @@ enum Opt {
     Benchmark(BenchmarkSpec),
     Run,
     Summary,
+    Stats,
 }
 
 fn main() -> Result<(), Error> {
@@ -42,6 +44,9 @@ fn main() -> Result<(), Error> {
         }
         Opt::Summary => {
             handle_summary_command()?;
+        }
+        Opt::Stats => {
+            handle_stats_command()?;
         }
     }
     Ok(())
@@ -69,5 +74,12 @@ fn handle_summary_command() -> Result<(), Error> {
         summaries.push(StudySummary::new(&study));
     }
     serde_json::to_writer(std::io::stdout().lock(), &summaries)?;
+    Ok(())
+}
+
+fn handle_stats_command() -> Result<(), Error> {
+    let studies: Vec<StudyRecord> = serde_json::from_reader(std::io::stdin().lock())?;
+    let stats = Stats::new(&studies);
+    serde_json::to_writer(std::io::stdout().lock(), &stats)?;
     Ok(())
 }

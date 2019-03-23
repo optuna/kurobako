@@ -16,3 +16,8 @@ pub struct ValueRange {
     pub min: f64,
     pub max: f64,
 }
+impl ValueRange {
+    pub fn normalize(self, v: f64) -> f64 {
+        (v - self.min) / (self.max - self.min)
+    }
+}

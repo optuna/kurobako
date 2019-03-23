@@ -15,9 +15,31 @@ pub mod optimizer_suites;
 pub mod problem_suites;
 pub mod problems;
 pub mod runner;
+pub mod stats;
 pub mod study;
 pub mod summary;
 pub mod time;
 pub mod trial;
 
 mod float;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Name(serde_json::Value);
+impl Name {
+    pub fn new(v: serde_json::Value) -> Self {
+        Name(v)
+    }
+}
+impl Eq for Name {}
+impl PartialOrd for Name {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for Name {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let a = serde_json::to_string(&self.0).expect("never fails");
+        let b = serde_json::to_string(&other.0).expect("never fails");
+        a.cmp(&b)
+    }
+}
