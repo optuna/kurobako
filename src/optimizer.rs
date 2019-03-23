@@ -110,7 +110,7 @@ impl Optimizer for TpeOptimizer {
     }
 }
 
-#[derive(Debug, StructOpt, Serialize, Deserialize)]
+#[derive(Debug, Default, StructOpt, Serialize, Deserialize)]
 pub struct TpeOptimizerBuilder {
     // TODO: options
 }
@@ -149,7 +149,7 @@ impl Optimizer for RandomOptimizer {
     fn tell(&mut self, _param: Self::Param, _value: Self::Value) {}
 }
 
-#[derive(Debug, StructOpt, Serialize, Deserialize)]
+#[derive(Debug, Default, StructOpt, Serialize, Deserialize)]
 pub struct RandomOptimizerBuilder {}
 impl OptimizerBuilder for RandomOptimizerBuilder {
     type Optimizer = RandomOptimizer;

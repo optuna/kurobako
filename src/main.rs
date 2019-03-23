@@ -3,6 +3,7 @@ extern crate structopt;
 
 use failure::Error;
 use kurobako::optimizer::OptimizerSpec;
+use kurobako::optimizer_suites::{BuiltinOptimizerSuite, OptimizerSuite};
 use kurobako::problem_suites::{BuiltinProblemSuite, ProblemSuite};
 use kurobako::problems::BuiltinProblemSpec;
 use kurobako::runner::{RunSpec, Runner};
@@ -14,6 +15,7 @@ use structopt::StructOpt as _;
 #[structopt(rename_all = "kebab-case")]
 enum Opt {
     Optimizer(OptimizerSpec),
+    OptimizerSuite(BuiltinOptimizerSuite),
     Problem(BuiltinProblemSpec),
     ProblemSuite(BuiltinProblemSuite),
     Run,
@@ -24,6 +26,9 @@ fn main() -> Result<(), Error> {
     let opt = Opt::from_args();
     match opt {
         Opt::Optimizer(o) => serde_json::to_writer(std::io::stdout().lock(), &o)?,
+        Opt::OptimizerSuite(o) => {
+            serde_json::to_writer(std::io::stdout().lock(), &o.suite().collect::<Vec<_>>())?
+        }
         Opt::Problem(p) => serde_json::to_writer(std::io::stdout().lock(), &p)?,
         Opt::ProblemSuite(p) => serde_json::to_writer(
             std::io::stdout().lock(),

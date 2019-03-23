@@ -26,7 +26,7 @@ impl Optimizer for OptunaOptimizer {
     }
 }
 
-#[derive(Debug, StructOpt, Serialize, Deserialize)]
+#[derive(Debug, Default, StructOpt, Serialize, Deserialize)]
 pub struct OptunaOptimizerBuilder {}
 impl OptimizerBuilder for OptunaOptimizerBuilder {
     type Optimizer = OptunaOptimizer;
