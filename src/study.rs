@@ -39,13 +39,15 @@ impl StudyRecord {
         })
     }
 
-    pub fn normalized_best_value(&self) -> f64 {
-        self.trials
+    pub fn best_score(&self) -> f64 {
+        let normalized_value = self
+            .trials
             .iter()
             .filter_map(|t| t.value())
             .min_by_key(|v| NonNanF64::new(*v))
             .map(|v| self.value_range.normalize(v))
-            .expect("TODO")
+            .expect("TODO");
+        1.0 - normalized_value
     }
 
     pub fn auc(&self) -> f64 {

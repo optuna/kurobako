@@ -22,9 +22,9 @@ impl StatsSummary {
         }
 
         for p in &stats.0 {
-            let (best, worst) = p.min_max(|o| o.best_value.avg);
-            map.get_mut(&best.optimizer).unwrap().best_value.bests += 1;
-            map.get_mut(&worst.optimizer).unwrap().best_value.worsts += 1;
+            let (worst, best) = p.min_max(|o| o.best_score.avg);
+            map.get_mut(&best.optimizer).unwrap().best_score.bests += 1;
+            map.get_mut(&worst.optimizer).unwrap().best_score.worsts += 1;
 
             let (worst, best) = p.min_max(|o| o.auc.avg);
             map.get_mut(&best.optimizer).unwrap().auc.bests += 1;
@@ -42,7 +42,7 @@ impl StatsSummary {
         writeln!(writer, "## Statistics Summary")?;
         writeln!(
             writer,
-            "| optimizer | Best Value (o/x) | AUC (o/x) | Latency (o/x) |"
+            "| optimizer | Best Score (o/x) | AUC (o/x) | Latency (o/x) |"
         )?;
         writeln!(
             writer,
@@ -53,8 +53,8 @@ impl StatsSummary {
                 writer,
                 "| {} | {:03}/{:03} | {:03}/{:03} | {:03}/{:03} |",
                 o.name.as_json(),
-                o.best_value.bests,
-                o.best_value.worsts,
+                o.best_score.bests,
+                o.best_score.worsts,
                 o.auc.bests,
                 o.auc.worsts,
                 o.latency.bests,
@@ -68,7 +68,7 @@ impl StatsSummary {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OptimizerSummary {
     pub name: Name,
-    pub best_value: VictoryStats,
+    pub best_score: VictoryStats,
     pub auc: VictoryStats,
     pub latency: VictoryStats,
 }
@@ -76,7 +76,7 @@ impl OptimizerSummary {
     fn new(name: Name) -> Self {
         Self {
             name,
-            best_value: VictoryStats::default(),
+            best_score: VictoryStats::default(),
             auc: VictoryStats::default(),
             latency: VictoryStats::default(),
         }
@@ -156,11 +156,11 @@ impl ProblemStats {
     }
 
     fn write_markdown<W: Write>(&self, mut writer: W) -> Fallible<()> {
-        writeln!(writer, "## Problem: {}", self.problem.as_json())?;
+        writeln!(writer, "### Problem: {}", self.problem.as_json())?;
         writeln!(writer)?;
         writeln!(
             writer,
-            "| Optimizer | Best Value (SD) | AUC (SD) | Latency (SD) |"
+            "| Optimizer | Best Score (SD) | AUC (SD) | Latency (SD) |"
         )?;
         writeln!(
             writer,
@@ -177,16 +177,13 @@ impl ProblemStats {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OptimizerStats {
     pub optimizer: Name,
-    pub best_value: BasicStats,
+    pub best_score: BasicStats,
     pub auc: BasicStats,
     pub latency: BasicStats,
 }
 impl OptimizerStats {
     fn new(name: &Name, studies: &[&StudyRecord]) -> Self {
-        let best_values = studies
-            .iter()
-            .map(|s| s.normalized_best_value())
-            .collect::<Vec<_>>();
+        let best_scores = studies.iter().map(|s| s.best_score()).collect::<Vec<_>>();
         let aucs = studies.iter().map(|s| s.auc()).collect::<Vec<_>>();
         let latencies = studies
             .iter()
@@ -195,7 +192,7 @@ impl OptimizerStats {
 
         Self {
             optimizer: name.clone(),
-            best_value: BasicStats::new(&best_values),
+            best_score: BasicStats::new(&best_scores),
             auc: BasicStats::new(&aucs),
             latency: BasicStats::new(&latencies),
         }
@@ -206,7 +203,7 @@ impl OptimizerStats {
         write!(
             writer,
             "| {:.3} ({:.3}) ",
-            self.best_value.avg, self.best_value.sd
+            self.best_score.avg, self.best_score.sd
         )?;
         write!(writer, "| {:.3} ({:.3}) ", self.auc.avg, self.auc.sd)?;
         write!(
