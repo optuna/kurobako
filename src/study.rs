@@ -5,6 +5,7 @@ use crate::trial::TrialRecord;
 use crate::ProblemSpec;
 use chrono::Local;
 use failure::Error;
+use kurobako_core::ValueRange;
 use serde_json::Value as JsonValue;
 use std::f64;
 
@@ -13,11 +14,17 @@ pub struct StudyRecord {
     pub optimizer: JsonValue, // TODO: OptimizerSpec
     pub problem: JsonValue,   // TODO: ProblemSpec
     pub budget: usize,
+    pub value_range: ValueRange,
     pub start_time: DateTime,
     pub trials: Vec<TrialRecord>,
 }
 impl StudyRecord {
-    pub fn new<O, P>(optimizer_builder: &O, problem: &P, budget: usize) -> Result<Self, Error>
+    pub fn new<O, P>(
+        optimizer_builder: &O,
+        problem: &P,
+        budget: usize,
+        value_range: ValueRange,
+    ) -> Result<Self, Error>
     where
         O: OptimizerBuilder,
         P: ProblemSpec,
@@ -26,6 +33,7 @@ impl StudyRecord {
             optimizer: serde_json::to_value(optimizer_builder)?,
             problem: serde_json::to_value(problem)?,
             budget,
+            value_range,
             start_time: Local::now(),
             trials: Vec::new(),
         })

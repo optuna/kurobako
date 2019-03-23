@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('name')
 parser.add_argument('dim', type=int)
 parser.add_argument('--int', type=int, nargs='*')
-parser.add_argument('--res', type=int)
+parser.add_argument('--res', type=float)
 
 args = parser.parse_args()
 
@@ -25,7 +25,7 @@ else:
 info = {
     "problem_space": [{"uniform": {"low": low, "high": high}} for low, high in test_function.bounds],
     "cost_hint": 1,
-    "value_range": {"mix": test_function.fmin, "max": test_function.fmax},
+    "value_range": {"min": float(test_function.fmin), "max": float(test_function.fmax)},
 }
 print(json.dumps(info))
 

@@ -34,7 +34,12 @@ impl<R: Rng> Runner<R> {
     {
         let mut problem = problem_spec.make_problem()?;
         let mut optimizer = optimizer_builder.build(&problem.problem_space())?;
-        let mut study_record = StudyRecord::new(optimizer_builder, problem_spec, budget)?;
+        let mut study_record = StudyRecord::new(
+            optimizer_builder,
+            problem_spec,
+            budget,
+            problem.value_range(),
+        )?;
         let watch = Stopwatch::new();
         for _ in 0..budget {
             let ask = AskRecord::with(&watch, || optimizer.ask(&mut self.rng));
@@ -53,9 +58,9 @@ impl<R: Rng> Runner<R> {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RunSpec {
-    pub optimizer: OptimizerSpec,
-    pub problem: BuiltinProblemSpec,
+#[derive(Debug)]
+pub struct RunSpec<'a> {
+    pub optimizer: &'a OptimizerSpec,
+    pub problem: &'a BuiltinProblemSpec,
     pub budget: usize,
 }

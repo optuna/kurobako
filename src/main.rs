@@ -7,7 +7,7 @@ use kurobako::optimizer::OptimizerSpec;
 use kurobako::optimizer_suites::{BuiltinOptimizerSuite, OptimizerSuite};
 use kurobako::problem_suites::{BuiltinProblemSuite, ProblemSuite};
 use kurobako::problems::BuiltinProblemSpec;
-use kurobako::runner::{RunSpec, Runner};
+use kurobako::runner::Runner;
 use kurobako::study::StudyRecord;
 use kurobako::summary::StudySummary;
 use structopt::StructOpt as _;
@@ -48,13 +48,14 @@ fn main() -> Result<(), Error> {
 }
 
 fn handle_run_command() -> Result<(), Error> {
-    let specs: Vec<RunSpec> = serde_json::from_reader(std::io::stdin().lock())?;
+    let benchmark_spec: BenchmarkSpec = serde_json::from_reader(std::io::stdin().lock())?;
 
     // TODO: `stream`
     let mut records = Vec::new();
-    for spec in specs {
+    for (i, spec) in benchmark_spec.run_specs().enumerate() {
+        eprintln!("# [{}/{}] {:?}", i + 1, benchmark_spec.len(), spec);
         let mut runner = Runner::new();
-        let record = runner.run(&spec.optimizer, &spec.problem, spec.budget)?;
+        let record = runner.run(spec.optimizer, spec.problem, spec.budget)?;
         records.push(record);
     }
     serde_json::to_writer(std::io::stdout().lock(), &records)?;
