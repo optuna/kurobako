@@ -1,6 +1,6 @@
 use crate::problems::BuiltinProblemSpec;
 use crate::ProblemSpec;
-use kurobako_sigopt::problems::sigopt::SigoptProblemSpec;
+use kurobako_problems::problems::sigopt::SigoptProblemSpec;
 
 pub trait ProblemSuite {
     type ProblemSpec: ProblemSpec;
@@ -37,7 +37,7 @@ impl ProblemSuite for SigoptProblemSuite {
     type ProblemSpec = SigoptProblemSpec;
 
     fn problem_specs(&self) -> Box<dyn Iterator<Item = Self::ProblemSpec>> {
-        use kurobako_sigopt::problems::sigopt::SigoptProblemSpec::*;
+        use kurobako_problems::problems::sigopt::SigoptProblemSpec::*;
         let specs = match self {
             SigoptProblemSuite::Nonparametric => vec![
                 Ackley { dim: 11, res: None },

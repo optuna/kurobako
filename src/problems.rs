@@ -1,7 +1,7 @@
 use crate::{Evaluate, Problem, ProblemSpace, ProblemSpec, ValueRange};
 use failure::Fallible;
 use kurobako_core::problems::command;
-use kurobako_sigopt::problems::sigopt;
+use kurobako_problems::problems::sigopt;
 use yamakan::budget::Budget;
 
 #[derive(Debug, StructOpt, Serialize, Deserialize)]
