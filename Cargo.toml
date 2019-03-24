@@ -1,6 +1,6 @@
 [package]
 name = "kurobako"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Takeru Ohta <phjgt308@gmail.com>"]
 edition = "2018"
 description = "A black-box optimization benchmarking framework"
@@ -17,7 +17,7 @@ codecov = {repository = "sile/kurobako"}
 chrono = { version = "0.4", features = ["serde"] }
 failure = "0.1"
 kurobako_core = { path = "kurobako_core", version = "0.0" }
-kurobako_problems = { path = "kurobako_problems" }
+kurobako_problems = { path = "kurobako_problems", version = "0.0" }
 rand = "0.6"
 serde = "1"
 serde_derive = "1"
