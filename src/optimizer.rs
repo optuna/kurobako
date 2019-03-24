@@ -123,7 +123,7 @@ fn default_ei_candidates() -> usize {
     24
 }
 
-#[derive(Debug, Default, StructOpt, Serialize, Deserialize)]
+#[derive(Debug, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
 #[serde(rename_all = "kebab-case")]
 pub struct TpeOptimizerBuilder {
@@ -134,6 +134,24 @@ pub struct TpeOptimizerBuilder {
     #[serde(skip_serializing_if = "is_false", default)]
     #[structopt(long)]
     pub prior_uniform: bool,
+
+    #[serde(skip_serializing_if = "is_false", default)]
+    #[structopt(long)]
+    pub uniform_sigma: bool,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[structopt(long)]
+    pub divide_factor: Option<f64>,
+}
+impl Default for TpeOptimizerBuilder {
+    fn default() -> Self {
+        Self {
+            ei_candidates: 24,
+            prior_uniform: false,
+            uniform_sigma: false,
+            divide_factor: None,
+        }
+    }
 }
 impl OptimizerBuilder for TpeOptimizerBuilder {
     type Optimizer = TpeOptimizer;
@@ -148,8 +166,13 @@ impl OptimizerBuilder for TpeOptimizerBuilder {
             .iter()
             .map(|d| {
                 let Distribution::Uniform { low, high } = *d;
-                let options = tpe::TpeOptions::default()
+                let mut pp = ::yamakan::optimizers::tpe::DefaultPreprocessor::default();
+                if let Some(x) = self.divide_factor {
+                    pp.divide_factor = x;
+                }
+                let options = tpe::TpeOptions::new(pp)
                     .prior_uniform(self.prior_uniform)
+                    .uniform_sigma(self.uniform_sigma)
                     .ei_candidates(NonZeroUsize::new(self.ei_candidates).expect("TODO"));
                 tpe::TpeNumericalOptimizer::with_options(F64 { low, high }, options)
             })
