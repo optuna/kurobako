@@ -23,16 +23,34 @@ impl StatsSummary {
 
         for p in &stats.0 {
             let (worst, best) = p.min_max(|o| o.best_score.avg);
-            map.get_mut(&best.optimizer).unwrap().best_score.bests += 1;
-            map.get_mut(&worst.optimizer).unwrap().best_score.worsts += 1;
+            for o in &p.optimizers {
+                if o.best_score.avg == worst.best_score.avg {
+                    map.get_mut(&o.optimizer).unwrap().best_score.worsts += 1;
+                }
+                if o.best_score.avg == best.best_score.avg {
+                    map.get_mut(&o.optimizer).unwrap().best_score.bests += 1;
+                }
+            }
 
             let (worst, best) = p.min_max(|o| o.auc.avg);
-            map.get_mut(&best.optimizer).unwrap().auc.bests += 1;
-            map.get_mut(&worst.optimizer).unwrap().auc.worsts += 1;
+            for o in &p.optimizers {
+                if o.auc.avg == worst.auc.avg {
+                    map.get_mut(&o.optimizer).unwrap().auc.worsts += 1;
+                }
+                if o.auc.avg == best.auc.avg {
+                    map.get_mut(&o.optimizer).unwrap().auc.bests += 1;
+                }
+            }
 
             let (best, worst) = p.min_max(|o| o.latency.avg);
-            map.get_mut(&best.optimizer).unwrap().latency.bests += 1;
-            map.get_mut(&worst.optimizer).unwrap().latency.worsts += 1;
+            for o in &p.optimizers {
+                if o.latency.avg == worst.latency.avg {
+                    map.get_mut(&o.optimizer).unwrap().latency.worsts += 1;
+                }
+                if o.latency.avg == best.latency.avg {
+                    map.get_mut(&o.optimizer).unwrap().latency.bests += 1;
+                }
+            }
         }
 
         Self(map.into_iter().map(|(_, v)| v).collect())
