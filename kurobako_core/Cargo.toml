@@ -1,8 +1,17 @@
 [package]
 name = "kurobako_core"
-version = "0.1.0"
+version = "0.0.1"
 authors = ["Takeru Ohta <phjgt308@gmail.com>"]
 edition = "2018"
+description = "Core crate for `kurobako`"
+homepage = "https://github.com/sile/kurobako"
+repository = "https://github.com/sile/kurobako"
+readme = "README.md"
+license = "MIT"
+
+[badges]
+travis-ci = {repository = "sile/kurobako"}
+codecov = {repository = "sile/kurobako"}
 
 [dependencies]
 failure = "0.1"
@@ -10,4 +19,4 @@ serde = "1"
 serde_derive = "1"
 serde_json = "1"
 structopt = "0.2"
-yamakan = { git = "git://github.com/sile/yamakan.git" }
+yamakan = "0.0"
