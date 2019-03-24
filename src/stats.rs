@@ -178,7 +178,7 @@ impl ProblemStats {
         writeln!(writer)?;
         writeln!(
             writer,
-            "| Optimizer | Best Score (SD) | AUC (SD) | Latency (SD) |"
+            "| Optimizer | Best Score (SD) | AUC (SD) | Latency |"
         )?;
         writeln!(
             writer,
@@ -224,11 +224,7 @@ impl OptimizerStats {
             self.best_score.avg, self.best_score.sd
         )?;
         write!(writer, "| {:.3} ({:.3}) ", self.auc.avg, self.auc.sd)?;
-        write!(
-            writer,
-            "| {:.6} ({:.6}) ",
-            self.latency.avg, self.latency.sd
-        )?;
+        write!(writer, "| {:.6} ", self.latency.avg)?;
         writeln!(writer, "|")?;
         Ok(())
     }
