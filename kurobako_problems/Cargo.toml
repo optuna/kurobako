@@ -1,8 +1,17 @@
 [package]
 name = "kurobako_problems"
-version = "0.1.0"
+version = "0.0.1"
 authors = ["Takeru Ohta <phjgt308@gmail.com>"]
 edition = "2018"
+description = "A collection of black-box optimization problems"
+homepage = "https://github.com/sile/kurobako"
+repository = "https://github.com/sile/kurobako"
+readme = "README.md"
+license = "MIT"
+
+[badges]
+travis-ci = {repository = "sile/kurobako"}
+codecov = {repository = "sile/kurobako"}
 
 [dependencies]
 failure = "0.1"
