@@ -30,6 +30,9 @@ enum Opt {
 #[structopt(rename_all = "kebab-case")]
 struct StatsOpt {
     #[structopt(long)]
+    stream: bool,
+
+    #[structopt(long)]
     format: OutputFormat,
 
     #[structopt(long, raw(possible_values = "&[\"json\", \"markdown\"]"))]

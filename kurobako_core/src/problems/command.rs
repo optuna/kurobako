@@ -87,7 +87,9 @@ impl Problem for CommandProblem {
 }
 impl Drop for CommandProblem {
     fn drop(&mut self) {
-        let _ = self.child.kill();
+        if self.child.kill().is_ok() {
+            let _ = self.child.wait(); // for preventing the child process becomes a zombie.
+        }
     }
 }
 
