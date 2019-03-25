@@ -13,9 +13,11 @@ use yamakan::spaces::F64;
 use yamakan::Optimizer;
 
 pub use self::external_command::{ExternalCommandOptimizer, ExternalCommandOptimizerBuilder};
+pub use self::gpyopt::{GpyoptOptimizer, GpyoptOptimizerBuilder};
 pub use self::optuna::{OptunaOptimizer, OptunaOptimizerBuilder};
 
 mod external_command;
+mod gpyopt;
 mod optuna;
 
 pub trait OptimizerBuilder: StructOpt + Serialize + for<'a> Deserialize<'a> {
@@ -32,6 +34,7 @@ pub enum OptimizerSpec {
     Random(RandomOptimizerBuilder),
     Tpe(TpeOptimizerBuilder),
     Optuna(OptunaOptimizerBuilder),
+    Gpyopt(GpyoptOptimizerBuilder),
     Command(ExternalCommandOptimizerBuilder),
 }
 impl OptimizerBuilder for OptimizerSpec {
@@ -42,6 +45,7 @@ impl OptimizerBuilder for OptimizerSpec {
             OptimizerSpec::Random(x) => x.optimizer_name(),
             OptimizerSpec::Tpe(x) => x.optimizer_name(),
             OptimizerSpec::Optuna(x) => x.optimizer_name(),
+            OptimizerSpec::Gpyopt(x) => x.optimizer_name(),
             OptimizerSpec::Command(x) => x.optimizer_name(),
         }
     }
@@ -51,6 +55,7 @@ impl OptimizerBuilder for OptimizerSpec {
             OptimizerSpec::Random(x) => x.build(problem_space).map(UnionOptimizer::Random),
             OptimizerSpec::Tpe(x) => x.build(problem_space).map(UnionOptimizer::Tpe),
             OptimizerSpec::Optuna(x) => x.build(problem_space).map(UnionOptimizer::Optuna),
+            OptimizerSpec::Gpyopt(x) => x.build(problem_space).map(UnionOptimizer::Gpyopt),
             OptimizerSpec::Command(x) => x.build(problem_space).map(UnionOptimizer::Command),
         }
     }
@@ -62,6 +67,7 @@ pub enum UnionOptimizer {
     Random(RandomOptimizer),
     Tpe(TpeOptimizer),
     Optuna(OptunaOptimizer),
+    Gpyopt(GpyoptOptimizer),
     Command(ExternalCommandOptimizer),
 }
 impl Optimizer for UnionOptimizer {
@@ -73,6 +79,7 @@ impl Optimizer for UnionOptimizer {
             UnionOptimizer::Random(x) => x.ask(rng),
             UnionOptimizer::Tpe(x) => x.ask(rng),
             UnionOptimizer::Optuna(x) => x.ask(rng),
+            UnionOptimizer::Gpyopt(x) => x.ask(rng),
             UnionOptimizer::Command(x) => x.ask(rng),
         }
     }
@@ -82,6 +89,7 @@ impl Optimizer for UnionOptimizer {
             UnionOptimizer::Random(x) => x.tell(param, value),
             UnionOptimizer::Tpe(x) => x.tell(param, value),
             UnionOptimizer::Optuna(x) => x.tell(param, value),
+            UnionOptimizer::Gpyopt(x) => x.tell(param, value),
             UnionOptimizer::Command(x) => x.tell(param, value),
         }
     }

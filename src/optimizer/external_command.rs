@@ -24,7 +24,8 @@ impl Optimizer for ExternalCommandOptimizer {
         self.stdout
             .read_line(&mut line)
             .unwrap_or_else(|e| panic!(e));
-        let params = serde_json::from_str(&line).unwrap_or_else(|e| panic!(e));
+        let params =
+            serde_json::from_str(&line).unwrap_or_else(|e| panic!("JSON: {}, Error: {}", line, e));
         params
     }
 
