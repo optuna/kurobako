@@ -51,18 +51,25 @@ impl StudyRecord {
     }
 
     pub fn auc(&self) -> f64 {
+        // TODO: Handle budgets granularity instead trials
         let mut vs = Vec::new();
         for v in self
             .trials
             .iter()
             .filter_map(|t| t.value())
-            .map(|v| self.value_range.normalize(v))
+            .map(|v| 1.0 - self.value_range.normalize(v))
         {
-            if vs.is_empty() || Some(&v) < vs.last() {
+            if let Some(&last) = vs.last() {
+                if last < v {
+                    vs.push(v);
+                } else {
+                    vs.push(last);
+                }
+            } else {
                 vs.push(v);
             }
         }
-        (vs.len() as f64 - vs.iter().sum::<f64>()) / (vs.len() as f64)
+        vs.iter().sum::<f64>() / (vs.len() as f64)
     }
 
     pub fn ack_latencies<'a>(&'a self) -> impl Iterator<Item = f64> + 'a {
