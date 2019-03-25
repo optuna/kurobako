@@ -5,13 +5,13 @@ use rand::Rng;
 use std::fs;
 use std::io::Write as _;
 use structopt::StructOpt;
-use tempfile::NamedTempFile;
+use tempfile::{NamedTempFile, TempPath};
 use yamakan::Optimizer;
 
 #[derive(Debug)]
 pub struct OptunaOptimizer {
     inner: ExternalCommandOptimizer,
-    tempfile: NamedTempFile,
+    temp: TempPath,
 }
 impl Optimizer for OptunaOptimizer {
     type Param = Vec<f64>;
@@ -39,21 +39,21 @@ impl OptimizerBuilder for OptunaOptimizerBuilder {
         let python_code = include_str!("../../contrib/optimizers/optuna_optimizer.py");
         let mut temp = NamedTempFile::new()?;
         write!(temp.as_file_mut(), "{}", python_code)?;
+        let temp = temp.into_temp_path();
 
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt as _;
-            fs::set_permissions(temp.path(), fs::Permissions::from_mode(0o755))?;
+            fs::set_permissions(&temp, fs::Permissions::from_mode(0o755))?;
         }
 
         let builder = ExternalCommandOptimizerBuilder {
-            name: temp.path().to_path_buf(),
+            name: temp.to_path_buf(),
             args: vec![],
         };
 
-        builder.build(problem_space).map(|inner| OptunaOptimizer {
-            inner,
-            tempfile: temp,
-        })
+        builder
+            .build(problem_space)
+            .map(|inner| OptunaOptimizer { inner, temp })
     }
 }

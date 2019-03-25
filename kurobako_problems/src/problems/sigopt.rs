@@ -4,7 +4,7 @@ use kurobako_core::problems::command::{CommandEvaluator, CommandProblem, Command
 use kurobako_core::ValueRange;
 use std::fs;
 use std::io::Write as _;
-use tempfile::NamedTempFile;
+use tempfile::{NamedTempFile, TempPath};
 use yamakan::budget::Budget;
 
 macro_rules! define_sigopt_problem_spec {
@@ -244,10 +244,11 @@ impl ProblemSpec for SigoptProblemSpec {
 
         let mut temp = NamedTempFile::new()?;
         write!(temp.as_file_mut(), "{}", python_code)?;
+        let temp = temp.into_temp_path();
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt as _;
-            fs::set_permissions(temp.path(), fs::Permissions::from_mode(0o755))?;
+            fs::set_permissions(&temp, fs::Permissions::from_mode(0o755))?;
         }
 
         let mut args = vec![self.name().to_owned(), self.dim().to_string()];
@@ -256,13 +257,13 @@ impl ProblemSpec for SigoptProblemSpec {
         }
 
         let spec = CommandProblemSpec {
-            path: temp.path().to_path_buf(),
+            path: temp.to_path_buf(),
             args,
         };
 
         Ok(SigoptProblem {
             inner: spec.make_problem()?,
-            tempfile: temp,
+            temp,
         })
     }
 }
@@ -270,7 +271,7 @@ impl ProblemSpec for SigoptProblemSpec {
 #[derive(Debug)]
 pub struct SigoptProblem {
     inner: CommandProblem,
-    tempfile: NamedTempFile,
+    temp: TempPath,
 }
 impl Problem for SigoptProblem {
     type Evaluator = SigoptEvaluator;
