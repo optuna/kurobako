@@ -22,7 +22,6 @@ mod optuna;
 pub trait OptimizerBuilder: StructOpt + Serialize + for<'a> Deserialize<'a> {
     type Optimizer: Optimizer<Param = Vec<f64>, Value = f64>;
 
-    fn optimizer_name(&self) -> &str;
     fn build(&self, problem_space: &ProblemSpace) -> Result<Self::Optimizer, Error>;
 }
 
@@ -38,16 +37,6 @@ pub enum OptimizerSpec {
 }
 impl OptimizerBuilder for OptimizerSpec {
     type Optimizer = UnionOptimizer;
-
-    fn optimizer_name(&self) -> &str {
-        match self {
-            OptimizerSpec::RandomNormal(x) => x.optimizer_name(),
-            OptimizerSpec::Tpe(x) => x.optimizer_name(),
-            OptimizerSpec::Optuna(x) => x.optimizer_name(),
-            OptimizerSpec::Gpyopt(x) => x.optimizer_name(),
-            OptimizerSpec::Command(x) => x.optimizer_name(),
-        }
-    }
 
     fn build(&self, problem_space: &ProblemSpace) -> Result<Self::Optimizer, Error> {
         match self {
@@ -163,10 +152,6 @@ impl Default for TpeOptimizerBuilder {
 impl OptimizerBuilder for TpeOptimizerBuilder {
     type Optimizer = TpeOptimizer;
 
-    fn optimizer_name(&self) -> &str {
-        "TPE"
-    }
-
     fn build(&self, problem_space: &ProblemSpace) -> Result<Self::Optimizer, Error> {
         let inner = problem_space
             .distributions()
@@ -207,10 +192,6 @@ impl Optimizer for RandomOptimizer {
 pub struct RandomOptimizerBuilder {}
 impl OptimizerBuilder for RandomOptimizerBuilder {
     type Optimizer = RandomOptimizer;
-
-    fn optimizer_name(&self) -> &str {
-        "random"
-    }
 
     fn build(&self, problem_space: &ProblemSpace) -> Result<Self::Optimizer, Error> {
         let inner = problem_space

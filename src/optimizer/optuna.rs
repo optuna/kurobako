@@ -30,10 +30,6 @@ pub struct OptunaOptimizerBuilder {}
 impl OptimizerBuilder for OptunaOptimizerBuilder {
     type Optimizer = OptunaOptimizer;
 
-    fn optimizer_name(&self) -> &str {
-        "optuna"
-    }
-
     fn build(&self, problem_space: &ProblemSpace) -> Result<Self::Optimizer, Error> {
         let python_code = include_str!("../../contrib/optimizers/optuna_optimizer.py");
         let mut temp = NamedTempFile::new()?;

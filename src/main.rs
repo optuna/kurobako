@@ -31,13 +31,14 @@ enum Opt {
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 struct StatsOpt {
-    #[structopt(long)]
-    stream: bool,
-
-    #[structopt(long)]
+    #[structopt(
+        long,
+        default_value = "json",
+        raw(possible_values = "&[\"json\", \"markdown\"]")
+    )]
     format: OutputFormat,
 
-    #[structopt(long, raw(possible_values = "&[\"json\", \"markdown\"]"))]
+    #[structopt(long)]
     summary: bool,
 }
 
@@ -102,15 +103,15 @@ fn main() -> trackable::result::MainResult {
 fn handle_run_command() -> Result<()> {
     let benchmark_spec: BenchmarkSpec = serde_json::from_reader(std::io::stdin().lock())?;
 
-    // TODO: `stream`
-    let mut records = Vec::new();
+    let stdout = std::io::stdout();
+    let mut stdout = stdout.lock();
     for (i, spec) in benchmark_spec.run_specs().enumerate() {
         eprintln!("# [{}/{}] {:?}", i + 1, benchmark_spec.len(), spec);
         let mut runner = Runner::new();
         let record = runner.run(spec.optimizer, spec.problem, spec.budget)?;
-        records.push(record);
+        track!(serde_json::to_writer(&mut stdout, &record).map_err(Error::from))?;
+        println!();
     }
-    serde_json::to_writer(std::io::stdout().lock(), &records)?;
     Ok(())
 }
 
@@ -125,15 +126,11 @@ fn handle_summary_command() -> Result<()> {
 }
 
 fn handle_stats_command(opt: StatsOpt) -> Result<()> {
-    let mut studies: Vec<StudyRecord> = serde_json::from_reader(std::io::stdin().lock())?;
-    let mut i = 0;
-    while i < studies.len() {
-        let o = studies[i].optimizer.as_json().as_object().unwrap();
-        if o.contains_key("random") || o.contains_key("random-normal") {
-            i += 1;
-        } else {
-            studies.swap_remove(i);
-        }
+    let stdin = std::io::stdin();
+    let mut studies = Vec::new();
+    for study in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
+        let study = track!(study.map_err(Error::from))?;
+        studies.push(study);
     }
 
     let stats = Stats::new(&studies);

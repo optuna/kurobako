@@ -5,11 +5,10 @@ extern crate structopt;
 #[macro_use]
 extern crate trackable;
 
-pub use kurobako_core::{Error, ErrorKind, Result};
-
 pub use kurobako_core::distribution;
 pub use kurobako_core::problem::{Evaluate, Problem, ProblemSpace, ProblemSpec};
 pub use kurobako_core::ValueRange;
+pub use kurobako_core::{Error, ErrorKind, Result};
 
 pub mod benchmark;
 pub mod optimizer;

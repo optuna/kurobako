@@ -30,10 +30,6 @@ pub struct GpyoptOptimizerBuilder {}
 impl OptimizerBuilder for GpyoptOptimizerBuilder {
     type Optimizer = GpyoptOptimizer;
 
-    fn optimizer_name(&self) -> &str {
-        "gpyopt"
-    }
-
     fn build(&self, problem_space: &ProblemSpace) -> Result<Self::Optimizer> {
         let python_code = include_str!("../../contrib/optimizers/gpyopt_optimizer.py");
         let mut temp = track!(NamedTempFile::new().map_err(Error::from))?;

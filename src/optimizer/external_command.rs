@@ -2,29 +2,34 @@ use super::OptimizerBuilder;
 use crate::{Error, ErrorKind, ProblemSpace};
 use rand::Rng;
 use serde_json::{self, json};
-use std::io::{BufRead as _, BufReader, Write as _};
+use std::fmt;
+use std::io::{BufReader, Write as _};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use structopt::StructOpt;
 use yamakan::Optimizer;
 
-#[derive(Debug)]
+// #[derive(Debug)]
 pub struct ExternalCommandOptimizer {
     child: Child,
     stdin: ChildStdin,
-    stdout: BufReader<ChildStdout>,
+    stdout: serde_json::StreamDeserializer<
+        'static,
+        serde_json::de::IoRead<BufReader<ChildStdout>>,
+        Vec<f64>,
+    >,
+}
+impl fmt::Debug for ExternalCommandOptimizer {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ExternalCommandOptimizer {{ .. }}")
+    }
 }
 impl Optimizer for ExternalCommandOptimizer {
     type Param = Vec<f64>;
     type Value = f64;
 
     fn ask<R: Rng>(&mut self, _rng: &mut R) -> Self::Param {
-        let mut line = String::new();
-        self.stdout
-            .read_line(&mut line)
-            .unwrap_or_else(|e| panic!(e));
-        let params =
-            serde_json::from_str(&line).unwrap_or_else(|e| panic!("JSON: {}, Error: {}", line, e));
+        let params = self.stdout.next().expect("TODO").expect("TODO");
         params
     }
 
@@ -50,27 +55,23 @@ pub struct ExternalCommandOptimizerBuilder {
 impl OptimizerBuilder for ExternalCommandOptimizerBuilder {
     type Optimizer = ExternalCommandOptimizer;
 
-    fn optimizer_name(&self) -> &str {
-        self.name.file_stem().expect("TODO").to_str().expect("TODO")
-    }
-
     fn build(&self, problem_space: &ProblemSpace) -> Result<Self::Optimizer, Error> {
-        let mut child = Command::new(&self.name)
+        let mut child = track!(Command::new(&self.name)
             .args(&self.args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            //            .stderr(Stdio::piped())
-            .spawn()?;
+            .spawn()
+            .map_err(Error::from))?;
 
         let mut stdin = track_assert_some!(child.stdin.take(), ErrorKind::IoError);
-        serde_json::to_writer(&mut stdin, problem_space)?;
-        writeln!(&mut stdin)?;
+        track!(serde_json::to_writer(&mut stdin, problem_space).map_err(Error::from))?;
+        track!(writeln!(&mut stdin).map_err(Error::from))?;
 
         let stdout = track_assert_some!(child.stdout.take(), ErrorKind::InvalidInput);
         Ok(ExternalCommandOptimizer {
             child,
             stdin,
-            stdout: BufReader::new(stdout),
+            stdout: serde_json::Deserializer::from_reader(BufReader::new(stdout)).into_iter(),
         })
     }
 }
