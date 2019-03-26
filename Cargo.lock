@@ -84,7 +84,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "kurobako"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "kurobako_core 0.0.2",
