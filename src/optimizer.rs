@@ -1,7 +1,6 @@
 use crate::distribution::Distribution;
 use crate::float::NonNanF64;
-use crate::ProblemSpace;
-use failure::Error;
+use crate::{Error, ProblemSpace};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::num::NonZeroUsize;
@@ -31,7 +30,7 @@ pub trait OptimizerBuilder: StructOpt + Serialize + for<'a> Deserialize<'a> {
 #[structopt(rename_all = "kebab-case")]
 #[serde(rename_all = "kebab-case")]
 pub enum OptimizerSpec {
-    Random(RandomOptimizerBuilder),
+    RandomNormal(RandomOptimizerBuilder),
     Tpe(TpeOptimizerBuilder),
     Optuna(OptunaOptimizerBuilder),
     Gpyopt(GpyoptOptimizerBuilder),
@@ -42,7 +41,7 @@ impl OptimizerBuilder for OptimizerSpec {
 
     fn optimizer_name(&self) -> &str {
         match self {
-            OptimizerSpec::Random(x) => x.optimizer_name(),
+            OptimizerSpec::RandomNormal(x) => x.optimizer_name(),
             OptimizerSpec::Tpe(x) => x.optimizer_name(),
             OptimizerSpec::Optuna(x) => x.optimizer_name(),
             OptimizerSpec::Gpyopt(x) => x.optimizer_name(),
@@ -52,7 +51,7 @@ impl OptimizerBuilder for OptimizerSpec {
 
     fn build(&self, problem_space: &ProblemSpace) -> Result<Self::Optimizer, Error> {
         match self {
-            OptimizerSpec::Random(x) => x.build(problem_space).map(UnionOptimizer::Random),
+            OptimizerSpec::RandomNormal(x) => x.build(problem_space).map(UnionOptimizer::Random),
             OptimizerSpec::Tpe(x) => x.build(problem_space).map(UnionOptimizer::Tpe),
             OptimizerSpec::Optuna(x) => x.build(problem_space).map(UnionOptimizer::Optuna),
             OptimizerSpec::Gpyopt(x) => x.build(problem_space).map(UnionOptimizer::Gpyopt),

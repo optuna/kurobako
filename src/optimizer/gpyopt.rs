@@ -1,6 +1,5 @@
 use super::{ExternalCommandOptimizer, ExternalCommandOptimizerBuilder, OptimizerBuilder};
-use crate::ProblemSpace;
-use failure::Error;
+use crate::{Error, ProblemSpace, Result};
 use rand::Rng;
 use std::fs;
 use std::io::Write as _;
@@ -35,16 +34,18 @@ impl OptimizerBuilder for GpyoptOptimizerBuilder {
         "gpyopt"
     }
 
-    fn build(&self, problem_space: &ProblemSpace) -> Result<Self::Optimizer, Error> {
+    fn build(&self, problem_space: &ProblemSpace) -> Result<Self::Optimizer> {
         let python_code = include_str!("../../contrib/optimizers/gpyopt_optimizer.py");
-        let mut temp = NamedTempFile::new()?;
-        write!(temp.as_file_mut(), "{}", python_code)?;
+        let mut temp = track!(NamedTempFile::new().map_err(Error::from))?;
+        track!(write!(temp.as_file_mut(), "{}", python_code).map_err(Error::from))?;
 
         let temp = temp.into_temp_path();
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt as _;
-            fs::set_permissions(&temp, fs::Permissions::from_mode(0o755))?;
+            track!(
+                fs::set_permissions(&temp, fs::Permissions::from_mode(0o755)).map_err(Error::from)
+            )?;
         }
 
         let builder = ExternalCommandOptimizerBuilder {
@@ -52,8 +53,6 @@ impl OptimizerBuilder for GpyoptOptimizerBuilder {
             args: vec![],
         };
 
-        builder
-            .build(problem_space)
-            .map(|inner| GpyoptOptimizer { inner, temp })
+        track!(builder.build(problem_space)).map(|inner| GpyoptOptimizer { inner, temp })
     }
 }

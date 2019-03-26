@@ -1,9 +1,9 @@
-use failure::Fallible;
+use crate::Result;
 use serde::Deserialize;
 use serde_json;
 use std::io::BufRead;
 
-pub fn from_reader<R, T>(mut reader: R) -> Fallible<T>
+pub fn from_reader<R, T>(mut reader: R) -> Result<T>
 where
     R: BufRead,
     T: for<'a> Deserialize<'a>,

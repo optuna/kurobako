@@ -1,7 +1,6 @@
 use crate::problem::{Evaluate, Problem, ProblemSpace, ProblemSpec};
 use crate::serde_json_line;
-use crate::ValueRange;
-use failure::Fallible;
+use crate::{Error, ErrorKind, Result, ValueRange};
 use std::cell::RefCell;
 use std::io::{BufReader, Write as _};
 use std::path::PathBuf;
@@ -17,21 +16,17 @@ pub struct CommandProblemSpec {
 impl ProblemSpec for CommandProblemSpec {
     type Problem = CommandProblem;
 
-    fn make_problem(&self) -> Fallible<Self::Problem> {
+    fn make_problem(&self) -> Result<Self::Problem> {
         let mut child = Command::new(&self.path)
             .args(&self.args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()?;
 
-        let stdin = child.stdin.take().ok_or_else(|| format_err!("No stdin"))?;
-        let mut stdout = BufReader::new(
-            child
-                .stdout
-                .take()
-                .ok_or_else(|| format_err!("No stdout"))?,
-        );
-        let info: ProblemInfo = serde_json_line::from_reader(&mut stdout)?;
+        let stdin = track_assert_some!(child.stdin.take(), ErrorKind::IoError);
+        let mut stdout =
+            BufReader::new(track_assert_some!(child.stdout.take(), ErrorKind::IoError));
+        let info: ProblemInfo = track!(serde_json_line::from_reader(&mut stdout))?;
         Ok(CommandProblem {
             info,
             child,
@@ -65,7 +60,7 @@ impl Problem for CommandProblem {
         self.info.value_range
     }
 
-    fn make_evaluator(&mut self, params: &[f64]) -> Fallible<Self::Evaluator> {
+    fn make_evaluator(&mut self, params: &[f64]) -> Result<Self::Evaluator> {
         let m = StartEvalMessage {
             kind: "start_eval",
             eval_id: self.next_eval_id,
@@ -73,11 +68,8 @@ impl Problem for CommandProblem {
         };
         self.next_eval_id += 1;
 
-        writeln!(
-            &mut *self.stdin.borrow_mut(),
-            "{}",
-            serde_json::to_string(&m)?
-        )?;
+        let json = track!(serde_json::to_string(&m).map_err(Error::from))?;
+        track!(writeln!(&mut *self.stdin.borrow_mut(), "{}", json).map_err(Error::from))?;
         Ok(CommandEvaluator {
             eval_id: m.eval_id,
             stdin: self.stdin.clone(),
@@ -100,7 +92,7 @@ pub struct CommandEvaluator {
     stdout: Rc<RefCell<BufReader<ChildStdout>>>,
 }
 impl Evaluate for CommandEvaluator {
-    fn evaluate(&mut self, budget: &mut Budget) -> Fallible<f64> {
+    fn evaluate(&mut self, budget: &mut Budget) -> Result<f64> {
         let m = EvalReqMessage {
             kind: "eval",
             eval_id: self.eval_id,

@@ -1,7 +1,8 @@
 #[macro_use]
 extern crate structopt;
+#[macro_use]
+extern crate trackable;
 
-use failure::{bail, Error};
 use kurobako::benchmark::BenchmarkSpec;
 use kurobako::optimizer::OptimizerSpec;
 use kurobako::optimizer_suites::{BuiltinOptimizerSuite, OptimizerSuite};
@@ -11,6 +12,7 @@ use kurobako::runner::Runner;
 use kurobako::stats::{Stats, StatsSummary};
 use kurobako::study::StudyRecord;
 use kurobako::summary::StudySummary;
+use kurobako::{Error, ErrorKind, Result};
 use structopt::StructOpt as _;
 
 #[derive(Debug, StructOpt)]
@@ -53,28 +55,37 @@ impl Default for OutputFormat {
 impl std::str::FromStr for OutputFormat {
     type Err = Error;
 
-    fn from_str(s: &str) -> Result<Self, Error> {
+    fn from_str(s: &str) -> Result<Self> {
         match s {
             "json" => Ok(OutputFormat::Json),
             "markdown" => Ok(OutputFormat::Markdown),
-            _ => bail!("Uknown output format: {:?}", s),
+            _ => track_panic!(ErrorKind::Other, "Uknown output format: {:?}", s),
         }
     }
 }
 
-fn main() -> Result<(), Error> {
+fn main() -> trackable::result::MainResult {
     let opt = Opt::from_args();
     match opt {
-        Opt::Optimizer(o) => serde_json::to_writer(std::io::stdout().lock(), &o)?,
-        Opt::OptimizerSuite(o) => {
-            serde_json::to_writer(std::io::stdout().lock(), &o.suite().collect::<Vec<_>>())?
+        Opt::Optimizer(o) => {
+            track!(serde_json::to_writer(std::io::stdout().lock(), &o).map_err(Error::from))?
         }
-        Opt::Problem(p) => serde_json::to_writer(std::io::stdout().lock(), &p)?,
-        Opt::ProblemSuite(p) => serde_json::to_writer(
+        Opt::OptimizerSuite(o) => track!(serde_json::to_writer(
+            std::io::stdout().lock(),
+            &o.suite().collect::<Vec<_>>()
+        )
+        .map_err(Error::from))?,
+        Opt::Problem(p) => {
+            track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?
+        }
+        Opt::ProblemSuite(p) => track!(serde_json::to_writer(
             std::io::stdout().lock(),
             &p.problem_specs().collect::<Vec<_>>(),
-        )?,
-        Opt::Benchmark(b) => serde_json::to_writer(std::io::stdout().lock(), &b)?,
+        )
+        .map_err(Error::from))?,
+        Opt::Benchmark(b) => {
+            track!(serde_json::to_writer(std::io::stdout().lock(), &b).map_err(Error::from))?
+        }
         Opt::Run => {
             handle_run_command()?;
         }
@@ -88,7 +99,7 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn handle_run_command() -> Result<(), Error> {
+fn handle_run_command() -> Result<()> {
     let benchmark_spec: BenchmarkSpec = serde_json::from_reader(std::io::stdin().lock())?;
 
     // TODO: `stream`
@@ -103,7 +114,7 @@ fn handle_run_command() -> Result<(), Error> {
     Ok(())
 }
 
-fn handle_summary_command() -> Result<(), Error> {
+fn handle_summary_command() -> Result<()> {
     let studies: Vec<StudyRecord> = serde_json::from_reader(std::io::stdin().lock())?;
     let mut summaries = Vec::new();
     for study in studies {
@@ -113,8 +124,18 @@ fn handle_summary_command() -> Result<(), Error> {
     Ok(())
 }
 
-fn handle_stats_command(opt: StatsOpt) -> Result<(), Error> {
-    let studies: Vec<StudyRecord> = serde_json::from_reader(std::io::stdin().lock())?;
+fn handle_stats_command(opt: StatsOpt) -> Result<()> {
+    let mut studies: Vec<StudyRecord> = serde_json::from_reader(std::io::stdin().lock())?;
+    let mut i = 0;
+    while i < studies.len() {
+        let o = studies[i].optimizer.as_json().as_object().unwrap();
+        if o.contains_key("random") || o.contains_key("random-normal") {
+            i += 1;
+        } else {
+            studies.swap_remove(i);
+        }
+    }
+
     let stats = Stats::new(&studies);
     if opt.summary {
         let summary = StatsSummary::new(&stats);

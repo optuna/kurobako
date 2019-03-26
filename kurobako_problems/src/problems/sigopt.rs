@@ -1,4 +1,4 @@
-use failure::Fallible;
+use crate::{Error, Result};
 use kurobako_core::problem::{Evaluate, Problem, ProblemSpace, ProblemSpec};
 use kurobako_core::problems::command::{CommandEvaluator, CommandProblem, CommandProblemSpec};
 use kurobako_core::ValueRange;
@@ -239,16 +239,18 @@ define_sigopt_problem_spec!(
 impl ProblemSpec for SigoptProblemSpec {
     type Problem = SigoptProblem;
 
-    fn make_problem(&self) -> Fallible<Self::Problem> {
+    fn make_problem(&self) -> Result<Self::Problem> {
         let python_code = include_str!("../../contrib/sigopt_problem.py");
 
-        let mut temp = NamedTempFile::new()?;
-        write!(temp.as_file_mut(), "{}", python_code)?;
+        let mut temp = track!(NamedTempFile::new().map_err(Error::from))?;
+        track!(write!(temp.as_file_mut(), "{}", python_code).map_err(Error::from))?;
         let temp = temp.into_temp_path();
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt as _;
-            fs::set_permissions(&temp, fs::Permissions::from_mode(0o755))?;
+            track!(
+                fs::set_permissions(&temp, fs::Permissions::from_mode(0o755)).map_err(Error::from)
+            )?;
         }
 
         let mut args = vec![self.name().to_owned(), self.dim().to_string()];
@@ -261,10 +263,8 @@ impl ProblemSpec for SigoptProblemSpec {
             args,
         };
 
-        Ok(SigoptProblem {
-            inner: spec.make_problem()?,
-            temp,
-        })
+        let inner = track!(spec.make_problem())?;
+        Ok(SigoptProblem { inner, temp })
     }
 }
 
@@ -288,10 +288,9 @@ impl Problem for SigoptProblem {
         self.inner.value_range()
     }
 
-    fn make_evaluator(&mut self, params: &[f64]) -> Fallible<Self::Evaluator> {
-        Ok(SigoptEvaluator {
-            inner: self.inner.make_evaluator(params)?,
-        })
+    fn make_evaluator(&mut self, params: &[f64]) -> Result<Self::Evaluator> {
+        let inner = track!(self.inner.make_evaluator(params))?;
+        Ok(SigoptEvaluator { inner })
     }
 }
 
@@ -300,7 +299,7 @@ pub struct SigoptEvaluator {
     inner: CommandEvaluator,
 }
 impl Evaluate for SigoptEvaluator {
-    fn evaluate(&mut self, budget: &mut Budget) -> Fallible<f64> {
-        self.inner.evaluate(budget)
+    fn evaluate(&mut self, budget: &mut Budget) -> Result<f64> {
+        track!(self.inner.evaluate(budget))
     }
 }

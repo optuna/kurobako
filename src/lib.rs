@@ -1,9 +1,11 @@
 #[macro_use]
-extern crate failure;
-#[macro_use]
 extern crate serde_derive;
 #[macro_use]
 extern crate structopt;
+#[macro_use]
+extern crate trackable;
+
+pub use kurobako_core::{Error, ErrorKind, Result};
 
 pub use kurobako_core::distribution;
 pub use kurobako_core::problem::{Evaluate, Problem, ProblemSpace, ProblemSpec};

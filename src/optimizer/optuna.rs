@@ -1,6 +1,5 @@
 use super::{ExternalCommandOptimizer, ExternalCommandOptimizerBuilder, OptimizerBuilder};
-use crate::ProblemSpace;
-use failure::Error;
+use crate::{Error, ProblemSpace};
 use rand::Rng;
 use std::fs;
 use std::io::Write as _;

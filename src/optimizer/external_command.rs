@@ -1,6 +1,5 @@
 use super::OptimizerBuilder;
-use crate::ProblemSpace;
-use failure::Error;
+use crate::{Error, ErrorKind, ProblemSpace};
 use rand::Rng;
 use serde_json::{self, json};
 use std::io::{BufRead as _, BufReader, Write as _};
@@ -63,14 +62,11 @@ impl OptimizerBuilder for ExternalCommandOptimizerBuilder {
             //            .stderr(Stdio::piped())
             .spawn()?;
 
-        let mut stdin = child.stdin.take().ok_or_else(|| format_err!("No stdin"))?;
+        let mut stdin = track_assert_some!(child.stdin.take(), ErrorKind::IoError);
         serde_json::to_writer(&mut stdin, problem_space)?;
         writeln!(&mut stdin)?;
 
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or_else(|| format_err!("No stdout"))?;
+        let stdout = track_assert_some!(child.stdout.take(), ErrorKind::InvalidInput);
         Ok(ExternalCommandOptimizer {
             child,
             stdin,

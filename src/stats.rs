@@ -1,7 +1,6 @@
 use crate::float::NonNanF64;
 use crate::study::StudyRecord;
-use crate::Name;
-use failure::Fallible;
+use crate::{Name, Result};
 use std::collections::BTreeMap;
 use std::io::Write;
 
@@ -56,7 +55,7 @@ impl StatsSummary {
         Self(map.into_iter().map(|(_, v)| v).collect())
     }
 
-    pub fn write_markdown<W: Write>(&self, mut writer: W) -> Fallible<()> {
+    pub fn write_markdown<W: Write>(&self, mut writer: W) -> Result<()> {
         writeln!(writer, "## Statistics Summary")?;
         writeln!(
             writer,
@@ -122,7 +121,7 @@ impl Stats {
         Self(problems)
     }
 
-    pub fn write_markdown<W: Write>(&self, mut writer: W) -> Fallible<()> {
+    pub fn write_markdown<W: Write>(&self, mut writer: W) -> Result<()> {
         writeln!(writer, "# Statistics")?;
         for p in &self.0 {
             p.write_markdown(&mut writer)?;
@@ -173,7 +172,7 @@ impl ProblemStats {
         (min, max)
     }
 
-    fn write_markdown<W: Write>(&self, mut writer: W) -> Fallible<()> {
+    fn write_markdown<W: Write>(&self, mut writer: W) -> Result<()> {
         writeln!(writer, "### Problem: {}", self.problem.as_json())?;
         writeln!(writer)?;
         writeln!(
@@ -216,7 +215,7 @@ impl OptimizerStats {
         }
     }
 
-    fn write_markdown<W: Write>(&self, mut writer: W) -> Fallible<()> {
+    fn write_markdown<W: Write>(&self, mut writer: W) -> Result<()> {
         write!(writer, "| {} ", self.optimizer.as_json())?;
         write!(
             writer,

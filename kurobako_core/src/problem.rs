@@ -1,6 +1,5 @@
 use crate::distribution::Distribution;
-use crate::ValueRange;
-use failure::Fallible;
+use crate::{Result, ValueRange};
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 use structopt::StructOpt;
@@ -10,7 +9,7 @@ use yamakan::ParamSpace;
 pub trait ProblemSpec: StructOpt + Serialize + for<'a> Deserialize<'a> {
     type Problem: Problem;
 
-    fn make_problem(&self) -> Fallible<Self::Problem>;
+    fn make_problem(&self) -> Result<Self::Problem>;
 }
 
 pub trait Problem {
@@ -19,11 +18,11 @@ pub trait Problem {
     fn problem_space(&self) -> ProblemSpace;
     fn evaluation_cost_hint(&self) -> usize;
     fn value_range(&self) -> ValueRange;
-    fn make_evaluator(&mut self, params: &[f64]) -> Fallible<Self::Evaluator>;
+    fn make_evaluator(&mut self, params: &[f64]) -> Result<Self::Evaluator>;
 }
 
 pub trait Evaluate {
-    fn evaluate(&mut self, budget: &mut Budget) -> Fallible<f64>;
+    fn evaluate(&mut self, budget: &mut Budget) -> Result<f64>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

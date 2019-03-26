@@ -2,10 +2,8 @@ use crate::float::NonNanF64;
 use crate::optimizer::OptimizerBuilder;
 use crate::time::DateTime;
 use crate::trial::TrialRecord;
-use crate::Name;
-use crate::ProblemSpec;
+use crate::{Error, Name, ProblemSpec};
 use chrono::Local;
-use failure::Error;
 use kurobako_core::ValueRange;
 use std::f64;
 

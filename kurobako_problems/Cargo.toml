@@ -1,6 +1,6 @@
 [package]
 name = "kurobako_problems"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Takeru Ohta <phjgt308@gmail.com>"]
 edition = "2018"
 description = "A collection of black-box optimization problems"
@@ -14,10 +14,10 @@ travis-ci = {repository = "sile/kurobako"}
 codecov = {repository = "sile/kurobako"}
 
 [dependencies]
-failure = "0.1"
 kurobako_core = { path = "../kurobako_core/", version = "0.0" }
 serde = "1"
 serde_derive = "1"
 structopt = "0.2"
 tempfile = "3"
+trackable = "0.2"
 yamakan = "0.0"

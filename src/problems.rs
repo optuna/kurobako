@@ -1,5 +1,4 @@
-use crate::{Evaluate, Problem, ProblemSpace, ProblemSpec, ValueRange};
-use failure::Fallible;
+use crate::{Evaluate, Problem, ProblemSpace, ProblemSpec, Result, ValueRange};
 use kurobako_core::problems::command;
 use kurobako_problems::problems::sigopt;
 use yamakan::budget::Budget;
@@ -14,10 +13,10 @@ pub enum BuiltinProblemSpec {
 impl ProblemSpec for BuiltinProblemSpec {
     type Problem = BuiltinProblem;
 
-    fn make_problem(&self) -> Fallible<Self::Problem> {
+    fn make_problem(&self) -> Result<Self::Problem> {
         match self {
-            BuiltinProblemSpec::Command(p) => p.make_problem().map(BuiltinProblem::Command),
-            BuiltinProblemSpec::Sigopt(p) => p.make_problem().map(BuiltinProblem::Sigopt),
+            BuiltinProblemSpec::Command(p) => track!(p.make_problem().map(BuiltinProblem::Command)),
+            BuiltinProblemSpec::Sigopt(p) => track!(p.make_problem().map(BuiltinProblem::Sigopt)),
         }
     }
 }
@@ -51,10 +50,14 @@ impl Problem for BuiltinProblem {
         }
     }
 
-    fn make_evaluator(&mut self, params: &[f64]) -> Fallible<Self::Evaluator> {
+    fn make_evaluator(&mut self, params: &[f64]) -> Result<Self::Evaluator> {
         match self {
-            BuiltinProblem::Command(p) => p.make_evaluator(params).map(BuiltinEvaluator::Command),
-            BuiltinProblem::Sigopt(p) => p.make_evaluator(params).map(BuiltinEvaluator::Sigopt),
+            BuiltinProblem::Command(p) => {
+                track!(p.make_evaluator(params).map(BuiltinEvaluator::Command))
+            }
+            BuiltinProblem::Sigopt(p) => {
+                track!(p.make_evaluator(params).map(BuiltinEvaluator::Sigopt))
+            }
         }
     }
 }
@@ -65,10 +68,10 @@ pub enum BuiltinEvaluator {
     Sigopt(sigopt::SigoptEvaluator),
 }
 impl Evaluate for BuiltinEvaluator {
-    fn evaluate(&mut self, budget: &mut Budget) -> Fallible<f64> {
+    fn evaluate(&mut self, budget: &mut Budget) -> Result<f64> {
         match self {
-            BuiltinEvaluator::Command(e) => e.evaluate(budget),
-            BuiltinEvaluator::Sigopt(e) => e.evaluate(budget),
+            BuiltinEvaluator::Command(e) => track!(e.evaluate(budget)),
+            BuiltinEvaluator::Sigopt(e) => track!(e.evaluate(budget)),
         }
     }
 }

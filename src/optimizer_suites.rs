@@ -16,7 +16,7 @@ pub struct BuiltinOptimizerSuite {}
 impl OptimizerSuite for BuiltinOptimizerSuite {
     fn suite(&self) -> Box<dyn Iterator<Item = OptimizerSpec>> {
         let suite = vec![
-            OptimizerSpec::Random(RandomOptimizerBuilder::default()),
+            OptimizerSpec::RandomNormal(RandomOptimizerBuilder::default()),
             OptimizerSpec::Tpe(TpeOptimizerBuilder::default()),
             OptimizerSpec::Optuna(OptunaOptimizerBuilder::default()),
         ];
