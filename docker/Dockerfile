@@ -20,6 +20,7 @@ FROM base
 COPY --from=builder /usr/local/lib/python3.6/site-packages/ /usr/local/lib/python3.6/site-packages/
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libgomp.so.1 /usr/lib/x86_64-linux-gnu/libgomp.so.1
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0 /usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0
+COPY --from=builder /src/evalset /src/evalset
 
 ADD kurobako /bin/kurobako
 
