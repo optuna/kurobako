@@ -135,6 +135,10 @@ pub struct TpeOptimizerBuilder {
     #[structopt(long)]
     pub uniform_sigma: bool,
 
+    #[serde(skip_serializing_if = "is_false", default)]
+    #[structopt(long)]
+    pub uniform_weight: bool,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     #[structopt(long)]
     pub divide_factor: Option<f64>,
@@ -145,6 +149,7 @@ impl Default for TpeOptimizerBuilder {
             ei_candidates: 24,
             prior_uniform: false,
             uniform_sigma: false,
+            uniform_weight: false,
             divide_factor: None,
         }
     }
@@ -165,6 +170,7 @@ impl OptimizerBuilder for TpeOptimizerBuilder {
                 let options = tpe::TpeOptions::new(pp)
                     .prior_uniform(self.prior_uniform)
                     .uniform_sigma(self.uniform_sigma)
+                    .uniform_weight(self.uniform_weight)
                     .ei_candidates(NonZeroUsize::new(self.ei_candidates).expect("TODO"));
                 tpe::TpeNumericalOptimizer::with_options(F64 { low, high }, options)
             })

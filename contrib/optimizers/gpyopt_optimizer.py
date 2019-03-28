@@ -25,4 +25,4 @@ def objective(params):
 
 
 opt = GPyOpt.methods.BayesianOptimization(objective, space)
-opt.run_optimization(10000)
+opt.run_optimization(10000000)

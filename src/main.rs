@@ -13,6 +13,7 @@ use kurobako::stats::{Stats, StatsSummary};
 use kurobako::study::StudyRecord;
 use kurobako::summary::StudySummary;
 use kurobako::{Error, ErrorKind, Result};
+use std::path::PathBuf;
 use structopt::StructOpt as _;
 
 #[derive(Debug, StructOpt)]
@@ -26,6 +27,7 @@ enum Opt {
     Run,
     Summary,
     Stats(StatsOpt),
+    Plot(PlotOpt),
 }
 
 #[derive(Debug, StructOpt)]
@@ -40,6 +42,19 @@ struct StatsOpt {
 
     #[structopt(long)]
     summary: bool,
+
+    #[structopt(long)]
+    budget: Option<usize>,
+}
+
+#[derive(Debug, StructOpt)]
+#[structopt(rename_all = "kebab-case")]
+struct PlotOpt {
+    #[structopt(long)]
+    budget: Option<usize>,
+
+    #[structopt(long, default_value = "plot/")]
+    output_dir: PathBuf,
 }
 
 #[derive(Debug, StructOpt)]
@@ -96,6 +111,9 @@ fn main() -> trackable::result::MainResult {
         Opt::Stats(opt) => {
             handle_stats_command(opt)?;
         }
+        Opt::Plot(opt) => {
+            handle_plot_command(opt)?;
+        }
     }
     Ok(())
 }
@@ -108,9 +126,15 @@ fn handle_run_command() -> Result<()> {
     for (i, spec) in benchmark_spec.run_specs().enumerate() {
         eprintln!("# [{}/{}] {:?}", i + 1, benchmark_spec.len(), spec);
         let mut runner = Runner::new();
-        let record = runner.run(spec.optimizer, spec.problem, spec.budget)?;
-        track!(serde_json::to_writer(&mut stdout, &record).map_err(Error::from))?;
-        println!();
+        match track!(runner.run(spec.optimizer, spec.problem, spec.budget)) {
+            Ok(record) => {
+                track!(serde_json::to_writer(&mut stdout, &record).map_err(Error::from))?;
+                println!();
+            }
+            Err(e) => {
+                eprintln!("[WARN] Failed: {}", e);
+            }
+        }
     }
     Ok(())
 }
@@ -129,7 +153,10 @@ fn handle_stats_command(opt: StatsOpt) -> Result<()> {
     let stdin = std::io::stdin();
     let mut studies = Vec::new();
     for study in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
-        let study = track!(study.map_err(Error::from))?;
+        let mut study: StudyRecord = track!(study.map_err(Error::from))?;
+        if let Some(budget) = opt.budget {
+            study.limit_budget(budget);
+        }
         studies.push(study);
     }
 
@@ -154,5 +181,24 @@ fn handle_stats_command(opt: StatsOpt) -> Result<()> {
             }
         }
     }
+    Ok(())
+}
+
+fn handle_plot_command(opt: PlotOpt) -> Result<()> {
+    use std::fs;
+
+    track!(fs::create_dir_all(&opt.output_dir).map_err(Error::from); opt.output_dir)?;
+
+    let stdin = std::io::stdin();
+    let mut studies = Vec::new();
+    for study in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
+        let mut study: StudyRecord = track!(study.map_err(Error::from))?;
+        if let Some(budget) = opt.budget {
+            study.limit_budget(budget);
+        }
+        studies.push(study);
+    }
+
+    track!(kurobako::plot::plot_problems(&studies, opt.output_dir))?;
     Ok(())
 }

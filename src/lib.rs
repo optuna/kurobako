@@ -13,6 +13,7 @@ pub use kurobako_core::{Error, ErrorKind, Result};
 pub mod benchmark;
 pub mod optimizer;
 pub mod optimizer_suites;
+pub mod plot;
 pub mod problem_suites;
 pub mod problems;
 pub mod runner;

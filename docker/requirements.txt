@@ -1,0 +1,5 @@
+optuna
+cython
+gpyopt
+matplotlib
+-e git+http://github.com/sigopt/evalset.git#egg=evalset

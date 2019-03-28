@@ -37,6 +37,23 @@ impl StudyRecord {
         })
     }
 
+    pub fn limit_budget(&mut self, budget: usize) {
+        self.budget = budget;
+        self.trials.truncate(budget); // TODO:
+    }
+
+    pub fn best_score_until(&self, i: usize) -> f64 {
+        let normalized_value = self
+            .trials
+            .iter()
+            .take(i)
+            .filter_map(|t| t.value())
+            .min_by_key(|v| NonNanF64::new(*v))
+            .map(|v| self.value_range.normalize(v))
+            .unwrap_or(1.0);
+        1.0 - normalized_value
+    }
+
     pub fn best_score(&self) -> f64 {
         let normalized_value = self
             .trials
