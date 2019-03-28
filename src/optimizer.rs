@@ -29,7 +29,7 @@ pub trait OptimizerBuilder: StructOpt + Serialize + for<'a> Deserialize<'a> {
 #[structopt(rename_all = "kebab-case")]
 #[serde(rename_all = "kebab-case")]
 pub enum OptimizerSpec {
-    RandomNormal(RandomOptimizerBuilder),
+    Random(RandomOptimizerBuilder),
     Tpe(TpeOptimizerBuilder),
     Optuna(OptunaOptimizerBuilder),
     Gpyopt(GpyoptOptimizerBuilder),
@@ -40,7 +40,7 @@ impl OptimizerBuilder for OptimizerSpec {
 
     fn build(&self, problem_space: &ProblemSpace) -> Result<Self::Optimizer, Error> {
         match self {
-            OptimizerSpec::RandomNormal(x) => x.build(problem_space).map(UnionOptimizer::Random),
+            OptimizerSpec::Random(x) => x.build(problem_space).map(UnionOptimizer::Random),
             OptimizerSpec::Tpe(x) => x.build(problem_space).map(UnionOptimizer::Tpe),
             OptimizerSpec::Optuna(x) => x.build(problem_space).map(UnionOptimizer::Optuna),
             OptimizerSpec::Gpyopt(x) => x.build(problem_space).map(UnionOptimizer::Gpyopt),
