@@ -62,23 +62,23 @@ impl Optimizer for UnionOptimizer {
     type Param = Vec<f64>;
     type Value = f64;
 
-    fn ask<R: Rng>(&mut self, rng: &mut R) -> Self::Param {
+    fn ask<R: Rng>(&mut self, rng: &mut R) -> yamakan::Result<Self::Param> {
         match self {
-            UnionOptimizer::Random(x) => x.ask(rng),
-            UnionOptimizer::Tpe(x) => x.ask(rng),
-            UnionOptimizer::Optuna(x) => x.ask(rng),
-            UnionOptimizer::Gpyopt(x) => x.ask(rng),
-            UnionOptimizer::Command(x) => x.ask(rng),
+            UnionOptimizer::Random(x) => track!(x.ask(rng)),
+            UnionOptimizer::Tpe(x) => track!(x.ask(rng)),
+            UnionOptimizer::Optuna(x) => track!(x.ask(rng)),
+            UnionOptimizer::Gpyopt(x) => track!(x.ask(rng)),
+            UnionOptimizer::Command(x) => track!(x.ask(rng)),
         }
     }
 
-    fn tell(&mut self, param: Self::Param, value: Self::Value) {
+    fn tell(&mut self, param: Self::Param, value: Self::Value) -> yamakan::Result<()> {
         match self {
-            UnionOptimizer::Random(x) => x.tell(param, value),
-            UnionOptimizer::Tpe(x) => x.tell(param, value),
-            UnionOptimizer::Optuna(x) => x.tell(param, value),
-            UnionOptimizer::Gpyopt(x) => x.tell(param, value),
-            UnionOptimizer::Command(x) => x.tell(param, value),
+            UnionOptimizer::Random(x) => track!(x.tell(param, value)),
+            UnionOptimizer::Tpe(x) => track!(x.tell(param, value)),
+            UnionOptimizer::Optuna(x) => track!(x.tell(param, value)),
+            UnionOptimizer::Gpyopt(x) => track!(x.tell(param, value)),
+            UnionOptimizer::Command(x) => track!(x.tell(param, value)),
         }
     }
 }
@@ -91,19 +91,20 @@ impl Optimizer for TpeOptimizer {
     type Param = Vec<f64>;
     type Value = f64;
 
-    fn ask<R: Rng>(&mut self, rng: &mut R) -> Self::Param {
-        self.inner.iter_mut().map(|o| o.ask(rng)).collect()
+    fn ask<R: Rng>(&mut self, rng: &mut R) -> yamakan::Result<Self::Param> {
+        self.inner.iter_mut().map(|o| track!(o.ask(rng))).collect()
     }
 
-    fn tell(&mut self, param: Self::Param, value: Self::Value) {
+    fn tell(&mut self, param: Self::Param, value: Self::Value) -> yamakan::Result<()> {
         if value.is_nan() {
-            return;
+            return Ok(());
         }
 
         let value = NonNanF64::new(value);
         for (p, o) in param.into_iter().zip(self.inner.iter_mut()) {
-            o.tell(p, value);
+            track!(o.tell(p, value))?;
         }
+        Ok(())
     }
 }
 
@@ -187,11 +188,13 @@ impl Optimizer for RandomOptimizer {
     type Param = Vec<f64>;
     type Value = f64;
 
-    fn ask<R: Rng>(&mut self, rng: &mut R) -> Self::Param {
-        self.inner.iter_mut().map(|o| o.ask(rng)).collect()
+    fn ask<R: Rng>(&mut self, rng: &mut R) -> yamakan::Result<Self::Param> {
+        self.inner.iter_mut().map(|o| track!(o.ask(rng))).collect()
     }
 
-    fn tell(&mut self, _param: Self::Param, _value: Self::Value) {}
+    fn tell(&mut self, _param: Self::Param, _value: Self::Value) -> yamakan::Result<()> {
+        Ok(())
+    }
 }
 
 #[derive(Debug, Default, StructOpt, Serialize, Deserialize)]

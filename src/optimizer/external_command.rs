@@ -7,6 +7,7 @@ use std::io::{BufReader, Write as _};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use structopt::StructOpt;
+use trackable::error::ErrorKindExt;
 use yamakan::Optimizer;
 
 // #[derive(Debug)]
@@ -28,15 +29,22 @@ impl Optimizer for ExternalCommandOptimizer {
     type Param = Vec<f64>;
     type Value = f64;
 
-    fn ask<R: Rng>(&mut self, _rng: &mut R) -> Self::Param {
-        let params = self.stdout.next().expect("TODO").expect("TODO");
-        params
+    fn ask<R: Rng>(&mut self, _rng: &mut R) -> yamakan::Result<Self::Param> {
+        let params = track_assert_some!(
+            self.stdout.next(),
+            yamakan::ErrorKind::IoError,
+            "Unexpected EOS"
+        );
+        let params = track!(params.map_err(|e| yamakan::ErrorKind::InvalidInput.cause(e)))?;
+        Ok(params)
     }
 
-    fn tell(&mut self, param: Self::Param, value: Self::Value) {
+    fn tell(&mut self, param: Self::Param, value: Self::Value) -> yamakan::Result<()> {
         let json = json!({"param": param, "value": value});
-        serde_json::to_writer(&mut self.stdin, &json).unwrap_or_else(|e| panic!(e));
-        writeln!(&mut self.stdin).unwrap_or_else(|e| panic!(e)); // TODO:
+        track!(serde_json::to_writer(&mut self.stdin, &json)
+            .map_err(|e| yamakan::ErrorKind::IoError.cause(e)))?;
+        track!(writeln!(&mut self.stdin).map_err(yamakan::Error::from))?;
+        Ok(())
     }
 }
 impl Drop for ExternalCommandOptimizer {

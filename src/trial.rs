@@ -1,4 +1,6 @@
 use crate::time::{Stopwatch, Timestamp};
+use crate::Result;
+use yamakan;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrialRecord {
@@ -25,18 +27,18 @@ pub struct AskRecord {
     pub end_time: Timestamp,
 }
 impl AskRecord {
-    pub fn with<F>(watch: &Stopwatch, f: F) -> Self
+    pub fn with<F>(watch: &Stopwatch, f: F) -> Result<Self>
     where
-        F: FnOnce() -> Vec<f64>,
+        F: FnOnce() -> yamakan::Result<Vec<f64>>,
     {
         let start_time = watch.elapsed();
-        let params = f();
+        let params = f()?;
         let end_time = watch.elapsed();
-        Self {
+        Ok(Self {
             params,
             start_time,
             end_time,
-        }
+        })
     }
 
     pub fn latency(&self) -> f64 {

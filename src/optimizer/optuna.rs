@@ -5,7 +5,7 @@ use std::fs;
 use std::io::Write as _;
 use structopt::StructOpt;
 use tempfile::{NamedTempFile, TempPath};
-use yamakan::Optimizer;
+use yamakan::{self, Optimizer};
 
 #[derive(Debug)]
 pub struct OptunaOptimizer {
@@ -16,12 +16,12 @@ impl Optimizer for OptunaOptimizer {
     type Param = Vec<f64>;
     type Value = f64;
 
-    fn ask<R: Rng>(&mut self, rng: &mut R) -> Self::Param {
-        self.inner.ask(rng)
+    fn ask<R: Rng>(&mut self, rng: &mut R) -> yamakan::Result<Self::Param> {
+        track!(self.inner.ask(rng))
     }
 
-    fn tell(&mut self, param: Self::Param, value: Self::Value) {
-        self.inner.tell(param, value)
+    fn tell(&mut self, param: Self::Param, value: Self::Value) -> yamakan::Result<()> {
+        track!(self.inner.tell(param, value))
     }
 }
 

@@ -1,6 +1,7 @@
 use serde_json;
 use trackable::error::{ErrorKind as TrackableErrorKind, ErrorKindExt};
 use trackable::error::{Failure, TrackableError};
+use yamakan;
 
 #[derive(Debug, Clone, TrackableError)]
 pub struct Error(TrackableError<ErrorKind>);
@@ -21,6 +22,16 @@ impl From<serde_json::error::Error> for Error {
         } else {
             ErrorKind::InvalidInput.cause(f).into()
         }
+    }
+}
+impl From<yamakan::Error> for Error {
+    fn from(f: yamakan::Error) -> Self {
+        let kind = match f.kind() {
+            yamakan::ErrorKind::InvalidInput => ErrorKind::InvalidInput,
+            yamakan::ErrorKind::IoError => ErrorKind::IoError,
+            yamakan::ErrorKind::Other => ErrorKind::Other,
+        };
+        kind.takes_over(f).into()
     }
 }
 

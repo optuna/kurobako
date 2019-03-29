@@ -41,11 +41,11 @@ impl<R: Rng> Runner<R> {
         )?;
         let watch = Stopwatch::new();
         for _ in 0..budget {
-            let ask = AskRecord::with(&watch, || optimizer.ask(&mut self.rng));
+            let ask = track!(AskRecord::with(&watch, || optimizer.ask(&mut self.rng)))?;
             let mut evaluator = problem.make_evaluator(&ask.params)?;
             let mut budget = Budget::new(1);
             let eval = EvalRecord::with(&watch, || evaluator.evaluate(&mut budget).expect("TODO"));
-            optimizer.tell(ask.params.clone(), eval.value);
+            track!(optimizer.tell(ask.params.clone(), eval.value))?;
 
             study_record.trials.push(TrialRecord {
                 ask,
