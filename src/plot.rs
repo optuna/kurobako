@@ -10,7 +10,7 @@ fn make_gnuplot_commands<P: AsRef<Path>>(
     output: P,
 ) -> String {
     let mut s = format!(
-        "set title {:?}; set ylabel \"Score\"; set xlabel \"Trials\"; ",
+        "set title {:?}; set ylabel \"Score\"; set xlabel \"Trials\"; set grid;",
         problem
             .as_json()
             .to_string()
