@@ -5,6 +5,7 @@ use std::fs;
 use std::io::Write as _;
 use structopt::StructOpt;
 use tempfile::{NamedTempFile, TempPath};
+use yamakan::observation::{IdGenerator, Observation};
 use yamakan::{self, Optimizer};
 
 #[derive(Debug)]
@@ -16,12 +17,16 @@ impl Optimizer for GpyoptOptimizer {
     type Param = Vec<f64>;
     type Value = f64;
 
-    fn ask<R: Rng>(&mut self, rng: &mut R) -> yamakan::Result<Self::Param> {
-        track!(self.inner.ask(rng))
+    fn ask<R: Rng, G: IdGenerator>(
+        &mut self,
+        rng: &mut R,
+        idgen: &mut G,
+    ) -> yamakan::Result<Observation<Self::Param, ()>> {
+        track!(self.inner.ask(rng, idgen))
     }
 
-    fn tell(&mut self, param: Self::Param, value: Self::Value) -> yamakan::Result<()> {
-        track!(self.inner.tell(param, value))
+    fn tell(&mut self, obs: Observation<Self::Param, Self::Value>) -> yamakan::Result<()> {
+        track!(self.inner.tell(obs))
     }
 }
 

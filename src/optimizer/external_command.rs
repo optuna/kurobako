@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use structopt::StructOpt;
 use trackable::error::ErrorKindExt;
+use yamakan::observation::{IdGenerator, Observation};
 use yamakan::Optimizer;
 
 // #[derive(Debug)]
@@ -29,18 +30,22 @@ impl Optimizer for ExternalCommandOptimizer {
     type Param = Vec<f64>;
     type Value = f64;
 
-    fn ask<R: Rng>(&mut self, _rng: &mut R) -> yamakan::Result<Self::Param> {
+    fn ask<R: Rng, G: IdGenerator>(
+        &mut self,
+        _rng: &mut R,
+        idgen: &mut G,
+    ) -> yamakan::Result<Observation<Self::Param, ()>> {
         let params = track_assert_some!(
             self.stdout.next(),
             yamakan::ErrorKind::IoError,
             "Unexpected EOS"
         );
         let params = track!(params.map_err(|e| yamakan::ErrorKind::InvalidInput.cause(e)))?;
-        Ok(params)
+        track!(Observation::new(idgen, params))
     }
 
-    fn tell(&mut self, param: Self::Param, value: Self::Value) -> yamakan::Result<()> {
-        let json = json!({"param": param, "value": value});
+    fn tell(&mut self, obs: Observation<Self::Param, Self::Value>) -> yamakan::Result<()> {
+        let json = json!({"param": obs.param, "value": obs.value});
         track!(serde_json::to_writer(&mut self.stdin, &json)
             .map_err(|e| yamakan::ErrorKind::IoError.cause(e)))?;
         track!(writeln!(&mut self.stdin).map_err(yamakan::Error::from))?;

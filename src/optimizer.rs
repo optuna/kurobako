@@ -5,11 +5,11 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::num::NonZeroUsize;
 use structopt::StructOpt;
-use yamakan;
+use yamakan::observation::{IdGenerator, Observation, ObservationId};
 use yamakan::optimizers::random::RandomOptimizer as InnerRandomOptimizer;
 use yamakan::optimizers::tpe;
 use yamakan::spaces::F64;
-use yamakan::Optimizer;
+use yamakan::{self, Optimizer};
 
 pub use self::external_command::{ExternalCommandOptimizer, ExternalCommandOptimizerBuilder};
 pub use self::gpyopt::{GpyoptOptimizer, GpyoptOptimizerBuilder};
@@ -62,24 +62,37 @@ impl Optimizer for UnionOptimizer {
     type Param = Vec<f64>;
     type Value = f64;
 
-    fn ask<R: Rng>(&mut self, rng: &mut R) -> yamakan::Result<Self::Param> {
+    fn ask<R: Rng, G: IdGenerator>(
+        &mut self,
+        rng: &mut R,
+        idgen: &mut G,
+    ) -> yamakan::Result<Observation<Self::Param, ()>> {
         match self {
-            UnionOptimizer::Random(x) => track!(x.ask(rng)),
-            UnionOptimizer::Tpe(x) => track!(x.ask(rng)),
-            UnionOptimizer::Optuna(x) => track!(x.ask(rng)),
-            UnionOptimizer::Gpyopt(x) => track!(x.ask(rng)),
-            UnionOptimizer::Command(x) => track!(x.ask(rng)),
+            UnionOptimizer::Random(x) => track!(x.ask(rng, idgen)),
+            UnionOptimizer::Tpe(x) => track!(x.ask(rng, idgen)),
+            UnionOptimizer::Optuna(x) => track!(x.ask(rng, idgen)),
+            UnionOptimizer::Gpyopt(x) => track!(x.ask(rng, idgen)),
+            UnionOptimizer::Command(x) => track!(x.ask(rng, idgen)),
         }
     }
 
-    fn tell(&mut self, param: Self::Param, value: Self::Value) -> yamakan::Result<()> {
+    fn tell(&mut self, o: Observation<Self::Param, Self::Value>) -> yamakan::Result<()> {
         match self {
-            UnionOptimizer::Random(x) => track!(x.tell(param, value)),
-            UnionOptimizer::Tpe(x) => track!(x.tell(param, value)),
-            UnionOptimizer::Optuna(x) => track!(x.tell(param, value)),
-            UnionOptimizer::Gpyopt(x) => track!(x.tell(param, value)),
-            UnionOptimizer::Command(x) => track!(x.tell(param, value)),
+            UnionOptimizer::Random(x) => track!(x.tell(o)),
+            UnionOptimizer::Tpe(x) => track!(x.tell(o)),
+            UnionOptimizer::Optuna(x) => track!(x.tell(o)),
+            UnionOptimizer::Gpyopt(x) => track!(x.tell(o)),
+            UnionOptimizer::Command(x) => track!(x.tell(o)),
         }
+    }
+}
+
+// TODO: move
+#[derive(Debug)]
+struct ConstIdGenerator(ObservationId);
+impl IdGenerator for ConstIdGenerator {
+    fn generate(&mut self) -> yamakan::Result<ObservationId> {
+        Ok(self.0)
     }
 }
 
@@ -91,18 +104,38 @@ impl Optimizer for TpeOptimizer {
     type Param = Vec<f64>;
     type Value = f64;
 
-    fn ask<R: Rng>(&mut self, rng: &mut R) -> yamakan::Result<Self::Param> {
-        self.inner.iter_mut().map(|o| track!(o.ask(rng))).collect()
+    fn ask<R: Rng, G: IdGenerator>(
+        &mut self,
+        rng: &mut R,
+        idgen: &mut G,
+    ) -> yamakan::Result<Observation<Self::Param, ()>> {
+        let id = track!(idgen.generate())?;
+        let mut idgen = ConstIdGenerator(id);
+        let params = self
+            .inner
+            .iter_mut()
+            .map(|o| track!(o.ask(rng, &mut idgen)).map(|obs| obs.param))
+            .collect::<yamakan::Result<_>>()?;
+        Ok(Observation {
+            id,
+            param: params,
+            value: (),
+        })
     }
 
-    fn tell(&mut self, param: Self::Param, value: Self::Value) -> yamakan::Result<()> {
-        if value.is_nan() {
+    fn tell(&mut self, obs: Observation<Self::Param, Self::Value>) -> yamakan::Result<()> {
+        if obs.value.is_nan() {
             return Ok(());
         }
 
-        let value = NonNanF64::new(value);
-        for (p, o) in param.into_iter().zip(self.inner.iter_mut()) {
-            track!(o.tell(p, value))?;
+        let value = NonNanF64::new(obs.value);
+        for (p, o) in obs.param.into_iter().zip(self.inner.iter_mut()) {
+            let obs = Observation {
+                id: obs.id,
+                param: p,
+                value,
+            };
+            track!(o.tell(obs))?;
         }
         Ok(())
     }
@@ -188,11 +221,26 @@ impl Optimizer for RandomOptimizer {
     type Param = Vec<f64>;
     type Value = f64;
 
-    fn ask<R: Rng>(&mut self, rng: &mut R) -> yamakan::Result<Self::Param> {
-        self.inner.iter_mut().map(|o| track!(o.ask(rng))).collect()
+    fn ask<R: Rng, G: IdGenerator>(
+        &mut self,
+        rng: &mut R,
+        idgen: &mut G,
+    ) -> yamakan::Result<Observation<Self::Param, ()>> {
+        let id = track!(idgen.generate())?;
+        let mut idgen = ConstIdGenerator(id);
+        let params = self
+            .inner
+            .iter_mut()
+            .map(|o| track!(o.ask(rng, &mut idgen)).map(|obs| obs.param))
+            .collect::<yamakan::Result<_>>()?;
+        Ok(Observation {
+            id,
+            param: params,
+            value: (),
+        })
     }
 
-    fn tell(&mut self, _param: Self::Param, _value: Self::Value) -> yamakan::Result<()> {
+    fn tell(&mut self, _: Observation<Self::Param, Self::Value>) -> yamakan::Result<()> {
         Ok(())
     }
 }
