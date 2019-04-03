@@ -6,8 +6,8 @@ use crate::trial::{AskRecord, EvalRecord, TrialRecord};
 use crate::{Error, Evaluate, Problem, ProblemSpec};
 use rand::rngs::ThreadRng;
 use rand::{self, Rng};
-use yamakan::budget::Budget;
-use yamakan::observation::{IdGenerator, Observation, SerialIdGenerator};
+use yamakan::budget::{Budget, Budgeted};
+use yamakan::observation::{Observation, SerialIdGenerator};
 use yamakan::Optimizer;
 
 #[derive(Debug)]
@@ -28,7 +28,7 @@ impl<R: Rng> Runner<R> {
         &mut self,
         optimizer_builder: &O,
         problem_spec: &P,
-        budget: usize,
+        budget_factor: usize,
     ) -> Result<StudyRecord, Error>
     where
         O: OptimizerBuilder,
@@ -36,24 +36,37 @@ impl<R: Rng> Runner<R> {
     {
         let mut problem = problem_spec.make_problem()?;
         let mut optimizer = optimizer_builder.build(&problem.problem_space())?;
+        let mut budget = Budget::new(budget_factor as u64 * problem.evaluation_cost());
+
         let mut study_record = StudyRecord::new(
             optimizer_builder,
             problem_spec,
-            budget,
+            budget.amount(),
             problem.value_range(),
         )?;
+
         let watch = Stopwatch::new();
-        for _ in 0..budget {
-            let ask = track!(AskRecord::with(&watch, || optimizer
-                .ask(&mut self.rng, &mut self.idgen)
-                .map(|obs| obs.param)))?;
-            let mut evaluator = problem.make_evaluator(&ask.params)?;
-            let mut budget = Budget::new(1);
-            let eval = EvalRecord::with(&watch, || evaluator.evaluate(&mut budget).expect("TODO"));
+        while budget.remaining() > 0 {
+            eprintln!("  # {:?}", budget);
+            let (ask, obs_id, mut opt_budget) =
+                track!(AskRecord::with(&watch, || optimizer.ask(&mut self.rng, &mut self.idgen)))?;
+            let mut evaluator =
+                if let Some(evaluator) = track!(problem.make_evaluator(&ask.params))? {
+                    evaluator
+                } else {
+                    eprintln!("[WARN] Invalid parameters");
+                    continue;
+                };
+
+            let old_consumption = opt_budget.consumption();
+            let eval = EvalRecord::with(&watch, || {
+                evaluator.evaluate(&mut opt_budget).expect("TODO")
+            });
+            budget.consume(opt_budget.consumption() - old_consumption);
 
             let obs = Observation {
-                id: track!(self.idgen.generate())?, // TODO
-                param: ask.params.clone(),
+                id: obs_id,
+                param: Budgeted::new(opt_budget, ask.params.clone()),
                 value: eval.value,
             };
             track!(optimizer.tell(obs))?;

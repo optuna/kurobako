@@ -11,7 +11,7 @@ use std::f64;
 pub struct StudyRecord {
     pub optimizer: Name,
     pub problem: Name,
-    pub budget: usize,
+    pub budget: u64,
     pub value_range: ValueRange,
     pub start_time: DateTime,
     pub trials: Vec<TrialRecord>,
@@ -20,7 +20,7 @@ impl StudyRecord {
     pub fn new<O, P>(
         optimizer_builder: &O,
         problem: &P,
-        budget: usize,
+        budget: u64,
         value_range: ValueRange,
     ) -> Result<Self, Error>
     where
@@ -37,9 +37,9 @@ impl StudyRecord {
         })
     }
 
-    pub fn limit_budget(&mut self, budget: usize) {
+    pub fn limit_budget(&mut self, budget: u64) {
         self.budget = budget;
-        self.trials.truncate(budget); // TODO:
+        self.trials.truncate(budget as usize); // TODO:
     }
 
     pub fn best_score_until(&self, i: usize) -> f64 {

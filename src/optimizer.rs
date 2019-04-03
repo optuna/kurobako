@@ -5,6 +5,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::num::NonZeroUsize;
 use structopt::StructOpt;
+use yamakan::budget::{Budget, Budgeted};
 use yamakan::observation::{IdGenerator, Observation, ObservationId};
 use yamakan::optimizers::random::RandomOptimizer as InnerRandomOptimizer;
 use yamakan::optimizers::tpe;
@@ -20,7 +21,7 @@ mod gpyopt;
 mod optuna;
 
 pub trait OptimizerBuilder: StructOpt + Serialize + for<'a> Deserialize<'a> {
-    type Optimizer: Optimizer<Param = Vec<f64>, Value = f64>;
+    type Optimizer: Optimizer<Param = Budgeted<Vec<f64>>, Value = f64>;
 
     fn build(&self, problem_space: &ProblemSpace) -> Result<Self::Optimizer, Error>;
 }
@@ -59,7 +60,7 @@ pub enum UnionOptimizer {
     Command(ExternalCommandOptimizer),
 }
 impl Optimizer for UnionOptimizer {
-    type Param = Vec<f64>;
+    type Param = Budgeted<Vec<f64>>;
     type Value = f64;
 
     fn ask<R: Rng, G: IdGenerator>(
@@ -101,7 +102,7 @@ pub struct TpeOptimizer {
     inner: Vec<tpe::TpeNumericalOptimizer<F64, NonNanF64>>,
 }
 impl Optimizer for TpeOptimizer {
-    type Param = Vec<f64>;
+    type Param = Budgeted<Vec<f64>>;
     type Value = f64;
 
     fn ask<R: Rng, G: IdGenerator>(
@@ -118,18 +119,19 @@ impl Optimizer for TpeOptimizer {
             .collect::<yamakan::Result<_>>()?;
         Ok(Observation {
             id,
-            param: params,
+            param: Budgeted::new(Budget::new(::std::u64::MAX), params),
             value: (),
         })
     }
 
-    fn tell(&mut self, obs: Observation<Self::Param, Self::Value>) -> yamakan::Result<()> {
+    fn tell(&mut self, mut obs: Observation<Self::Param, Self::Value>) -> yamakan::Result<()> {
         if obs.value.is_nan() {
             return Ok(());
         }
 
         let value = NonNanF64::new(obs.value);
-        for (p, o) in obs.param.into_iter().zip(self.inner.iter_mut()) {
+        obs.param.budget_mut().consume(1);
+        for (p, o) in obs.param.get().iter().cloned().zip(self.inner.iter_mut()) {
             let obs = Observation {
                 id: obs.id,
                 param: p,
@@ -218,7 +220,7 @@ pub struct RandomOptimizer {
     inner: Vec<InnerRandomOptimizer<F64, f64>>,
 }
 impl Optimizer for RandomOptimizer {
-    type Param = Vec<f64>;
+    type Param = Budgeted<Vec<f64>>;
     type Value = f64;
 
     fn ask<R: Rng, G: IdGenerator>(
@@ -235,7 +237,7 @@ impl Optimizer for RandomOptimizer {
             .collect::<yamakan::Result<_>>()?;
         Ok(Observation {
             id,
-            param: params,
+            param: Budgeted::new(Budget::new(::std::u64::MAX), params),
             value: (),
         })
     }

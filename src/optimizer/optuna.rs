@@ -5,6 +5,7 @@ use std::fs;
 use std::io::Write as _;
 use structopt::StructOpt;
 use tempfile::{NamedTempFile, TempPath};
+use yamakan::budget::Budgeted;
 use yamakan::observation::{IdGenerator, Observation};
 use yamakan::{self, Optimizer};
 
@@ -14,7 +15,7 @@ pub struct OptunaOptimizer {
     temp: TempPath,
 }
 impl Optimizer for OptunaOptimizer {
-    type Param = Vec<f64>;
+    type Param = Budgeted<Vec<f64>>;
     type Value = f64;
 
     fn ask<R: Rng, G: IdGenerator>(

@@ -44,14 +44,14 @@ struct StatsOpt {
     summary: bool,
 
     #[structopt(long)]
-    budget: Option<usize>,
+    budget: Option<u64>,
 }
 
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 struct PlotOpt {
     #[structopt(long)]
-    budget: Option<usize>,
+    budget: Option<u64>,
 
     #[structopt(long, default_value = "plot/")]
     output_dir: PathBuf,
