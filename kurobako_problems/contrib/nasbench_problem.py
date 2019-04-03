@@ -2,6 +2,7 @@
 #
 # $ pip install git+https://github.com/google-research/nasbench.git
 import argparse
+import json
 from nasbench import api
 
 INPUT = 'input'
@@ -42,20 +43,76 @@ problem_info = {
 }
 print(json.dumps(problem_info))
 
-# model_spec = api.ModelSpec(
-#         # Adjacency matrix of the module
-#         matrix=[[0, 1, 1, 1, 0, 1, 0],    # input layer
-#                 [0, 0, 0, 0, 0, 0, 1],    # 1x1 conv
-#                 [0, 0, 0, 0, 0, 0, 1],    # 3x3 conv
-#                 [0, 0, 0, 0, 1, 0, 0],    # 5x5 conv (replaced by two 3x3's)
-#                 [0, 0, 0, 0, 0, 0, 1],    # 5x5 conv (replaced by two 3x3's)
-#                 [0, 0, 0, 0, 0, 0, 1],    # 3x3 max-pool
-#                 [0, 0, 0, 0, 0, 0, 0]],   # output layer
-#         # Operations at the vertices of the module, matches order of matrix
-#         ops=[INPUT, CONV1X1, CONV3X3, CONV3X3, CONV3X3, MAXPOOL3X3, OUTPUT])
 
-# print(nasbench.query(model_spec))
-# print("---------------------------")
-# print(nasbench.query(model_spec, epochs=4))
-# print("---------------------------")
-# print(nasbench.query(model_spec, epochs=4, stop_halfway=True))
+def params_to_model_spec(params):
+    ops = [INPUT]
+    for i in range(5):
+        if params[i] < 1.0:
+            ops.append(CONV1X1)
+        elif params[i] < 2.0:
+            ops.append(CONV3X3)
+        elif params[i] < 3.0:
+            ops.append(MAXPOOL3X3)
+        else:
+            raise ValueError()
+    ops.append(OUTPUT)
+
+    p = [round(v) for v in params]
+    matrix = [
+        [0, p[5], p[6],  p[7],  p[8],  p[9],  p[10]],
+        [0, 0,    p[11], p[12], p[13], p[14], p[15]],
+        [0, 0,        0, p[16], p[17], p[18], p[19]],
+        [0, 0,        0,     0, p[20], p[21], p[22]],
+        [0, 0,        0,     0,     0, p[23], p[24]],
+        [0, 0,        0,     0,     0,     0, p[25]],
+        [0, 0,        0,     0,     0,     0,     0],
+    ]
+
+    model_spec = api.ModelSpec(matrix=matrix, ops=ops)
+    return model_spec
+
+class Evaluator(object):
+    def __init__(self, nasbench):
+        self.runnings = {}
+        self.nasbench = nasbench
+
+    def handle_start_eval(self, id, req):
+        assert id not in self.runnings
+
+        model_spec = params_to_model_spec(req['params'])
+        if self.nasbench.is_valid(model_spec):
+            self.runnings[id] = model_spec
+            print(json.dumps({'ok': True}))
+        else:
+            print(json.dumps({'ok': False}))
+
+    def handle_finish_eval(self, id, req):
+        del self.runnings[id]
+
+    def handle_eval(self, id, req):
+        assert id in self.runnings
+
+        model_spec = self.runnings[id]
+        budget = req['budget']
+        for e in EPOCHS_LIST:
+            epochs = e
+            if epochs >= budget:
+                break
+
+        # TODO(?): handle stop_halfway option
+        result = self.nasbench.query(model_spec, epochs=epochs)
+        value = 1.0 - result['validation_accuracy']
+        print(json.dumps({'value': value, 'cost': epochs}))
+
+
+evaluator = Evaluator(nasbench)
+while True:
+    req = json.loads(input())
+    if req['kind'] == 'start_eval':
+        evaluator.handle_start_eval(req['eval_id'], req)
+    elif req['kind'] == 'finish_eval':
+        evaluator.handle_finish_eval(req['eval_id'], req)
+    elif req['kind'] == 'eval':
+        evaluator.handle_eval(req['eval_id'], req)
+    else:
+        raise ValueError('Unknown message: {}'.format(req))

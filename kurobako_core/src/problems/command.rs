@@ -2,16 +2,22 @@ use crate::problem::{Evaluate, Problem, ProblemSpace, ProblemSpec};
 use crate::serde_json_line;
 use crate::{Error, ErrorKind, Result, ValueRange};
 use std::cell::RefCell;
-use std::io::{BufReader, Write as _};
+use std::io::{BufRead as _, BufReader, Write as _};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::rc::Rc;
 use yamakan::budget::Budget;
 
 #[derive(Debug, StructOpt, Serialize, Deserialize)]
+#[structopt(rename_all = "kebab-case")]
+#[serde(rename_all = "kebab-case")]
 pub struct CommandProblemSpec {
     pub path: PathBuf,
     pub args: Vec<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[structopt(long)]
+    pub skip_lines: Option<usize>,
 }
 impl ProblemSpec for CommandProblemSpec {
     type Problem = CommandProblem;
@@ -26,6 +32,12 @@ impl ProblemSpec for CommandProblemSpec {
         let stdin = track_assert_some!(child.stdin.take(), ErrorKind::IoError);
         let mut stdout =
             BufReader::new(track_assert_some!(child.stdout.take(), ErrorKind::IoError));
+        for _ in 0..self.skip_lines.unwrap_or(0) {
+            let mut s = String::new();
+            track!(stdout.read_line(&mut s).map_err(Error::from))?;
+            eprintln!("Skipped: {}", s);
+        }
+
         let info: ProblemInfo = track!(serde_json_line::from_reader(&mut stdout))?;
         Ok(CommandProblem {
             info,
@@ -71,8 +83,10 @@ impl Problem for CommandProblem {
         let json = track!(serde_json::to_string(&m).map_err(Error::from))?;
         track!(writeln!(&mut *self.stdin.borrow_mut(), "{}", json).map_err(Error::from))?;
 
-        let res: StartEvalResMessage =
-            serde_json_line::from_reader(&mut *self.stdout.borrow_mut())?;
+        let res: StartEvalResMessage = track!(serde_json_line::from_reader(
+            &mut *self.stdout.borrow_mut()
+        )
+        .map_err(Error::from))?;
         if !res.ok {
             // invalid params
             Ok(None)

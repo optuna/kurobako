@@ -1,6 +1,6 @@
 use crate::{Evaluate, Problem, ProblemSpace, ProblemSpec, Result, ValueRange};
 use kurobako_core::problems::command;
-use kurobako_problems::problems::sigopt;
+use kurobako_problems::problems::{nasbench, sigopt};
 use yamakan::budget::Budget;
 
 #[derive(Debug, StructOpt, Serialize, Deserialize)]
@@ -9,6 +9,7 @@ use yamakan::budget::Budget;
 pub enum BuiltinProblemSpec {
     Command(command::CommandProblemSpec),
     Sigopt(sigopt::SigoptProblemSpec),
+    Nasbench(nasbench::NasbenchProblemSpec),
 }
 impl ProblemSpec for BuiltinProblemSpec {
     type Problem = BuiltinProblem;
@@ -17,6 +18,9 @@ impl ProblemSpec for BuiltinProblemSpec {
         match self {
             BuiltinProblemSpec::Command(p) => track!(p.make_problem().map(BuiltinProblem::Command)),
             BuiltinProblemSpec::Sigopt(p) => track!(p.make_problem().map(BuiltinProblem::Sigopt)),
+            BuiltinProblemSpec::Nasbench(p) => {
+                track!(p.make_problem().map(BuiltinProblem::Nasbench))
+            }
         }
     }
 }
@@ -25,6 +29,7 @@ impl ProblemSpec for BuiltinProblemSpec {
 pub enum BuiltinProblem {
     Command(command::CommandProblem),
     Sigopt(sigopt::SigoptProblem),
+    Nasbench(nasbench::NasbenchProblem),
 }
 impl Problem for BuiltinProblem {
     type Evaluator = BuiltinEvaluator;
@@ -33,6 +38,7 @@ impl Problem for BuiltinProblem {
         match self {
             BuiltinProblem::Command(p) => p.problem_space(),
             BuiltinProblem::Sigopt(p) => p.problem_space(),
+            BuiltinProblem::Nasbench(p) => p.problem_space(),
         }
     }
 
@@ -40,6 +46,7 @@ impl Problem for BuiltinProblem {
         match self {
             BuiltinProblem::Command(p) => p.evaluation_cost(),
             BuiltinProblem::Sigopt(p) => p.evaluation_cost(),
+            BuiltinProblem::Nasbench(p) => p.evaluation_cost(),
         }
     }
 
@@ -47,6 +54,7 @@ impl Problem for BuiltinProblem {
         match self {
             BuiltinProblem::Command(p) => p.value_range(),
             BuiltinProblem::Sigopt(p) => p.value_range(),
+            BuiltinProblem::Nasbench(p) => p.value_range(),
         }
     }
 
@@ -58,6 +66,9 @@ impl Problem for BuiltinProblem {
             BuiltinProblem::Sigopt(p) => track!(p
                 .make_evaluator(params)
                 .map(|t| t.map(BuiltinEvaluator::Sigopt))),
+            BuiltinProblem::Nasbench(p) => track!(p
+                .make_evaluator(params)
+                .map(|t| t.map(BuiltinEvaluator::Nasbench))),
         }
     }
 }
@@ -66,12 +77,14 @@ impl Problem for BuiltinProblem {
 pub enum BuiltinEvaluator {
     Command(command::CommandEvaluator),
     Sigopt(sigopt::SigoptEvaluator),
+    Nasbench(nasbench::NasbenchEvaluator),
 }
 impl Evaluate for BuiltinEvaluator {
     fn evaluate(&mut self, budget: &mut Budget) -> Result<f64> {
         match self {
             BuiltinEvaluator::Command(e) => track!(e.evaluate(budget)),
             BuiltinEvaluator::Sigopt(e) => track!(e.evaluate(budget)),
+            BuiltinEvaluator::Nasbench(e) => track!(e.evaluate(budget)),
         }
     }
 }

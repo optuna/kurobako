@@ -261,6 +261,7 @@ impl ProblemSpec for SigoptProblemSpec {
         let spec = CommandProblemSpec {
             path: temp.to_path_buf(),
             args,
+            skip_lines: None,
         };
 
         let inner = track!(spec.make_problem())?;
