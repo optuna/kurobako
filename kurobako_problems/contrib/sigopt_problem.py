@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 #
-# $ pip install git+http://github.com/sigopt/evalset.git
+# $ pip install git+https://github.com/sigopt/evalset.git
 import argparse
 from evalset import test_funcs
 import json
@@ -24,7 +24,7 @@ else:
 
 info = {
     "problem_space": [{"uniform": {"low": low, "high": high}} for low, high in test_function.bounds],
-    "cost_hint": 1,
+    "cost": 1,
     "value_range": {"min": float(test_function.fmin), "max": float(test_function.fmax)},
 }
 print(json.dumps(info))
@@ -38,6 +38,7 @@ class Evaluator(object):
         assert req['eval_id'] not in self.id_to_params
 
         self.id_to_params[req['eval_id']] = req['params']
+        print(json.dumps({'ok': True}))
 
     def handle_finish_eval(self, req):
         del self.id_to_params[req['eval_id']]

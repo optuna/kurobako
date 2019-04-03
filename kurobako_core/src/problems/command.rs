@@ -52,15 +52,15 @@ impl Problem for CommandProblem {
         self.info.problem_space.clone()
     }
 
-    fn evaluation_cost_hint(&self) -> usize {
-        self.info.cost_hint
+    fn evaluation_cost(&self) -> u64 {
+        self.info.cost
     }
 
     fn value_range(&self) -> ValueRange {
         self.info.value_range
     }
 
-    fn make_evaluator(&mut self, params: &[f64]) -> Result<Self::Evaluator> {
+    fn make_evaluator(&mut self, params: &[f64]) -> Result<Option<Self::Evaluator>> {
         let m = StartEvalMessage {
             kind: "start_eval",
             eval_id: self.next_eval_id,
@@ -70,11 +70,19 @@ impl Problem for CommandProblem {
 
         let json = track!(serde_json::to_string(&m).map_err(Error::from))?;
         track!(writeln!(&mut *self.stdin.borrow_mut(), "{}", json).map_err(Error::from))?;
-        Ok(CommandEvaluator {
-            eval_id: m.eval_id,
-            stdin: self.stdin.clone(),
-            stdout: self.stdout.clone(),
-        })
+
+        let res: StartEvalResMessage =
+            serde_json_line::from_reader(&mut *self.stdout.borrow_mut())?;
+        if !res.ok {
+            // invalid params
+            Ok(None)
+        } else {
+            Ok(Some(CommandEvaluator {
+                eval_id: m.eval_id,
+                stdin: self.stdin.clone(),
+                stdout: self.stdout.clone(),
+            }))
+        }
     }
 }
 impl Drop for CommandProblem {
@@ -96,7 +104,7 @@ impl Evaluate for CommandEvaluator {
         let m = EvalReqMessage {
             kind: "eval",
             eval_id: self.eval_id,
-            budget: budget.amount(),
+            budget: budget.remaining(),
         };
         writeln!(
             &mut *self.stdin.borrow_mut(),
@@ -123,7 +131,7 @@ impl Drop for CommandEvaluator {
 
 #[derive(Debug, Deserialize)]
 struct ProblemInfo {
-    cost_hint: usize,
+    cost: u64,
     problem_space: ProblemSpace,
     value_range: ValueRange,
 }
@@ -133,6 +141,11 @@ struct StartEvalMessage {
     kind: &'static str,
     eval_id: u32,
     params: Vec<f64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct StartEvalResMessage {
+    ok: bool,
 }
 
 #[derive(Debug, Serialize)]

@@ -16,9 +16,9 @@ pub trait Problem {
     type Evaluator: Evaluate;
 
     fn problem_space(&self) -> ProblemSpace;
-    fn evaluation_cost_hint(&self) -> usize;
+    fn evaluation_cost(&self) -> u64;
     fn value_range(&self) -> ValueRange;
-    fn make_evaluator(&mut self, params: &[f64]) -> Result<Self::Evaluator>;
+    fn make_evaluator(&mut self, params: &[f64]) -> Result<Option<Self::Evaluator>>;
 }
 
 pub trait Evaluate {

@@ -36,10 +36,10 @@ impl Problem for BuiltinProblem {
         }
     }
 
-    fn evaluation_cost_hint(&self) -> usize {
+    fn evaluation_cost(&self) -> u64 {
         match self {
-            BuiltinProblem::Command(p) => p.evaluation_cost_hint(),
-            BuiltinProblem::Sigopt(p) => p.evaluation_cost_hint(),
+            BuiltinProblem::Command(p) => p.evaluation_cost(),
+            BuiltinProblem::Sigopt(p) => p.evaluation_cost(),
         }
     }
 
@@ -50,14 +50,14 @@ impl Problem for BuiltinProblem {
         }
     }
 
-    fn make_evaluator(&mut self, params: &[f64]) -> Result<Self::Evaluator> {
+    fn make_evaluator(&mut self, params: &[f64]) -> Result<Option<Self::Evaluator>> {
         match self {
-            BuiltinProblem::Command(p) => {
-                track!(p.make_evaluator(params).map(BuiltinEvaluator::Command))
-            }
-            BuiltinProblem::Sigopt(p) => {
-                track!(p.make_evaluator(params).map(BuiltinEvaluator::Sigopt))
-            }
+            BuiltinProblem::Command(p) => track!(p
+                .make_evaluator(params)
+                .map(|t| t.map(BuiltinEvaluator::Command))),
+            BuiltinProblem::Sigopt(p) => track!(p
+                .make_evaluator(params)
+                .map(|t| t.map(BuiltinEvaluator::Sigopt))),
         }
     }
 }

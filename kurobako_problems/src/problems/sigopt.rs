@@ -280,17 +280,17 @@ impl Problem for SigoptProblem {
         self.inner.problem_space()
     }
 
-    fn evaluation_cost_hint(&self) -> usize {
-        self.inner.evaluation_cost_hint()
+    fn evaluation_cost(&self) -> u64 {
+        self.inner.evaluation_cost()
     }
 
     fn value_range(&self) -> ValueRange {
         self.inner.value_range()
     }
 
-    fn make_evaluator(&mut self, params: &[f64]) -> Result<Self::Evaluator> {
+    fn make_evaluator(&mut self, params: &[f64]) -> Result<Option<Self::Evaluator>> {
         let inner = track!(self.inner.make_evaluator(params))?;
-        Ok(SigoptEvaluator { inner })
+        Ok(inner.map(|inner| SigoptEvaluator { inner }))
     }
 }
 
