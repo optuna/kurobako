@@ -13,21 +13,15 @@ where
     Ok(v)
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct OptimizerSpecs(Vec<OptimizerSpec>);
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BuiltinProblemSpecs(Vec<BuiltinProblemSpec>);
-
 #[derive(Debug, StructOpt, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[structopt(rename_all = "kebab-case")]
 pub struct BenchmarkSpec {
     #[structopt(long, parse(try_from_str = "parse_json"))]
-    pub optimizers: OptimizerSpecs,
+    pub optimizers: Vec<OptimizerSpec>,
 
     #[structopt(long, parse(try_from_str = "parse_json"))]
-    pub problems: BuiltinProblemSpecs,
+    pub problems: Vec<BuiltinProblemSpec>,
 
     #[structopt(long, default_value = "20")]
     pub budget: usize,
@@ -37,12 +31,12 @@ pub struct BenchmarkSpec {
 }
 impl BenchmarkSpec {
     pub fn len(&self) -> usize {
-        self.optimizers.0.len() * self.problems.0.len() * self.iterations
+        self.optimizers.len() * self.problems.len() * self.iterations
     }
 
     pub fn run_specs<'a>(&'a self) -> Box<(dyn Iterator<Item = RunSpec> + 'a)> {
-        Box::new(self.problems.0.iter().flat_map(move |p| {
-            self.optimizers.0.iter().flat_map(move |o| {
+        Box::new(self.problems.iter().flat_map(move |p| {
+            self.optimizers.iter().flat_map(move |o| {
                 (0..self.iterations).map(move |_| RunSpec {
                     problem: p,
                     optimizer: o,

@@ -15,7 +15,10 @@ def objective(trial):
         params.append(param)
     print(json.dumps(params))
 
-    value = json.loads(input())["value"]
+    value = json.loads(input()).get("value")
+    if value is None:
+        raise ValueError("Invalid Parameters were suggested")
+
     return value
 
 study = optuna.create_study()

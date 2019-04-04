@@ -21,6 +21,7 @@ pub struct ExternalCommandOptimizer {
         serde_json::de::IoRead<BufReader<ChildStdout>>,
         Vec<f64>,
     >,
+    need_tell: bool,
 }
 impl fmt::Debug for ExternalCommandOptimizer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -36,12 +37,20 @@ impl Optimizer for ExternalCommandOptimizer {
         _rng: &mut R,
         idgen: &mut G,
     ) -> yamakan::Result<Observation<Self::Param, ()>> {
+        if self.need_tell {
+            let json = json!({});
+            track!(serde_json::to_writer(&mut self.stdin, &json)
+                .map_err(|e| yamakan::ErrorKind::IoError.cause(e)))?;
+            track!(writeln!(&mut self.stdin).map_err(yamakan::Error::from))?;
+        }
+
         let params = track_assert_some!(
             self.stdout.next(),
             yamakan::ErrorKind::IoError,
             "Unexpected EOS"
         );
         let params = track!(params.map_err(|e| yamakan::ErrorKind::InvalidInput.cause(e)))?;
+        self.need_tell = true;
 
         let budget = Budget::new(::std::u64::MAX); // TODO
         let params = Budgeted::new(budget, params);
@@ -49,6 +58,8 @@ impl Optimizer for ExternalCommandOptimizer {
     }
 
     fn tell(&mut self, obs: Observation<Self::Param, Self::Value>) -> yamakan::Result<()> {
+        self.need_tell = false;
+
         // TODO: pass budget info
         let json = json!({"param": obs.param.get(), "value": obs.value});
         track!(serde_json::to_writer(&mut self.stdin, &json)
@@ -73,7 +84,11 @@ pub struct ExternalCommandOptimizerBuilder {
 impl OptimizerBuilder for ExternalCommandOptimizerBuilder {
     type Optimizer = ExternalCommandOptimizer;
 
-    fn build(&self, problem_space: &ProblemSpace) -> Result<Self::Optimizer, Error> {
+    fn build(
+        &self,
+        problem_space: &ProblemSpace,
+        _eval_cost: u64,
+    ) -> Result<Self::Optimizer, Error> {
         let mut child = track!(Command::new(&self.name)
             .args(&self.args)
             .stdin(Stdio::piped())
@@ -90,6 +105,7 @@ impl OptimizerBuilder for ExternalCommandOptimizerBuilder {
             child,
             stdin,
             stdout: serde_json::Deserializer::from_reader(BufReader::new(stdout)).into_iter(),
+            need_tell: false,
         })
     }
 }

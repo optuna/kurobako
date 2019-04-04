@@ -36,7 +36,7 @@ pub struct GpyoptOptimizerBuilder {}
 impl OptimizerBuilder for GpyoptOptimizerBuilder {
     type Optimizer = GpyoptOptimizer;
 
-    fn build(&self, problem_space: &ProblemSpace) -> Result<Self::Optimizer> {
+    fn build(&self, problem_space: &ProblemSpace, eval_cost: u64) -> Result<Self::Optimizer> {
         let python_code = include_str!("../../contrib/optimizers/gpyopt_optimizer.py");
         let mut temp = track!(NamedTempFile::new().map_err(Error::from))?;
         track!(write!(temp.as_file_mut(), "{}", python_code).map_err(Error::from))?;
@@ -55,6 +55,6 @@ impl OptimizerBuilder for GpyoptOptimizerBuilder {
             args: vec![],
         };
 
-        track!(builder.build(problem_space)).map(|inner| GpyoptOptimizer { inner, temp })
+        track!(builder.build(problem_space, eval_cost)).map(|inner| GpyoptOptimizer { inner, temp })
     }
 }

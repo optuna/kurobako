@@ -11,7 +11,6 @@ use kurobako::problems::BuiltinProblemSpec;
 use kurobako::runner::Runner;
 use kurobako::stats::{Stats, StatsSummary};
 use kurobako::study::StudyRecord;
-use kurobako::summary::StudySummary;
 use kurobako::{Error, ErrorKind, Result};
 use std::path::PathBuf;
 use structopt::StructOpt as _;
@@ -24,11 +23,14 @@ enum Opt {
     Problem(BuiltinProblemSpec),
     ProblemSuite(BuiltinProblemSuite),
     Benchmark(BenchmarkSpec),
-    Run,
-    Summary,
+    Run(RunOpt),
     Stats(StatsOpt),
     Plot(PlotOpt),
 }
+
+#[derive(Debug, StructOpt)]
+#[structopt(rename_all = "kebab-case")]
+struct RunOpt {}
 
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
@@ -94,19 +96,17 @@ fn main() -> trackable::result::MainResult {
         Opt::Problem(p) => {
             track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?
         }
-        Opt::ProblemSuite(p) => track!(serde_json::to_writer(
-            std::io::stdout().lock(),
-            &p.problem_specs().collect::<Vec<_>>(),
-        )
-        .map_err(Error::from))?,
+        Opt::ProblemSuite(p) => {
+            for p in p.problem_specs() {
+                track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?;
+                println!();
+            }
+        }
         Opt::Benchmark(b) => {
             track!(serde_json::to_writer(std::io::stdout().lock(), &b).map_err(Error::from))?
         }
-        Opt::Run => {
-            handle_run_command()?;
-        }
-        Opt::Summary => {
-            handle_summary_command()?;
+        Opt::Run(opt) => {
+            handle_run_command(opt)?;
         }
         Opt::Stats(opt) => {
             handle_stats_command(opt)?;
@@ -118,7 +118,7 @@ fn main() -> trackable::result::MainResult {
     Ok(())
 }
 
-fn handle_run_command() -> Result<()> {
+fn handle_run_command(_opt: RunOpt) -> Result<()> {
     let benchmark_spec: BenchmarkSpec = serde_json::from_reader(std::io::stdin().lock())?;
 
     let stdout = std::io::stdout();
@@ -136,16 +136,6 @@ fn handle_run_command() -> Result<()> {
             }
         }
     }
-    Ok(())
-}
-
-fn handle_summary_command() -> Result<()> {
-    let studies: Vec<StudyRecord> = serde_json::from_reader(std::io::stdin().lock())?;
-    let mut summaries = Vec::new();
-    for study in studies {
-        summaries.push(StudySummary::new(&study));
-    }
-    serde_json::to_writer(std::io::stdout().lock(), &summaries)?;
     Ok(())
 }
 

@@ -30,7 +30,7 @@ pub struct TrialSummary {
 impl TrialSummary {
     fn new(trial: &TrialRecord) -> Self {
         let params = trial.ask.params.clone();
-        let value = trial.value().expect("never fails");
+        let value = trial.value().unwrap_or_else(|| panic!("never fails"));
         Self { params, value }
     }
 }

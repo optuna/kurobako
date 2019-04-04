@@ -35,7 +35,8 @@ impl<R: Rng> Runner<R> {
         P: ProblemSpec,
     {
         let mut problem = problem_spec.make_problem()?;
-        let mut optimizer = optimizer_builder.build(&problem.problem_space())?;
+        let mut optimizer =
+            optimizer_builder.build(&problem.problem_space(), problem.evaluation_cost())?;
         let mut budget = Budget::new(budget_factor as u64 * problem.evaluation_cost());
 
         let mut study_record = StudyRecord::new(

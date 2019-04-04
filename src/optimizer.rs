@@ -12,10 +12,12 @@ use yamakan::optimizers::tpe;
 use yamakan::spaces::F64;
 use yamakan::{self, Optimizer};
 
+pub use self::asha::{AshaOptimizer, AshaOptimizerSpec};
 pub use self::external_command::{ExternalCommandOptimizer, ExternalCommandOptimizerBuilder};
 pub use self::gpyopt::{GpyoptOptimizer, GpyoptOptimizerBuilder};
 pub use self::optuna::{OptunaOptimizer, OptunaOptimizerBuilder};
 
+mod asha;
 mod external_command;
 mod gpyopt;
 mod optuna;
@@ -23,7 +25,8 @@ mod optuna;
 pub trait OptimizerBuilder: StructOpt + Serialize + for<'a> Deserialize<'a> {
     type Optimizer: Optimizer<Param = Budgeted<Vec<f64>>, Value = f64>;
 
-    fn build(&self, problem_space: &ProblemSpace) -> Result<Self::Optimizer, Error>;
+    fn build(&self, problem_space: &ProblemSpace, eval_cost: u64)
+        -> Result<Self::Optimizer, Error>;
 }
 
 #[derive(Debug, StructOpt, Serialize, Deserialize)]
@@ -34,18 +37,32 @@ pub enum OptimizerSpec {
     Tpe(TpeOptimizerBuilder),
     Optuna(OptunaOptimizerBuilder),
     Gpyopt(GpyoptOptimizerBuilder),
+    Asha(AshaOptimizerSpec),
     Command(ExternalCommandOptimizerBuilder),
 }
 impl OptimizerBuilder for OptimizerSpec {
     type Optimizer = UnionOptimizer;
 
-    fn build(&self, problem_space: &ProblemSpace) -> Result<Self::Optimizer, Error> {
+    fn build(
+        &self,
+        problem_space: &ProblemSpace,
+        eval_cost: u64,
+    ) -> Result<Self::Optimizer, Error> {
         match self {
-            OptimizerSpec::Random(x) => x.build(problem_space).map(UnionOptimizer::Random),
-            OptimizerSpec::Tpe(x) => x.build(problem_space).map(UnionOptimizer::Tpe),
-            OptimizerSpec::Optuna(x) => x.build(problem_space).map(UnionOptimizer::Optuna),
-            OptimizerSpec::Gpyopt(x) => x.build(problem_space).map(UnionOptimizer::Gpyopt),
-            OptimizerSpec::Command(x) => x.build(problem_space).map(UnionOptimizer::Command),
+            OptimizerSpec::Random(x) => x
+                .build(problem_space, eval_cost)
+                .map(UnionOptimizer::Random),
+            OptimizerSpec::Tpe(x) => x.build(problem_space, eval_cost).map(UnionOptimizer::Tpe),
+            OptimizerSpec::Optuna(x) => x
+                .build(problem_space, eval_cost)
+                .map(UnionOptimizer::Optuna),
+            OptimizerSpec::Gpyopt(x) => x
+                .build(problem_space, eval_cost)
+                .map(UnionOptimizer::Gpyopt),
+            OptimizerSpec::Asha(x) => x.build(problem_space, eval_cost).map(UnionOptimizer::Asha),
+            OptimizerSpec::Command(x) => x
+                .build(problem_space, eval_cost)
+                .map(UnionOptimizer::Command),
         }
     }
 }
@@ -57,6 +74,7 @@ pub enum UnionOptimizer {
     Tpe(TpeOptimizer),
     Optuna(OptunaOptimizer),
     Gpyopt(GpyoptOptimizer),
+    Asha(AshaOptimizer),
     Command(ExternalCommandOptimizer),
 }
 impl Optimizer for UnionOptimizer {
@@ -73,6 +91,8 @@ impl Optimizer for UnionOptimizer {
             UnionOptimizer::Tpe(x) => track!(x.ask(rng, idgen)),
             UnionOptimizer::Optuna(x) => track!(x.ask(rng, idgen)),
             UnionOptimizer::Gpyopt(x) => track!(x.ask(rng, idgen)),
+            UnionOptimizer::Asha(x) => track!(x.ask(rng, idgen)),
+
             UnionOptimizer::Command(x) => track!(x.ask(rng, idgen)),
         }
     }
@@ -83,6 +103,7 @@ impl Optimizer for UnionOptimizer {
             UnionOptimizer::Tpe(x) => track!(x.tell(o)),
             UnionOptimizer::Optuna(x) => track!(x.tell(o)),
             UnionOptimizer::Gpyopt(x) => track!(x.tell(o)),
+            UnionOptimizer::Asha(x) => track!(x.tell(o)),
             UnionOptimizer::Command(x) => track!(x.tell(o)),
         }
     }
@@ -143,6 +164,50 @@ impl Optimizer for TpeOptimizer {
     }
 }
 
+// TODO
+#[derive(Debug)]
+pub struct TpeOptimizerNoBudget<V> {
+    inner: Vec<tpe::TpeNumericalOptimizer<F64, V>>,
+}
+impl<V> Optimizer for TpeOptimizerNoBudget<V>
+where
+    V: Ord + Clone,
+{
+    type Param = Vec<f64>;
+    type Value = V;
+
+    fn ask<R: Rng, G: IdGenerator>(
+        &mut self,
+        rng: &mut R,
+        idgen: &mut G,
+    ) -> yamakan::Result<Observation<Self::Param, ()>> {
+        let id = track!(idgen.generate())?;
+        let mut idgen = ConstIdGenerator(id);
+        let params = self
+            .inner
+            .iter_mut()
+            .map(|o| track!(o.ask(rng, &mut idgen)).map(|obs| obs.param))
+            .collect::<yamakan::Result<_>>()?;
+        Ok(Observation {
+            id,
+            param: params,
+            value: (),
+        })
+    }
+
+    fn tell(&mut self, obs: Observation<Self::Param, Self::Value>) -> yamakan::Result<()> {
+        for (p, o) in obs.param.into_iter().zip(self.inner.iter_mut()) {
+            let obs = Observation {
+                id: obs.id,
+                param: p,
+                value: obs.value.clone(),
+            };
+            track!(o.tell(obs))?;
+        }
+        Ok(())
+    }
+}
+
 fn is_24(n: &usize) -> bool {
     *n == 24
 }
@@ -190,10 +255,40 @@ impl Default for TpeOptimizerBuilder {
         }
     }
 }
+impl TpeOptimizerBuilder {
+    // TODO
+    fn build2<V>(&self, problem_space: &ProblemSpace) -> Result<TpeOptimizerNoBudget<V>, Error>
+    where
+        V: Ord,
+    {
+        let inner = problem_space
+            .distributions()
+            .iter()
+            .map(|d| {
+                let Distribution::Uniform { low, high } = *d;
+                let mut pp = ::yamakan::optimizers::tpe::DefaultPreprocessor::default();
+                if let Some(x) = self.divide_factor {
+                    pp.divide_factor = x;
+                }
+                let options = tpe::TpeOptions::new(pp)
+                    .prior_uniform(self.prior_uniform)
+                    .uniform_sigma(self.uniform_sigma)
+                    .uniform_weight(self.uniform_weight)
+                    .ei_candidates(NonZeroUsize::new(self.ei_candidates).expect("TODO"));
+                tpe::TpeNumericalOptimizer::with_options(F64 { low, high }, options)
+            })
+            .collect();
+        Ok(TpeOptimizerNoBudget { inner })
+    }
+}
 impl OptimizerBuilder for TpeOptimizerBuilder {
     type Optimizer = TpeOptimizer;
 
-    fn build(&self, problem_space: &ProblemSpace) -> Result<Self::Optimizer, Error> {
+    fn build(
+        &self,
+        problem_space: &ProblemSpace,
+        _eval_cost: u64,
+    ) -> Result<Self::Optimizer, Error> {
         let inner = problem_space
             .distributions()
             .iter()
@@ -247,12 +342,63 @@ impl Optimizer for RandomOptimizer {
     }
 }
 
+// TODO
+#[derive(Debug)]
+pub struct RandomOptimizerNoBudget<V> {
+    inner: Vec<InnerRandomOptimizer<F64, V>>,
+}
+impl<V> Optimizer for RandomOptimizerNoBudget<V> {
+    type Param = Vec<f64>;
+    type Value = V;
+
+    fn ask<R: Rng, G: IdGenerator>(
+        &mut self,
+        rng: &mut R,
+        idgen: &mut G,
+    ) -> yamakan::Result<Observation<Self::Param, ()>> {
+        let id = track!(idgen.generate())?;
+        let mut idgen = ConstIdGenerator(id);
+        let params = self
+            .inner
+            .iter_mut()
+            .map(|o| track!(o.ask(rng, &mut idgen)).map(|obs| obs.param))
+            .collect::<yamakan::Result<_>>()?;
+        Ok(Observation {
+            id,
+            param: params,
+            value: (),
+        })
+    }
+
+    fn tell(&mut self, _: Observation<Self::Param, Self::Value>) -> yamakan::Result<()> {
+        Ok(())
+    }
+}
+
 #[derive(Debug, Default, StructOpt, Serialize, Deserialize)]
 pub struct RandomOptimizerBuilder {}
+impl RandomOptimizerBuilder {
+    // TODO
+    fn build2<V>(&self, problem_space: &ProblemSpace) -> Result<RandomOptimizerNoBudget<V>, Error> {
+        let inner = problem_space
+            .distributions()
+            .iter()
+            .map(|d| {
+                let Distribution::Uniform { low, high } = *d;
+                InnerRandomOptimizer::new(F64 { low, high })
+            })
+            .collect();
+        Ok(RandomOptimizerNoBudget { inner })
+    }
+}
 impl OptimizerBuilder for RandomOptimizerBuilder {
     type Optimizer = RandomOptimizer;
 
-    fn build(&self, problem_space: &ProblemSpace) -> Result<Self::Optimizer, Error> {
+    fn build(
+        &self,
+        problem_space: &ProblemSpace,
+        _eval_cost: u64,
+    ) -> Result<Self::Optimizer, Error> {
         let inner = problem_space
             .distributions()
             .iter()

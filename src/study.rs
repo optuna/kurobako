@@ -95,7 +95,7 @@ impl StudyRecord {
         self.trials
             .iter()
             .filter(|t| t.value().is_some())
-            .min_by_key(|t| NonNanF64::new(t.value().expect("never fails")))
+            .min_by_key(|t| NonNanF64::new(t.value().unwrap_or_else(|| panic!("never fails"))))
     }
 
     pub fn elapsed_time(&self) -> f64 {

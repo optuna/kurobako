@@ -19,7 +19,6 @@ pub mod problems;
 pub mod runner;
 pub mod stats;
 pub mod study;
-pub mod summary;
 pub mod time;
 pub mod trial;
 
@@ -44,8 +43,8 @@ impl PartialOrd for Name {
 }
 impl Ord for Name {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let a = serde_json::to_string(&self.0).expect("never fails");
-        let b = serde_json::to_string(&other.0).expect("never fails");
+        let a = serde_json::to_string(&self.0).unwrap_or_else(|e| panic!("never fails: {}", e));
+        let b = serde_json::to_string(&other.0).unwrap_or_else(|e| panic!("never fails: {}", e));
         a.cmp(&b)
     }
 }

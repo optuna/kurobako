@@ -15,6 +15,8 @@ impl NonNanF64 {
 impl Eq for NonNanF64 {}
 impl Ord for NonNanF64 {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.0.partial_cmp(&other.0).expect("never fails")
+        self.0
+            .partial_cmp(&other.0)
+            .unwrap_or_else(|| panic!("never fails"))
     }
 }
