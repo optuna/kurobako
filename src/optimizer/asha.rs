@@ -32,7 +32,7 @@ fn default_r() -> usize {
     1
 }
 
-fn default_s() -> usize {
+fn default_eta() -> usize {
     4
 }
 
@@ -49,14 +49,14 @@ pub struct AshaOptions {
     #[serde(skip_serializing_if = "is_1")]
     pub r: usize,
 
-    #[structopt(long, default_value = "4")]
-    #[serde(default = "default_s")]
-    #[serde(skip_serializing_if = "is_4")]
-    pub s: usize,
-
     #[structopt(long, default_value = "0")]
     #[serde(default)]
     #[serde(skip_serializing_if = "is_0")]
+    pub s: usize,
+
+    #[structopt(long, default_value = "4")]
+    #[serde(default = "default_eta")]
+    #[serde(skip_serializing_if = "is_4")]
     pub eta: usize,
 
     #[structopt(long, default_value = "16")]
@@ -94,8 +94,8 @@ impl AshaOptimizerSpec {
             AshaOptimizerSpec::Random { asha, .. } | AshaOptimizerSpec::Tpe { asha, .. } => {
                 Ok(inner::AshaOptions {
                     r: track_assert_some!(NonZeroUsize::new(asha.r), ErrorKind::InvalidInput),
-                    s: track_assert_some!(NonZeroUsize::new(asha.s), ErrorKind::InvalidInput),
-                    eta: asha.eta,
+                    s: asha.s,
+                    eta: track_assert_some!(NonZeroUsize::new(asha.eta), ErrorKind::InvalidInput),
                     max_suspended: track_assert_some!(
                         NonZeroUsize::new(asha.max_suspended),
                         ErrorKind::InvalidInput
