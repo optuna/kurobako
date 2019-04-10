@@ -241,8 +241,8 @@ where
 #[serde(rename_all = "kebab-case")]
 pub struct TpeOptimizerBuilder {
     #[structopt(long)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub tags: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub tag: Option<String>,
     // #[serde(skip_serializing_if = "is_24", default = "default_ei_candidates")]
     // #[structopt(long, default_value = "24")]
     // pub ei_candidates: usize,
@@ -466,8 +466,8 @@ impl Optimizer for KnnOptimizer {
 #[derive(Debug, Default, StructOpt, Serialize, Deserialize)]
 pub struct KnnOptimizerBuilder {
     #[structopt(long)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub tags: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub tag: Option<String>,
 }
 impl OptimizerBuilder for KnnOptimizerBuilder {
     type Optimizer = KnnOptimizer;

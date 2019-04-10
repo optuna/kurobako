@@ -39,8 +39,8 @@ impl Optimizer for OptunaOptimizer {
 #[derive(Debug, Default, StructOpt, Serialize, Deserialize)]
 pub struct OptunaOptimizerBuilder {
     #[structopt(long)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub tags: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub tag: Option<String>,
 }
 impl OptimizerBuilder for OptunaOptimizerBuilder {
     type Optimizer = OptunaOptimizer;
