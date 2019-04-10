@@ -6,11 +6,12 @@ use crate::optimizer::{
 use crate::{ErrorKind, ProblemSpace, Result};
 use rand::Rng;
 use std::num::NonZeroUsize;
+use yamakan;
 use yamakan::budget::Budgeted;
-use yamakan::observation::{IdGenerator, Observation};
+use yamakan::observation::{IdGen, Obs, ObsId};
 use yamakan::optimizers::asha as inner;
 use yamakan::optimizers::asha::RungValue;
-use yamakan::{self, Optimizer};
+use yamakan::optimizers::Optimizer;
 
 fn is_1(&n: &usize) -> bool {
     n == 1
@@ -138,22 +139,26 @@ impl Optimizer for AshaOptimizer {
     type Param = Budgeted<Vec<f64>>;
     type Value = f64;
 
-    fn ask<R: Rng, G: IdGenerator>(
+    fn ask<R: Rng, G: IdGen>(
         &mut self,
         rng: &mut R,
         idgen: &mut G,
-    ) -> yamakan::Result<Observation<Self::Param, ()>> {
+    ) -> yamakan::Result<Obs<Self::Param, ()>> {
         match self {
             AshaOptimizer::Random(o) => track!(o.ask(rng, idgen)),
             AshaOptimizer::Tpe(o) => track!(o.ask(rng, idgen)),
         }
     }
 
-    fn tell(&mut self, obs: Observation<Self::Param, Self::Value>) -> yamakan::Result<()> {
+    fn tell(&mut self, obs: Obs<Self::Param, Self::Value>) -> yamakan::Result<()> {
         let obs = obs.map_value(NonNanF64::new); // TODO
         match self {
             AshaOptimizer::Random(o) => track!(o.tell(obs)),
             AshaOptimizer::Tpe(o) => track!(o.tell(obs)),
         }
+    }
+
+    fn forget(&mut self, _id: ObsId) -> yamakan::Result<()> {
+        unimplemented!()
     }
 }

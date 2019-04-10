@@ -9,8 +9,8 @@ use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use structopt::StructOpt;
 use trackable::error::ErrorKindExt;
 use yamakan::budget::{Budget, Budgeted};
-use yamakan::observation::{IdGenerator, Observation};
-use yamakan::Optimizer;
+use yamakan::observation::{IdGen, Obs, ObsId};
+use yamakan::optimizers::Optimizer;
 
 // #[derive(Debug)]
 pub struct ExternalCommandOptimizer {
@@ -32,11 +32,11 @@ impl Optimizer for ExternalCommandOptimizer {
     type Param = Budgeted<Vec<f64>>;
     type Value = f64;
 
-    fn ask<R: Rng, G: IdGenerator>(
+    fn ask<R: Rng, G: IdGen>(
         &mut self,
         _rng: &mut R,
         idgen: &mut G,
-    ) -> yamakan::Result<Observation<Self::Param, ()>> {
+    ) -> yamakan::Result<Obs<Self::Param, ()>> {
         if self.need_tell {
             let json = json!({});
             track!(serde_json::to_writer(&mut self.stdin, &json)
@@ -54,10 +54,10 @@ impl Optimizer for ExternalCommandOptimizer {
 
         let budget = Budget::new(::std::u64::MAX); // TODO
         let params = Budgeted::new(budget, params);
-        track!(Observation::new(idgen, params))
+        track!(Obs::new(idgen, params))
     }
 
-    fn tell(&mut self, obs: Observation<Self::Param, Self::Value>) -> yamakan::Result<()> {
+    fn tell(&mut self, obs: Obs<Self::Param, Self::Value>) -> yamakan::Result<()> {
         self.need_tell = false;
 
         // TODO: pass budget info
@@ -66,6 +66,10 @@ impl Optimizer for ExternalCommandOptimizer {
             .map_err(|e| yamakan::ErrorKind::IoError.cause(e)))?;
         track!(writeln!(&mut self.stdin).map_err(yamakan::Error::from))?;
         Ok(())
+    }
+
+    fn forget(&mut self, _id: ObsId) -> yamakan::Result<()> {
+        unimplemented!()
     }
 }
 impl Drop for ExternalCommandOptimizer {

@@ -7,8 +7,8 @@ use crate::{Error, Evaluate, Problem, ProblemSpec};
 use rand::rngs::ThreadRng;
 use rand::{self, Rng};
 use yamakan::budget::{Budget, Budgeted};
-use yamakan::observation::{Observation, SerialIdGenerator};
-use yamakan::Optimizer;
+use yamakan::observation::{Obs, SerialIdGenerator};
+use yamakan::optimizers::Optimizer;
 
 #[derive(Debug)]
 pub struct Runner<R = ThreadRng> {
@@ -48,7 +48,7 @@ impl<R: Rng> Runner<R> {
 
         let watch = Stopwatch::new();
         while budget.remaining() > 0 {
-            eprintln!("  # {:?}", budget);
+            // eprintln!("  # {:?}", budget);
             let (ask, obs_id, mut opt_budget) =
                 track!(AskRecord::with(&watch, || optimizer.ask(&mut self.rng, &mut self.idgen)))?;
             let mut evaluator =
@@ -65,7 +65,7 @@ impl<R: Rng> Runner<R> {
             });
             budget.consume(opt_budget.consumption() - old_consumption);
 
-            let obs = Observation {
+            let obs = Obs {
                 id: obs_id,
                 param: Budgeted::new(opt_budget, ask.params.clone()),
                 value: eval.value,

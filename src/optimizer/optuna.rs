@@ -5,9 +5,10 @@ use std::fs;
 use std::io::Write as _;
 use structopt::StructOpt;
 use tempfile::{NamedTempFile, TempPath};
+use yamakan;
 use yamakan::budget::Budgeted;
-use yamakan::observation::{IdGenerator, Observation};
-use yamakan::{self, Optimizer};
+use yamakan::observation::{IdGen, Obs, ObsId};
+use yamakan::optimizers::Optimizer;
 
 #[derive(Debug)]
 pub struct OptunaOptimizer {
@@ -18,22 +19,27 @@ impl Optimizer for OptunaOptimizer {
     type Param = Budgeted<Vec<f64>>;
     type Value = f64;
 
-    fn ask<R: Rng, G: IdGenerator>(
+    fn ask<R: Rng, G: IdGen>(
         &mut self,
         rng: &mut R,
         idgen: &mut G,
-    ) -> yamakan::Result<Observation<Self::Param, ()>> {
+    ) -> yamakan::Result<Obs<Self::Param, ()>> {
         track!(self.inner.ask(rng, idgen))
     }
 
-    fn tell(&mut self, obs: Observation<Self::Param, Self::Value>) -> yamakan::Result<()> {
+    fn tell(&mut self, obs: Obs<Self::Param, Self::Value>) -> yamakan::Result<()> {
         track!(self.inner.tell(obs))
+    }
+
+    fn forget(&mut self, _id: ObsId) -> yamakan::Result<()> {
+        unimplemented!()
     }
 }
 
 #[derive(Debug, Default, StructOpt, Serialize, Deserialize)]
 pub struct OptunaOptimizerBuilder {
     #[structopt(long)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
 }
 impl OptimizerBuilder for OptunaOptimizerBuilder {

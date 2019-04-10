@@ -26,16 +26,17 @@ impl From<serde_json::error::Error> for Error {
 }
 impl From<yamakan::Error> for Error {
     fn from(f: yamakan::Error) -> Self {
-        let kind = match f.kind() {
+        let original_kind = f.kind().clone();
+        let kind = match original_kind {
             yamakan::ErrorKind::InvalidInput => ErrorKind::InvalidInput,
             yamakan::ErrorKind::IoError => ErrorKind::IoError,
-            yamakan::ErrorKind::Other => ErrorKind::Other,
+            _ => ErrorKind::Other,
         };
-        kind.takes_over(f).into()
+        track!(kind.takes_over(f); original_kind).into()
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ErrorKind {
     InvalidInput,
     IoError,

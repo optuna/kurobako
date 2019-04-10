@@ -2,7 +2,7 @@ use crate::time::{Stopwatch, Timestamp};
 use crate::Result;
 use yamakan;
 use yamakan::budget::{Budget, Budgeted};
-use yamakan::observation::{Observation, ObservationId};
+use yamakan::observation::{Obs, ObsId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrialRecord {
@@ -29,9 +29,9 @@ pub struct AskRecord {
     pub end_time: Timestamp,
 }
 impl AskRecord {
-    pub fn with<F>(watch: &Stopwatch, f: F) -> Result<(Self, ObservationId, Budget)>
+    pub fn with<F>(watch: &Stopwatch, f: F) -> Result<(Self, ObsId, Budget)>
     where
-        F: FnOnce() -> yamakan::Result<Observation<Budgeted<Vec<f64>>, ()>>,
+        F: FnOnce() -> yamakan::Result<Obs<Budgeted<Vec<f64>>, ()>>,
     {
         let start_time = watch.elapsed();
         let obs = f()?;

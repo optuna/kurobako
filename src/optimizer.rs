@@ -3,14 +3,14 @@ use crate::float::NonNanF64;
 use crate::{Error, ProblemSpace};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::num::NonZeroUsize;
 use structopt::StructOpt;
+use yamakan;
 use yamakan::budget::{Budget, Budgeted};
-use yamakan::observation::{IdGenerator, Observation, ObservationId};
+use yamakan::observation::{IdGen, Obs, ObsId};
 use yamakan::optimizers::random::RandomOptimizer as InnerRandomOptimizer;
 use yamakan::optimizers::tpe;
+use yamakan::optimizers::Optimizer;
 use yamakan::spaces::F64;
-use yamakan::{self, Optimizer};
 
 pub use self::asha::{AshaOptimizer, AshaOptimizerSpec};
 pub use self::external_command::{ExternalCommandOptimizer, ExternalCommandOptimizerBuilder};
@@ -81,11 +81,11 @@ impl Optimizer for UnionOptimizer {
     type Param = Budgeted<Vec<f64>>;
     type Value = f64;
 
-    fn ask<R: Rng, G: IdGenerator>(
+    fn ask<R: Rng, G: IdGen>(
         &mut self,
         rng: &mut R,
         idgen: &mut G,
-    ) -> yamakan::Result<Observation<Self::Param, ()>> {
+    ) -> yamakan::Result<Obs<Self::Param, ()>> {
         match self {
             UnionOptimizer::Random(x) => track!(x.ask(rng, idgen)),
             UnionOptimizer::Tpe(x) => track!(x.ask(rng, idgen)),
@@ -97,7 +97,7 @@ impl Optimizer for UnionOptimizer {
         }
     }
 
-    fn tell(&mut self, o: Observation<Self::Param, Self::Value>) -> yamakan::Result<()> {
+    fn tell(&mut self, o: Obs<Self::Param, Self::Value>) -> yamakan::Result<()> {
         match self {
             UnionOptimizer::Random(x) => track!(x.tell(o)),
             UnionOptimizer::Tpe(x) => track!(x.tell(o)),
@@ -107,13 +107,17 @@ impl Optimizer for UnionOptimizer {
             UnionOptimizer::Command(x) => track!(x.tell(o)),
         }
     }
+
+    fn forget(&mut self, _id: ObsId) -> yamakan::Result<()> {
+        unimplemented!()
+    }
 }
 
 // TODO: move
 #[derive(Debug)]
-struct ConstIdGenerator(ObservationId);
-impl IdGenerator for ConstIdGenerator {
-    fn generate(&mut self) -> yamakan::Result<ObservationId> {
+struct ConstIdGenerator(ObsId);
+impl IdGen for ConstIdGenerator {
+    fn generate(&mut self) -> yamakan::Result<ObsId> {
         Ok(self.0)
     }
 }
@@ -126,11 +130,11 @@ impl Optimizer for TpeOptimizer {
     type Param = Budgeted<Vec<f64>>;
     type Value = f64;
 
-    fn ask<R: Rng, G: IdGenerator>(
+    fn ask<R: Rng, G: IdGen>(
         &mut self,
         rng: &mut R,
         idgen: &mut G,
-    ) -> yamakan::Result<Observation<Self::Param, ()>> {
+    ) -> yamakan::Result<Obs<Self::Param, ()>> {
         let id = track!(idgen.generate())?;
         let mut idgen = ConstIdGenerator(id);
         let params = self
@@ -138,14 +142,14 @@ impl Optimizer for TpeOptimizer {
             .iter_mut()
             .map(|o| track!(o.ask(rng, &mut idgen)).map(|obs| obs.param))
             .collect::<yamakan::Result<_>>()?;
-        Ok(Observation {
+        Ok(Obs {
             id,
             param: Budgeted::new(Budget::new(::std::u64::MAX), params),
             value: (),
         })
     }
 
-    fn tell(&mut self, mut obs: Observation<Self::Param, Self::Value>) -> yamakan::Result<()> {
+    fn tell(&mut self, mut obs: Obs<Self::Param, Self::Value>) -> yamakan::Result<()> {
         if obs.value.is_nan() {
             return Ok(());
         }
@@ -153,7 +157,7 @@ impl Optimizer for TpeOptimizer {
         let value = NonNanF64::new(obs.value);
         obs.param.budget_mut().consume(1);
         for (p, o) in obs.param.get().iter().cloned().zip(self.inner.iter_mut()) {
-            let obs = Observation {
+            let obs = Obs {
                 id: obs.id,
                 param: p,
                 value,
@@ -161,6 +165,10 @@ impl Optimizer for TpeOptimizer {
             track!(o.tell(obs))?;
         }
         Ok(())
+    }
+
+    fn forget(&mut self, _id: ObsId) -> yamakan::Result<()> {
+        unimplemented!()
     }
 }
 
@@ -176,11 +184,11 @@ where
     type Param = Vec<f64>;
     type Value = V;
 
-    fn ask<R: Rng, G: IdGenerator>(
+    fn ask<R: Rng, G: IdGen>(
         &mut self,
         rng: &mut R,
         idgen: &mut G,
-    ) -> yamakan::Result<Observation<Self::Param, ()>> {
+    ) -> yamakan::Result<Obs<Self::Param, ()>> {
         let id = track!(idgen.generate())?;
         let mut idgen = ConstIdGenerator(id);
         let params = self
@@ -188,16 +196,16 @@ where
             .iter_mut()
             .map(|o| track!(o.ask(rng, &mut idgen)).map(|obs| obs.param))
             .collect::<yamakan::Result<_>>()?;
-        Ok(Observation {
+        Ok(Obs {
             id,
             param: params,
             value: (),
         })
     }
 
-    fn tell(&mut self, obs: Observation<Self::Param, Self::Value>) -> yamakan::Result<()> {
+    fn tell(&mut self, obs: Obs<Self::Param, Self::Value>) -> yamakan::Result<()> {
         for (p, o) in obs.param.into_iter().zip(self.inner.iter_mut()) {
-            let obs = Observation {
+            let obs = Obs {
                 id: obs.id,
                 param: p,
                 value: obs.value.clone(),
@@ -206,54 +214,50 @@ where
         }
         Ok(())
     }
+
+    fn forget(&mut self, _id: ObsId) -> yamakan::Result<()> {
+        unimplemented!()
+    }
 }
 
-fn is_24(n: &usize) -> bool {
-    *n == 24
-}
+// fn is_24(n: &usize) -> bool {
+//     *n == 24
+// }
 
-fn is_false(b: &bool) -> bool {
-    !*b
-}
+// fn is_false(b: &bool) -> bool {
+//     !*b
+// }
 
-fn default_ei_candidates() -> usize {
-    24
-}
+// fn default_ei_candidates() -> usize {
+//     24
+// }
 
-#[derive(Debug, StructOpt, Serialize, Deserialize)]
+#[derive(Debug, Default, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
 #[serde(rename_all = "kebab-case")]
 pub struct TpeOptimizerBuilder {
-    #[serde(skip_serializing_if = "is_24", default = "default_ei_candidates")]
-    #[structopt(long, default_value = "24")]
-    pub ei_candidates: usize,
-
-    #[serde(skip_serializing_if = "is_false", default)]
     #[structopt(long)]
-    pub prior_uniform: bool,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
+    // #[serde(skip_serializing_if = "is_24", default = "default_ei_candidates")]
+    // #[structopt(long, default_value = "24")]
+    // pub ei_candidates: usize,
 
-    #[serde(skip_serializing_if = "is_false", default)]
-    #[structopt(long)]
-    pub uniform_sigma: bool,
+    // #[serde(skip_serializing_if = "is_false", default)]
+    // #[structopt(long)]
+    // pub prior_uniform: bool,
 
-    #[serde(skip_serializing_if = "is_false", default)]
-    #[structopt(long)]
-    pub uniform_weight: bool,
+    // #[serde(skip_serializing_if = "is_false", default)]
+    // #[structopt(long)]
+    // pub uniform_sigma: bool,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[structopt(long)]
-    pub divide_factor: Option<f64>,
-}
-impl Default for TpeOptimizerBuilder {
-    fn default() -> Self {
-        Self {
-            ei_candidates: 24,
-            prior_uniform: false,
-            uniform_sigma: false,
-            uniform_weight: false,
-            divide_factor: None,
-        }
-    }
+    // #[serde(skip_serializing_if = "is_false", default)]
+    // #[structopt(long)]
+    // pub uniform_weight: bool,
+
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // #[structopt(long)]
+    // pub divide_factor: Option<f64>,
 }
 impl TpeOptimizerBuilder {
     // TODO
@@ -266,16 +270,9 @@ impl TpeOptimizerBuilder {
             .iter()
             .map(|d| {
                 let Distribution::Uniform { low, high } = *d;
-                let mut pp = ::yamakan::optimizers::tpe::DefaultPreprocessor::default();
-                if let Some(x) = self.divide_factor {
-                    pp.divide_factor = x;
-                }
-                let options = tpe::TpeOptions::new(pp)
-                    .prior_uniform(self.prior_uniform)
-                    .uniform_sigma(self.uniform_sigma)
-                    .uniform_weight(self.uniform_weight)
-                    .ei_candidates(NonZeroUsize::new(self.ei_candidates).expect("TODO"));
-                tpe::TpeNumericalOptimizer::with_options(F64 { low, high }, options)
+                let strategy = ::yamakan::optimizers::tpe::DefaultStrategy::default();
+                let param_space = track!(F64::new(low, high)).expect("TODO");
+                tpe::TpeNumericalOptimizer::with_strategy(param_space, strategy)
             })
             .collect();
         Ok(TpeOptimizerNoBudget { inner })
@@ -294,16 +291,9 @@ impl OptimizerBuilder for TpeOptimizerBuilder {
             .iter()
             .map(|d| {
                 let Distribution::Uniform { low, high } = *d;
-                let mut pp = ::yamakan::optimizers::tpe::DefaultPreprocessor::default();
-                if let Some(x) = self.divide_factor {
-                    pp.divide_factor = x;
-                }
-                let options = tpe::TpeOptions::new(pp)
-                    .prior_uniform(self.prior_uniform)
-                    .uniform_sigma(self.uniform_sigma)
-                    .uniform_weight(self.uniform_weight)
-                    .ei_candidates(NonZeroUsize::new(self.ei_candidates).expect("TODO"));
-                tpe::TpeNumericalOptimizer::with_options(F64 { low, high }, options)
+                let strategy = ::yamakan::optimizers::tpe::DefaultStrategy::default();
+                let param_space = track!(F64::new(low, high)).expect("TODO");
+                tpe::TpeNumericalOptimizer::with_strategy(param_space, strategy)
             })
             .collect();
         Ok(TpeOptimizer { inner })
@@ -318,11 +308,11 @@ impl Optimizer for RandomOptimizer {
     type Param = Budgeted<Vec<f64>>;
     type Value = f64;
 
-    fn ask<R: Rng, G: IdGenerator>(
+    fn ask<R: Rng, G: IdGen>(
         &mut self,
         rng: &mut R,
         idgen: &mut G,
-    ) -> yamakan::Result<Observation<Self::Param, ()>> {
+    ) -> yamakan::Result<Obs<Self::Param>> {
         let id = track!(idgen.generate())?;
         let mut idgen = ConstIdGenerator(id);
         let params = self
@@ -330,15 +320,19 @@ impl Optimizer for RandomOptimizer {
             .iter_mut()
             .map(|o| track!(o.ask(rng, &mut idgen)).map(|obs| obs.param))
             .collect::<yamakan::Result<_>>()?;
-        Ok(Observation {
+        Ok(Obs {
             id,
             param: Budgeted::new(Budget::new(::std::u64::MAX), params),
             value: (),
         })
     }
 
-    fn tell(&mut self, _: Observation<Self::Param, Self::Value>) -> yamakan::Result<()> {
+    fn tell(&mut self, _: Obs<Self::Param, Self::Value>) -> yamakan::Result<()> {
         Ok(())
+    }
+
+    fn forget(&mut self, _id: ObsId) -> yamakan::Result<()> {
+        unimplemented!()
     }
 }
 
@@ -351,11 +345,11 @@ impl<V> Optimizer for RandomOptimizerNoBudget<V> {
     type Param = Vec<f64>;
     type Value = V;
 
-    fn ask<R: Rng, G: IdGenerator>(
+    fn ask<R: Rng, G: IdGen>(
         &mut self,
         rng: &mut R,
         idgen: &mut G,
-    ) -> yamakan::Result<Observation<Self::Param, ()>> {
+    ) -> yamakan::Result<Obs<Self::Param, ()>> {
         let id = track!(idgen.generate())?;
         let mut idgen = ConstIdGenerator(id);
         let params = self
@@ -363,15 +357,19 @@ impl<V> Optimizer for RandomOptimizerNoBudget<V> {
             .iter_mut()
             .map(|o| track!(o.ask(rng, &mut idgen)).map(|obs| obs.param))
             .collect::<yamakan::Result<_>>()?;
-        Ok(Observation {
+        Ok(Obs {
             id,
             param: params,
             value: (),
         })
     }
 
-    fn tell(&mut self, _: Observation<Self::Param, Self::Value>) -> yamakan::Result<()> {
+    fn tell(&mut self, _: Obs<Self::Param, Self::Value>) -> yamakan::Result<()> {
         Ok(())
+    }
+
+    fn forget(&mut self, _id: ObsId) -> yamakan::Result<()> {
+        unimplemented!()
     }
 }
 
@@ -385,7 +383,7 @@ impl RandomOptimizerBuilder {
             .iter()
             .map(|d| {
                 let Distribution::Uniform { low, high } = *d;
-                InnerRandomOptimizer::new(F64 { low, high })
+                InnerRandomOptimizer::new(F64::new(low, high).expect("TODO"))
             })
             .collect();
         Ok(RandomOptimizerNoBudget { inner })
@@ -404,7 +402,7 @@ impl OptimizerBuilder for RandomOptimizerBuilder {
             .iter()
             .map(|d| {
                 let Distribution::Uniform { low, high } = *d;
-                InnerRandomOptimizer::new(F64 { low, high })
+                InnerRandomOptimizer::new(F64::new(low, high).expect("TODO"))
             })
             .collect();
         Ok(RandomOptimizer { inner })
