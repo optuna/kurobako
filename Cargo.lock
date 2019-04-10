@@ -101,7 +101,7 @@ dependencies = [
  "structopt 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile 3.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "trackable 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
- "yamakan 0.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "yamakan 0.0.10 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -113,7 +113,7 @@ dependencies = [
  "serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)",
  "structopt 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "trackable 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
- "yamakan 0.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "yamakan 0.0.10 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -126,7 +126,7 @@ dependencies = [
  "structopt 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile 3.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "trackable 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
- "yamakan 0.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "yamakan 0.0.10 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -472,7 +472,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "yamakan"
-version = "0.0.9"
+version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "factory 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -536,4 +536,4 @@ dependencies = [
 "checksum winapi 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)" = "f10e386af2b13e47c89e7236a7a14a086791a2b88ebad6df9bf42040195cf770"
 "checksum winapi-i686-pc-windows-gnu 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
 "checksum winapi-x86_64-pc-windows-gnu 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
-"checksum yamakan 0.0.9 (registry+https://github.com/rust-lang/crates.io-index)" = "1ca2e05767d349b010c93cc98d0385f76abf895a7b571c7d089de7c61d98419e"
+"checksum yamakan 0.0.10 (registry+https://github.com/rust-lang/crates.io-index)" = "346297e99845254d22ebdf837b6e1b90e2c999f3c4d33761d1f61f6400d1e0c5"

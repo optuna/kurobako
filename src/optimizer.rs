@@ -8,8 +8,8 @@ use yamakan;
 use yamakan::budget::{Budget, Budgeted};
 use yamakan::observation::{IdGen, Obs, ObsId};
 use yamakan::optimizers::random::RandomOptimizer as InnerRandomOptimizer;
-use yamakan::optimizers::tpe;
 use yamakan::optimizers::Optimizer;
+use yamakan::optimizers::{knn, tpe};
 use yamakan::spaces::F64;
 
 pub use self::asha::{AshaOptimizer, AshaOptimizerSpec};
@@ -34,6 +34,7 @@ pub trait OptimizerBuilder: StructOpt + Serialize + for<'a> Deserialize<'a> {
 #[serde(rename_all = "kebab-case")]
 pub enum OptimizerSpec {
     Random(RandomOptimizerBuilder),
+    Knn(KnnOptimizerBuilder),
     Tpe(TpeOptimizerBuilder),
     Optuna(OptunaOptimizerBuilder),
     Gpyopt(GpyoptOptimizerBuilder),
@@ -52,6 +53,7 @@ impl OptimizerBuilder for OptimizerSpec {
             OptimizerSpec::Random(x) => x
                 .build(problem_space, eval_cost)
                 .map(UnionOptimizer::Random),
+            OptimizerSpec::Knn(x) => x.build(problem_space, eval_cost).map(UnionOptimizer::Knn),
             OptimizerSpec::Tpe(x) => x.build(problem_space, eval_cost).map(UnionOptimizer::Tpe),
             OptimizerSpec::Optuna(x) => x
                 .build(problem_space, eval_cost)
@@ -71,6 +73,7 @@ impl OptimizerBuilder for OptimizerSpec {
 #[derive(Debug)]
 pub enum UnionOptimizer {
     Random(RandomOptimizer),
+    Knn(KnnOptimizer),
     Tpe(TpeOptimizer),
     Optuna(OptunaOptimizer),
     Gpyopt(GpyoptOptimizer),
@@ -88,11 +91,11 @@ impl Optimizer for UnionOptimizer {
     ) -> yamakan::Result<Obs<Self::Param, ()>> {
         match self {
             UnionOptimizer::Random(x) => track!(x.ask(rng, idgen)),
+            UnionOptimizer::Knn(x) => track!(x.ask(rng, idgen)),
             UnionOptimizer::Tpe(x) => track!(x.ask(rng, idgen)),
             UnionOptimizer::Optuna(x) => track!(x.ask(rng, idgen)),
             UnionOptimizer::Gpyopt(x) => track!(x.ask(rng, idgen)),
             UnionOptimizer::Asha(x) => track!(x.ask(rng, idgen)),
-
             UnionOptimizer::Command(x) => track!(x.ask(rng, idgen)),
         }
     }
@@ -100,6 +103,7 @@ impl Optimizer for UnionOptimizer {
     fn tell(&mut self, o: Obs<Self::Param, Self::Value>) -> yamakan::Result<()> {
         match self {
             UnionOptimizer::Random(x) => track!(x.tell(o)),
+            UnionOptimizer::Knn(x) => track!(x.tell(o)),
             UnionOptimizer::Tpe(x) => track!(x.tell(o)),
             UnionOptimizer::Optuna(x) => track!(x.tell(o)),
             UnionOptimizer::Gpyopt(x) => track!(x.tell(o)),
@@ -406,5 +410,81 @@ impl OptimizerBuilder for RandomOptimizerBuilder {
             })
             .collect();
         Ok(RandomOptimizer { inner })
+    }
+}
+
+#[derive(Debug)]
+pub struct KnnOptimizer {
+    inner: Vec<knn::KnnOptimizer<F64, NonNanF64>>,
+}
+impl Optimizer for KnnOptimizer {
+    type Param = Budgeted<Vec<f64>>;
+    type Value = f64;
+
+    fn ask<R: Rng, G: IdGen>(
+        &mut self,
+        rng: &mut R,
+        idgen: &mut G,
+    ) -> yamakan::Result<Obs<Self::Param>> {
+        let id = track!(idgen.generate())?;
+        let mut idgen = ConstIdGenerator(id);
+        let params = self
+            .inner
+            .iter_mut()
+            .map(|o| track!(o.ask(rng, &mut idgen)).map(|obs| obs.param))
+            .collect::<yamakan::Result<_>>()?;
+        Ok(Obs {
+            id,
+            param: Budgeted::new(Budget::new(::std::u64::MAX), params),
+            value: (),
+        })
+    }
+
+    fn tell(&mut self, mut obs: Obs<Self::Param, Self::Value>) -> yamakan::Result<()> {
+        if obs.value.is_nan() {
+            return Ok(());
+        }
+
+        let value = NonNanF64::new(obs.value);
+        obs.param.budget_mut().consume(1);
+        for (p, o) in obs.param.get().iter().cloned().zip(self.inner.iter_mut()) {
+            let obs = Obs {
+                id: obs.id,
+                param: p,
+                value,
+            };
+            track!(o.tell(obs))?;
+        }
+        Ok(())
+    }
+
+    fn forget(&mut self, _id: ObsId) -> yamakan::Result<()> {
+        unimplemented!()
+    }
+}
+
+#[derive(Debug, Default, StructOpt, Serialize, Deserialize)]
+pub struct KnnOptimizerBuilder {
+    #[structopt(long)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
+}
+impl OptimizerBuilder for KnnOptimizerBuilder {
+    type Optimizer = KnnOptimizer;
+
+    fn build(
+        &self,
+        problem_space: &ProblemSpace,
+        _eval_cost: u64,
+    ) -> Result<Self::Optimizer, Error> {
+        let inner = problem_space
+            .distributions()
+            .iter()
+            .map(|d| {
+                let Distribution::Uniform { low, high } = *d;
+                knn::KnnOptimizer::new(F64::new(low, high).expect("TODO"))
+            })
+            .collect();
+        Ok(KnnOptimizer { inner })
     }
 }
