@@ -89,10 +89,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "kurobako"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "kurobako_core 0.0.3",
+ "kurobako_core 0.0.4",
  "kurobako_problems 0.0.3",
  "rand 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -106,7 +106,7 @@ dependencies = [
 
 [[package]]
 name = "kurobako_core"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "serde 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -120,7 +120,7 @@ dependencies = [
 name = "kurobako_problems"
 version = "0.0.3"
 dependencies = [
- "kurobako_core 0.0.3",
+ "kurobako_core 0.0.4",
  "serde 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "structopt 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
