@@ -64,6 +64,7 @@ impl OptimizerBuilder for OptunaOptimizerBuilder {
         let builder = ExternalCommandOptimizerBuilder {
             name: temp.to_path_buf(),
             args: vec![],
+            tag: None,
         };
 
         builder

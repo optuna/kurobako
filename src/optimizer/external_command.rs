@@ -84,6 +84,9 @@ impl Drop for ExternalCommandOptimizer {
 pub struct ExternalCommandOptimizerBuilder {
     pub name: PathBuf,
     pub args: Vec<String>,
+    #[structopt(long)]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub tag: Option<String>,
 }
 impl OptimizerBuilder for ExternalCommandOptimizerBuilder {
     type Optimizer = ExternalCommandOptimizer;

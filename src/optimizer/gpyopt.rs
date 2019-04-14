@@ -58,6 +58,7 @@ impl OptimizerBuilder for GpyoptOptimizerBuilder {
         let builder = ExternalCommandOptimizerBuilder {
             name: temp.to_path_buf(),
             args: vec![],
+            tag: None,
         };
 
         track!(builder.build(problem_space, eval_cost)).map(|inner| GpyoptOptimizer { inner, temp })
