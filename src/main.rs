@@ -143,11 +143,18 @@ fn handle_stats_command(opt: StatsOpt) -> Result<()> {
     let stdin = std::io::stdin();
     let mut studies = Vec::new();
     for study in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
-        let mut study: StudyRecord = track!(study.map_err(Error::from))?;
-        if let Some(budget) = opt.budget {
-            study.limit_budget(budget);
+        match track!(study.map_err(Error::from)) {
+            Err(e) => {
+                eprintln!("{}", e);
+            }
+            Ok(study) => {
+                let mut study: StudyRecord = study;
+                if let Some(budget) = opt.budget {
+                    study.limit_budget(budget);
+                }
+                studies.push(study);
+            }
         }
-        studies.push(study);
     }
 
     let stats = Stats::new(&studies);
@@ -182,11 +189,18 @@ fn handle_plot_command(opt: PlotOpt) -> Result<()> {
     let stdin = std::io::stdin();
     let mut studies = Vec::new();
     for study in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
-        let mut study: StudyRecord = track!(study.map_err(Error::from))?;
-        if let Some(budget) = opt.budget {
-            study.limit_budget(budget);
+        match track!(study.map_err(Error::from)) {
+            Err(e) => {
+                eprintln!("{}", e);
+            }
+            Ok(study) => {
+                let mut study: StudyRecord = study;
+                if let Some(budget) = opt.budget {
+                    study.limit_budget(budget);
+                }
+                studies.push(study);
+            }
         }
-        studies.push(study);
     }
 
     track!(kurobako::plot::plot_problems(&studies, opt.output_dir))?;
