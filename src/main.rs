@@ -26,6 +26,7 @@ enum Opt {
     Run(RunOpt),
     Stats(StatsOpt),
     Plot(PlotOpt),
+    PlotData(PlotDataOpt),
 }
 
 #[derive(Debug, StructOpt)]
@@ -57,6 +58,12 @@ struct PlotOpt {
 
     #[structopt(long, default_value = "plot/")]
     output_dir: PathBuf,
+}
+
+#[derive(Debug, StructOpt)]
+#[structopt(rename_all = "kebab-case")]
+enum PlotDataOpt {
+    Scatter,
 }
 
 #[derive(Debug, StructOpt)]
@@ -113,6 +120,9 @@ fn main() -> trackable::result::MainResult {
         }
         Opt::Plot(opt) => {
             handle_plot_command(opt)?;
+        }
+        Opt::PlotData(opt) => {
+            handle_plot_data_command(opt)?;
         }
     }
     Ok(())
@@ -205,4 +215,43 @@ fn handle_plot_command(opt: PlotOpt) -> Result<()> {
 
     track!(kurobako::plot::plot_problems(&studies, opt.output_dir))?;
     Ok(())
+}
+
+fn handle_plot_data_command(opt: PlotDataOpt) -> Result<()> {
+    let stdin = std::io::stdin();
+    for study in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
+        match track!(study.map_err(Error::from)) {
+            Err(e) => {
+                eprintln!("{}", e);
+            }
+            Ok(study) => {
+                let study: StudyRecord = study;
+                match opt {
+                    PlotDataOpt::Scatter => {
+                        output_scatter_data(&study);
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn output_scatter_data(study: &StudyRecord) {
+    use std::f64::NAN;
+
+    println!(
+        "# {:?}, {:?}, {:?}, {:?}, {:?}",
+        study.optimizer, study.problem, study.budget, study.value_range, study.start_time
+    );
+    println!("# Budget Value Param...");
+    for (i, trial) in study.trials.iter().enumerate() {
+        print!("{} {}", i, trial.value().unwrap_or(NAN));
+        for p in &trial.ask.params {
+            print!(" {}", p);
+        }
+        println!();
+    }
+    println!();
+    println!();
 }

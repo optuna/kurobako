@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 use yamakan;
 use yamakan::budget::{Budget, Budgeted};
-use yamakan::observation::{IdGen, Obs, ObsId};
+use yamakan::observation::{ConstIdGenerator, IdGen, Obs, ObsId};
 use yamakan::optimizers::random::RandomOptimizer as InnerRandomOptimizer;
 use yamakan::optimizers::Optimizer;
 use yamakan::optimizers::{knn, tpe};
@@ -117,15 +117,6 @@ impl Optimizer for UnionOptimizer {
     }
 }
 
-// TODO: move
-#[derive(Debug)]
-struct ConstIdGenerator(ObsId);
-impl IdGen for ConstIdGenerator {
-    fn generate(&mut self) -> yamakan::Result<ObsId> {
-        Ok(self.0)
-    }
-}
-
 #[derive(Debug)]
 pub struct TpeOptimizer {
     inner: Vec<tpe::TpeNumericalOptimizer<F64, NonNanF64>>,
@@ -140,7 +131,7 @@ impl Optimizer for TpeOptimizer {
         idgen: &mut G,
     ) -> yamakan::Result<Obs<Self::Param, ()>> {
         let id = track!(idgen.generate())?;
-        let mut idgen = ConstIdGenerator(id);
+        let mut idgen = ConstIdGenerator::new(id);
         let params = self
             .inner
             .iter_mut()
@@ -194,7 +185,7 @@ where
         idgen: &mut G,
     ) -> yamakan::Result<Obs<Self::Param, ()>> {
         let id = track!(idgen.generate())?;
-        let mut idgen = ConstIdGenerator(id);
+        let mut idgen = ConstIdGenerator::new(id);
         let params = self
             .inner
             .iter_mut()
@@ -318,7 +309,7 @@ impl Optimizer for RandomOptimizer {
         idgen: &mut G,
     ) -> yamakan::Result<Obs<Self::Param>> {
         let id = track!(idgen.generate())?;
-        let mut idgen = ConstIdGenerator(id);
+        let mut idgen = ConstIdGenerator::new(id);
         let params = self
             .inner
             .iter_mut()
@@ -355,7 +346,7 @@ impl<V> Optimizer for RandomOptimizerNoBudget<V> {
         idgen: &mut G,
     ) -> yamakan::Result<Obs<Self::Param, ()>> {
         let id = track!(idgen.generate())?;
-        let mut idgen = ConstIdGenerator(id);
+        let mut idgen = ConstIdGenerator::new(id);
         let params = self
             .inner
             .iter_mut()
@@ -427,7 +418,7 @@ impl Optimizer for KnnOptimizer {
         idgen: &mut G,
     ) -> yamakan::Result<Obs<Self::Param>> {
         let id = track!(idgen.generate())?;
-        let mut idgen = ConstIdGenerator(id);
+        let mut idgen = ConstIdGenerator::new(id);
         let params = self
             .inner
             .iter_mut()
