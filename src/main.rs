@@ -63,7 +63,10 @@ struct PlotOpt {
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 enum PlotDataOpt {
-    Scatter,
+    Scatter {
+        #[structopt(long)]
+        budget: Option<u64>,
+    },
 }
 
 #[derive(Debug, StructOpt)]
@@ -225,9 +228,12 @@ fn handle_plot_data_command(opt: PlotDataOpt) -> Result<()> {
                 eprintln!("{}", e);
             }
             Ok(study) => {
-                let study: StudyRecord = study;
+                let mut study: StudyRecord = study;
                 match opt {
-                    PlotDataOpt::Scatter => {
+                    PlotDataOpt::Scatter { budget } => {
+                        if let Some(budget) = budget {
+                            study.limit_budget(budget);
+                        }
                         output_scatter_data(&study);
                     }
                 }
