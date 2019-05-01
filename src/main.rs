@@ -57,7 +57,7 @@ struct PlotOpt {
     #[structopt(long)]
     budget: Option<u64>,
 
-    #[structopt(long, default_value = "plot/")]
+    #[structopt(long, default_value = "plot-result/")]
     output_dir: PathBuf,
 
     #[structopt(flatten)]
