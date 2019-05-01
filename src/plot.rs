@@ -3,64 +3,90 @@ use crate::{Error, Name, Result};
 use std::collections::BTreeMap;
 use std::path::Path;
 
-fn make_gnuplot_commands<P: AsRef<Path>>(
-    problem: &Name,
-    optimizers: usize,
-    input: P,
-    output: P,
-) -> String {
-    let mut s = format!(
-        "set title {:?}; set ylabel \"Score\"; set xlabel \"Trials\"; set grid;",
-        problem
-            .as_json()
-            .to_string()
-            .replace('"', "")
-            .replace('{', "(")
-            .replace('}', ")")
-    );
-    s += &format!(
-        "set key bmargin; set terminal pngcairo size 800,600; set output {:?}; ",
-        output.as_ref().to_str().expect("TODO")
-    );
-    s += &format!("plot [] [0:1]");
-    for i in 0..optimizers {
-        if i == 0 {
-            s += &format!(" {:?}", input.as_ref().to_str().expect("TODO"));
-        } else {
-            s += ", \"\"";
-        }
-        s += &format!(" u 0:{} w l t columnhead", i + 1);
-    }
-    s
+#[derive(Debug, StructOpt)]
+pub struct PlotOptions {
+    #[structopt(long, default_value = "800")]
+    pub width: usize,
+
+    #[structopt(long, default_value = "600")]
+    pub height: usize,
+
+    #[structopt(long)]
+    pub ymin: Option<f64>,
+
+    #[structopt(long)]
+    pub ymax: Option<f64>,
+
+    #[structopt(long, default_value = "")]
+    pub prefix: String,
 }
-
-pub fn plot_problems<P: AsRef<Path>>(studies: &[StudyRecord], dir: P) -> Result<()> {
-    let mut problems = BTreeMap::new();
-    for s in studies {
-        problems.entry(&s.problem).or_insert_with(Vec::new).push(s);
-    }
-    let problems = problems
-        .into_iter()
-        .map(|(problem, studies)| ProblemPlot::new(problem, &studies));
-    for (i, problem) in problems.enumerate() {
-        track!(problem.plot(dir.as_ref().join(format!("{}.dat", i))))?;
-
-        let commands = make_gnuplot_commands(
-            &problem.problem,
-            problem.optimizers.len(),
-            dir.as_ref().join(format!("{}.dat", i)),
-            dir.as_ref().join(format!("{}.png", i)),
-        );
-        {
-            use std::process::Command;
-            println!("# {}", commands);
-            track!(Command::new("gnuplot")
-                .args(&["-e", &commands])
-                .output()
-                .map_err(Error::from))?;
+impl PlotOptions {
+    pub fn plot_problems<P: AsRef<Path>>(&self, studies: &[StudyRecord], dir: P) -> Result<()> {
+        let mut problems = BTreeMap::new();
+        for s in studies {
+            problems.entry(&s.problem).or_insert_with(Vec::new).push(s);
         }
+        let problems = problems
+            .into_iter()
+            .map(|(problem, studies)| ProblemPlot::new(problem, &studies));
+        for (i, problem) in problems.enumerate() {
+            track!(problem.plot(dir.as_ref().join(format!("{}{}.dat", self.prefix, i))))?;
+
+            let commands = self.make_gnuplot_commands(
+                &problem.problem,
+                problem.optimizers.len(),
+                dir.as_ref().join(format!("{}{}.dat", self.prefix, i)),
+                dir.as_ref().join(format!("{}{}.png", self.prefix, i)),
+            );
+            {
+                use std::process::Command;
+                println!("# {}", commands);
+                track!(Command::new("gnuplot")
+                    .args(&["-e", &commands])
+                    .output()
+                    .map_err(Error::from))?;
+            }
+        }
+        Ok(())
     }
-    Ok(())
+
+    fn make_gnuplot_commands<P: AsRef<Path>>(
+        &self,
+        problem: &Name,
+        optimizers: usize,
+        input: P,
+        output: P,
+    ) -> String {
+        let mut s = format!(
+            "set title {:?}; set ylabel \"Score\"; set xlabel \"Trials\"; set grid;",
+            problem
+                .as_json()
+                .to_string()
+                .replace('"', "")
+                .replace('{', "(")
+                .replace('}', ")")
+        );
+        s += &format!(
+            "set key bmargin; set terminal pngcairo size {},{}; set output {:?}; ",
+            self.width,
+            self.height,
+            output.as_ref().to_str().expect("TODO")
+        );
+        s += &format!(
+            "plot [] [{}:{}]",
+            self.ymin.unwrap_or(0.0),
+            self.ymax.unwrap_or(1.0)
+        );
+        for i in 0..optimizers {
+            if i == 0 {
+                s += &format!(" {:?}", input.as_ref().to_str().expect("TODO"));
+            } else {
+                s += ", \"\"";
+            }
+            s += &format!(" u 0:{} w l t columnhead", i + 1);
+        }
+        s
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

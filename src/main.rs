@@ -6,6 +6,7 @@ extern crate trackable;
 use kurobako::benchmark::BenchmarkSpec;
 use kurobako::optimizer::OptimizerSpec;
 use kurobako::optimizer_suites::{BuiltinOptimizerSuite, OptimizerSuite};
+use kurobako::plot::PlotOptions;
 use kurobako::problem_suites::{BuiltinProblemSuite, ProblemSuite};
 use kurobako::problems::BuiltinProblemSpec;
 use kurobako::runner::Runner;
@@ -58,6 +59,9 @@ struct PlotOpt {
 
     #[structopt(long, default_value = "plot/")]
     output_dir: PathBuf,
+
+    #[structopt(flatten)]
+    inner: PlotOptions,
 }
 
 #[derive(Debug, StructOpt)]
@@ -216,7 +220,7 @@ fn handle_plot_command(opt: PlotOpt) -> Result<()> {
         }
     }
 
-    track!(kurobako::plot::plot_problems(&studies, opt.output_dir))?;
+    track!(opt.inner.plot_problems(&studies, opt.output_dir))?;
     Ok(())
 }
 
