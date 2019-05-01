@@ -1,8 +1,5 @@
 use crate::float::NonNanF64;
-use crate::optimizer::{
-    OptimizerBuilder, RandomOptimizerBuilder, RandomOptimizerNoBudget, TpeOptimizerBuilder,
-    TpeOptimizerNoBudget,
-};
+use crate::optimizer::{OptimizerBuilder, RandomOptimizerBuilder, RandomOptimizerNoBudget};
 use crate::{ErrorKind, ProblemSpace, Result};
 use rand::Rng;
 use std::num::NonZeroUsize;
@@ -79,30 +76,19 @@ pub enum AshaOptimizerSpec {
         #[serde(flatten)]
         random: RandomOptimizerBuilder,
     },
-    Tpe {
-        #[structopt(flatten)]
-        #[serde(flatten)]
-        asha: AshaOptions,
-
-        #[structopt(flatten)]
-        #[serde(flatten)]
-        tpe: TpeOptimizerBuilder,
-    },
 }
 impl AshaOptimizerSpec {
     fn asha_options(&self) -> Result<inner::AshaOptions> {
         match self {
-            AshaOptimizerSpec::Random { asha, .. } | AshaOptimizerSpec::Tpe { asha, .. } => {
-                Ok(inner::AshaOptions {
-                    r: track_assert_some!(NonZeroUsize::new(asha.r), ErrorKind::InvalidInput),
-                    s: asha.s,
-                    eta: track_assert_some!(NonZeroUsize::new(asha.eta), ErrorKind::InvalidInput),
-                    max_suspended: track_assert_some!(
-                        NonZeroUsize::new(asha.max_suspended),
-                        ErrorKind::InvalidInput
-                    ),
-                })
-            }
+            AshaOptimizerSpec::Random { asha, .. } => Ok(inner::AshaOptions {
+                r: track_assert_some!(NonZeroUsize::new(asha.r), ErrorKind::InvalidInput),
+                s: asha.s,
+                eta: track_assert_some!(NonZeroUsize::new(asha.eta), ErrorKind::InvalidInput),
+                max_suspended: track_assert_some!(
+                    NonZeroUsize::new(asha.max_suspended),
+                    ErrorKind::InvalidInput
+                ),
+            }),
         }
     }
 }
@@ -119,13 +105,6 @@ impl OptimizerBuilder for AshaOptimizerSpec {
                     opt, eval_cost, options,
                 )))
             }
-            AshaOptimizerSpec::Tpe { tpe, .. } => {
-                let opt = track!(tpe.build2(problem_space))?;
-                let opt = TpeOptimizerNoBudget { inner: opt.inner };
-                Ok(AshaOptimizer::Tpe(inner::AshaOptimizer::with_options(
-                    opt, eval_cost, options,
-                )))
-            }
         }
     }
 }
@@ -133,7 +112,6 @@ impl OptimizerBuilder for AshaOptimizerSpec {
 #[derive(Debug)]
 pub enum AshaOptimizer {
     Random(inner::AshaOptimizer<RandomOptimizerNoBudget<RungValue<NonNanF64>>, NonNanF64>),
-    Tpe(inner::AshaOptimizer<TpeOptimizerNoBudget<RungValue<NonNanF64>>, NonNanF64>),
 }
 impl Optimizer for AshaOptimizer {
     type Param = Budgeted<Vec<f64>>;
@@ -146,7 +124,6 @@ impl Optimizer for AshaOptimizer {
     ) -> yamakan::Result<Obs<Self::Param, ()>> {
         match self {
             AshaOptimizer::Random(o) => track!(o.ask(rng, idgen)),
-            AshaOptimizer::Tpe(o) => track!(o.ask(rng, idgen)),
         }
     }
 
@@ -154,7 +131,6 @@ impl Optimizer for AshaOptimizer {
         let obs = obs.map_value(NonNanF64::new); // TODO
         match self {
             AshaOptimizer::Random(o) => track!(o.tell(obs)),
-            AshaOptimizer::Tpe(o) => track!(o.tell(obs)),
         }
     }
 

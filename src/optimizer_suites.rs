@@ -1,6 +1,4 @@
-use crate::optimizer::{
-    OptimizerSpec, OptunaOptimizerBuilder, RandomOptimizerBuilder, TpeOptimizerBuilder,
-};
+use crate::optimizer::{OptimizerSpec, OptunaOptimizerBuilder, RandomOptimizerBuilder};
 
 pub trait OptimizerSuite {
     //    type OptimizerSpec: OptimizerSpec;
@@ -17,7 +15,6 @@ impl OptimizerSuite for BuiltinOptimizerSuite {
     fn suite(&self) -> Box<dyn Iterator<Item = OptimizerSpec>> {
         let suite = vec![
             OptimizerSpec::Random(RandomOptimizerBuilder::default()),
-            OptimizerSpec::Tpe(TpeOptimizerBuilder::default()),
             OptimizerSpec::Optuna(OptunaOptimizerBuilder::default()),
         ];
         Box::new(suite.into_iter())
