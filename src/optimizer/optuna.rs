@@ -8,7 +8,7 @@ use tempfile::{NamedTempFile, TempPath};
 use yamakan;
 use yamakan::budget::Budgeted;
 use yamakan::observation::{IdGen, Obs, ObsId};
-use yamakan::optimizers::Optimizer;
+use yamakan::Optimizer;
 
 #[derive(Debug)]
 pub struct OptunaOptimizer {

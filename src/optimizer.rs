@@ -3,12 +3,11 @@ use crate::{Error, ProblemSpace};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
-use yamakan;
 use yamakan::budget::{Budget, Budgeted};
 use yamakan::observation::{ConstIdGenerator, IdGen, Obs, ObsId};
 use yamakan::optimizers::random::RandomOptimizer as InnerRandomOptimizer;
-use yamakan::optimizers::Optimizer;
 use yamakan::parameters::F64;
+use yamakan::{self, Optimizer};
 
 pub use self::asha::{AshaOptimizer, AshaOptimizerSpec};
 pub use self::external_command::{ExternalCommandOptimizer, ExternalCommandOptimizerBuilder};

@@ -22,8 +22,6 @@ pub mod study;
 pub mod time;
 pub mod trial;
 
-mod float;
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Name(serde_json::Value);
 impl Name {

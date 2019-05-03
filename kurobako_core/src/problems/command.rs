@@ -118,7 +118,7 @@ impl Evaluate for CommandEvaluator {
         let m = EvalReqMessage {
             kind: "eval",
             eval_id: self.eval_id,
-            budget: budget.remaining(),
+            budget: budget.hard_remaining(), // TODO:
         };
         writeln!(
             &mut *self.stdin.borrow_mut(),
@@ -127,7 +127,7 @@ impl Evaluate for CommandEvaluator {
         )?;
 
         let m: EvalResMessage = serde_json_line::from_reader(&mut *self.stdout.borrow_mut())?;
-        budget.consume(m.cost);
+        track!(budget.consume(m.cost))?;
         Ok(m.value)
     }
 }

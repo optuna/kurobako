@@ -1,6 +1,6 @@
-use crate::float::NonNanF64;
 use crate::study::StudyRecord;
 use crate::{Name, Result};
+use rustats::num::NonNanF64;
 use std::collections::BTreeMap;
 use std::io::Write;
 
@@ -162,12 +162,12 @@ impl ProblemStats {
         let min = self
             .optimizers
             .iter()
-            .min_by_key(|o| NonNanF64::new(f(o)))
+            .min_by_key(|o| NonNanF64::new(f(o)).unwrap_or_else(|e| panic!("{}", e)))
             .expect("TODO");
         let max = self
             .optimizers
             .iter()
-            .max_by_key(|o| NonNanF64::new(f(o)))
+            .max_by_key(|o| NonNanF64::new(f(o)).unwrap_or_else(|e| panic!("{}", e)))
             .expect("TODO");
         (min, max)
     }

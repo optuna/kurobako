@@ -1,10 +1,10 @@
-use crate::float::NonNanF64;
 use crate::optimizer::OptimizerBuilder;
 use crate::time::DateTime;
 use crate::trial::TrialRecord;
 use crate::{Error, Name, ProblemSpec};
 use chrono::Local;
 use kurobako_core::ValueRange;
+use rustats::num::NonNanF64;
 use std::f64;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -48,7 +48,7 @@ impl StudyRecord {
             .iter()
             .take(i)
             .filter_map(|t| t.value())
-            .min_by_key(|v| NonNanF64::new(*v))
+            .min_by_key(|v| unsafe { NonNanF64::new_unchecked(*v) })
             .map(|v| self.value_range.normalize(v))
             .unwrap_or(1.0);
         1.0 - normalized_value
@@ -59,7 +59,7 @@ impl StudyRecord {
             .trials
             .iter()
             .filter_map(|t| t.value())
-            .min_by_key(|v| NonNanF64::new(*v))
+            .min_by_key(|v| NonNanF64::new(*v).unwrap_or_else(|e| panic!("{}", e)))
             .map(|v| self.value_range.normalize(v))
             .expect("TODO");
         1.0 - normalized_value
@@ -95,7 +95,10 @@ impl StudyRecord {
         self.trials
             .iter()
             .filter(|t| t.value().is_some())
-            .min_by_key(|t| NonNanF64::new(t.value().unwrap_or_else(|| panic!("never fails"))))
+            .min_by_key(|t| {
+                NonNanF64::new(t.value().unwrap_or_else(|| unreachable!()))
+                    .unwrap_or_else(|e| panic!("{}", e))
+            })
     }
 
     pub fn elapsed_time(&self) -> f64 {

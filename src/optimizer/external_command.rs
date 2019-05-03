@@ -10,7 +10,7 @@ use structopt::StructOpt;
 use trackable::error::ErrorKindExt;
 use yamakan::budget::{Budget, Budgeted};
 use yamakan::observation::{IdGen, Obs, ObsId};
-use yamakan::optimizers::Optimizer;
+use yamakan::Optimizer;
 
 // #[derive(Debug)]
 pub struct ExternalCommandOptimizer {
