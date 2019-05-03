@@ -1,7 +1,8 @@
 use crate::{Error, Result};
 use kurobako_core::problem::{Evaluate, Problem, ProblemSpace, ProblemSpec};
 use kurobako_core::problems::command::{CommandEvaluator, CommandProblem, CommandProblemSpec};
-use kurobako_core::ValueRange;
+use rustats::range::MinMax;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write as _;
 use tempfile::{NamedTempFile, TempPath};
@@ -285,7 +286,7 @@ impl Problem for SigoptProblem {
         self.inner.evaluation_cost()
     }
 
-    fn value_range(&self) -> ValueRange {
+    fn value_range(&self) -> MinMax<f64> {
         self.inner.value_range()
     }
 

@@ -1,6 +1,8 @@
 use crate::problem::{Evaluate, Problem, ProblemSpace, ProblemSpec};
 use crate::serde_json_line;
-use crate::{Error, ErrorKind, Result, ValueRange};
+use crate::{Error, ErrorKind, Result};
+use rustats::range::MinMax;
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::io::{BufRead as _, BufReader, Write as _};
 use std::path::PathBuf;
@@ -68,7 +70,7 @@ impl Problem for CommandProblem {
         self.info.cost
     }
 
-    fn value_range(&self) -> ValueRange {
+    fn value_range(&self) -> MinMax<f64> {
         self.info.value_range
     }
 
@@ -147,7 +149,7 @@ impl Drop for CommandEvaluator {
 struct ProblemInfo {
     cost: u64,
     problem_space: ProblemSpace,
-    value_range: ValueRange,
+    value_range: MinMax<f64>,
 }
 
 #[derive(Debug, Serialize)]

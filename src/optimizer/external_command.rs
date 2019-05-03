@@ -1,6 +1,7 @@
 use super::OptimizerBuilder;
 use crate::{Error, ErrorKind, ProblemSpace};
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 use serde_json::{self, json};
 use std::fmt;
 use std::io::{BufReader, Write as _};

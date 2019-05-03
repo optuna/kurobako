@@ -1,5 +1,4 @@
-#[macro_use]
-extern crate serde_derive;
+//! The core crate for [`kurobako`](https://github.com/sile/kurobako).
 #[macro_use]
 extern crate structopt;
 #[macro_use]
@@ -14,15 +13,5 @@ pub mod problems;
 mod error;
 mod serde_json_line;
 
+/// This crate specific `Result` type.
 pub type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct ValueRange {
-    pub min: f64,
-    pub max: f64,
-}
-impl ValueRange {
-    pub fn normalize(self, v: f64) -> f64 {
-        (v - self.min) / (self.max - self.min)
-    }
-}

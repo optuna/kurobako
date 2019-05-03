@@ -111,6 +111,7 @@ dependencies = [
 name = "kurobako_core"
 version = "0.0.4"
 dependencies = [
+ "rustats 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)",

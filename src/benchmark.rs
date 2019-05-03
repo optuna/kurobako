@@ -2,7 +2,7 @@ use crate::optimizer::OptimizerSpec;
 use crate::problems::BuiltinProblemSpec;
 use crate::runner::RunSpec;
 use crate::{Error, Result};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json;
 
 fn parse_json<T>(json: &str) -> Result<T>

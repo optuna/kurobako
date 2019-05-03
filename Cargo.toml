@@ -19,7 +19,7 @@ kurobako_core = { path = "kurobako_core", version = "0.0" }
 kurobako_problems = { path = "kurobako_problems", version = "0.0" }
 rand = "0.6"
 rustats = "0.0"
-serde = "1"
+serde = { version = "1", features = ["derive"] }
 serde_derive = "1"
 serde_json = "1"
 structopt = "0.2"

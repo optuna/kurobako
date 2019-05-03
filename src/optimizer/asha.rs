@@ -2,6 +2,7 @@ use crate::optimizer::{OptimizerBuilder, RandomOptimizerBuilder, RandomOptimizer
 use crate::{ProblemSpace, Result};
 use rand::Rng;
 use rustats::num::NonNanF64;
+use serde::{Deserialize, Serialize};
 use yamakan::budget::{Budgeted, Leveled};
 use yamakan::observation::{IdGen, Obs, ObsId};
 use yamakan::optimizers::asha as inner;

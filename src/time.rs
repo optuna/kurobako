@@ -1,4 +1,5 @@
 use chrono;
+use serde::{Deserialize, Serialize};
 use std::time::Instant;
 
 pub type DateTime = chrono::DateTime<chrono::Local>;

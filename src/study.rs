@@ -3,8 +3,9 @@ use crate::time::DateTime;
 use crate::trial::TrialRecord;
 use crate::{Error, Name, ProblemSpec};
 use chrono::Local;
-use kurobako_core::ValueRange;
 use rustats::num::NonNanF64;
+use rustats::range::MinMax;
+use serde::{Deserialize, Serialize};
 use std::f64;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -12,7 +13,7 @@ pub struct StudyRecord {
     pub optimizer: Name,
     pub problem: Name,
     pub budget: u64,
-    pub value_range: ValueRange,
+    pub value_range: MinMax<f64>,
     pub start_time: DateTime,
     pub trials: Vec<TrialRecord>,
 }
@@ -21,7 +22,7 @@ impl StudyRecord {
         optimizer_builder: &O,
         problem: &P,
         budget: u64,
-        value_range: ValueRange,
+        value_range: MinMax<f64>,
     ) -> Result<Self, Error>
     where
         O: OptimizerBuilder,

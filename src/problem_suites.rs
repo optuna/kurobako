@@ -1,6 +1,7 @@
 use crate::problems::BuiltinProblemSpec;
 use crate::ProblemSpec;
 use kurobako_problems::problems::sigopt::SigoptProblemSpec;
+use serde::{Deserialize, Serialize};
 
 pub trait ProblemSuite {
     type ProblemSpec: ProblemSpec;

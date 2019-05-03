@@ -1,5 +1,6 @@
 use crate::distribution::Distribution;
-use crate::{Result, ValueRange};
+use crate::Result;
+use rustats::range::MinMax;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 use yamakan::budget::Budget;
@@ -15,7 +16,7 @@ pub trait Problem {
 
     fn problem_space(&self) -> ProblemSpace;
     fn evaluation_cost(&self) -> u64;
-    fn value_range(&self) -> ValueRange;
+    fn value_range(&self) -> MinMax<f64>;
     fn make_evaluator(&mut self, params: &[f64]) -> Result<Option<Self::Evaluator>>;
 }
 

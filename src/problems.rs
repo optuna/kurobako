@@ -1,6 +1,8 @@
-use crate::{Evaluate, Problem, ProblemSpace, ProblemSpec, Result, ValueRange};
+use crate::{Evaluate, Problem, ProblemSpace, ProblemSpec, Result};
 use kurobako_core::problems::command;
 use kurobako_problems::problems::{nasbench, sigopt};
+use rustats::range::MinMax;
+use serde::{Deserialize, Serialize};
 use yamakan::budget::Budget;
 
 #[derive(Debug, StructOpt, Serialize, Deserialize)]
@@ -50,7 +52,7 @@ impl Problem for BuiltinProblem {
         }
     }
 
-    fn value_range(&self) -> ValueRange {
+    fn value_range(&self) -> MinMax<f64> {
         match self {
             BuiltinProblem::Command(p) => p.value_range(),
             BuiltinProblem::Sigopt(p) => p.value_range(),

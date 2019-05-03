@@ -1,5 +1,6 @@
 use crate::time::{Stopwatch, Timestamp};
 use crate::Result;
+use serde::{Deserialize, Serialize};
 use yamakan;
 use yamakan::budget::{Budget, Budgeted};
 use yamakan::observation::{Obs, ObsId};

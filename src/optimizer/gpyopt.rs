@@ -1,6 +1,7 @@
 use super::{ExternalCommandOptimizer, ExternalCommandOptimizerBuilder, OptimizerBuilder};
 use crate::{Error, ProblemSpace, Result};
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write as _;
 use structopt::StructOpt;

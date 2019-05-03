@@ -1,8 +1,10 @@
+use rustats;
 use serde_json;
 use trackable::error::{ErrorKind as TrackableErrorKind, ErrorKindExt};
 use trackable::error::{Failure, TrackableError};
 use yamakan;
 
+/// This crate specific `Error` type.
 #[derive(Debug, Clone, TrackableError)]
 pub struct Error(TrackableError<ErrorKind>);
 impl From<Failure> for Error {
@@ -35,11 +37,28 @@ impl From<yamakan::Error> for Error {
         track!(kind.takes_over(f); original_kind).into()
     }
 }
+impl From<rustats::Error> for Error {
+    fn from(f: rustats::Error) -> Self {
+        let original_kind = f.kind().clone();
+        let kind = match original_kind {
+            rustats::ErrorKind::InvalidInput => ErrorKind::InvalidInput,
+            rustats::ErrorKind::IoError => ErrorKind::IoError,
+            _ => ErrorKind::Other,
+        };
+        track!(kind.takes_over(f); original_kind).into()
+    }
+}
 
+/// Possible error kinds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ErrorKind {
+    /// Invalid input was given.
     InvalidInput,
+
+    /// I/O error.
     IoError,
+
+    /// Other error.
     Other,
 }
 impl TrackableErrorKind for ErrorKind {}

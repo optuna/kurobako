@@ -1,4 +1,5 @@
 use crate::optimizer::{OptimizerSpec, OptunaOptimizerBuilder, RandomOptimizerBuilder};
+use serde::{Deserialize, Serialize};
 
 pub trait OptimizerSuite {
     //    type OptimizerSpec: OptimizerSpec;

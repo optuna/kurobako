@@ -15,8 +15,8 @@ codecov = {repository = "sile/kurobako"}
 
 [dependencies]
 kurobako_core = { path = "../kurobako_core/", version = "0.0" }
-serde = "1"
-serde_derive = "1"
+rustats = "0.0"
+serde = { version = "1", features = ["derive"] }
 structopt = "0.2"
 tempfile = "3"
 trackable = "0.2"

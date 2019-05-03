@@ -1,6 +1,7 @@
 use crate::study::StudyRecord;
 use crate::{Name, Result};
 use rustats::num::NonNanF64;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::io::Write;
 
