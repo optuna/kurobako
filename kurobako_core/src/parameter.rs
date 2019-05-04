@@ -1,8 +1,9 @@
+use rustats::num::FiniteF64;
 use rustats::range::Range;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ParamDomain {
     Continuous(Continuous),
@@ -21,15 +22,16 @@ impl ParamDomain {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum ParamValue {
-    Continuous(f64),
+    Continuous(FiniteF64),
     Discrete(i64),
     Categorical(String),
     Conditional(Option<Box<ParamValue>>),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Unconditional {
     Continuous(Continuous),
@@ -46,32 +48,32 @@ impl Unconditional {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Continuous {
     pub name: String,
-    pub range: Range<f64>,
+    pub range: Range<FiniteF64>,
     pub distribution: Distribution,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Discrete {
     pub name: String,
     pub range: Range<i64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Categorical {
     pub name: String,
     pub choices: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Conditional {
     pub condition: Condition,
     pub param: Box<Unconditional>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Condition {
     Member { name: String, choices: Vec<String> },

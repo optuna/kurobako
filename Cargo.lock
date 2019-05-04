@@ -97,27 +97,26 @@ dependencies = [
  "kurobako_core 0.0.4",
  "kurobako_problems 0.0.3",
  "rand 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustats 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustats 0.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)",
  "structopt 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile 3.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "trackable 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
- "yamakan 0.0.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "yamakan 0.0.14 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "kurobako_core"
 version = "0.0.4"
 dependencies = [
- "rustats 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustats 0.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_derive 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)",
  "structopt 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "trackable 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
- "yamakan 0.0.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "yamakan 0.0.14 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -125,12 +124,12 @@ name = "kurobako_problems"
 version = "0.0.3"
 dependencies = [
  "kurobako_core 0.0.4",
+ "rustats 0.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_derive 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "structopt 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile 3.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "trackable 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
- "yamakan 0.0.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "yamakan 0.0.14 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -299,10 +298,11 @@ dependencies = [
 
 [[package]]
 name = "rustats"
-version = "0.0.2"
+version = "0.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "rand 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "trackable 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -315,6 +315,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "serde"
 version = "1.0.90"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "serde_derive 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "serde_derive"
@@ -471,12 +474,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "yamakan"
-version = "0.0.13"
+version = "0.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "factory 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustats 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustats 0.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "trackable 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -513,7 +517,7 @@ dependencies = [
 "checksum redox_syscall 0.1.54 (registry+https://github.com/rust-lang/crates.io-index)" = "12229c14a0f65c4f1cb046a3b52047cdd9da1f4b30f8a39c5063c8bae515e252"
 "checksum redox_termios 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7e891cfe48e9100a70a3b6eb652fef28920c117d366339687bd5576160db0f76"
 "checksum remove_dir_all 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "3488ba1b9a2084d38645c4c08276a1752dcbf2c7130d74f1569681ad5d2799c5"
-"checksum rustats 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "926053d1323f971dc4147351074f00d6ff3aeab4ee1fca825113777928a55337"
+"checksum rustats 0.0.4 (registry+https://github.com/rust-lang/crates.io-index)" = "acccbee7307902aec31e1baa5443865ff3fd3809ec67e9df68c202f271f524df"
 "checksum ryu 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "b96a9549dc8d48f2c283938303c4b5a77aa29bfbc5b54b084fb1630408899a8f"
 "checksum serde 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)" = "aa5f7c20820475babd2c077c3ab5f8c77a31c15e16ea38687b4c02d3e48680f4"
 "checksum serde_derive 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)" = "58fc82bec244f168b23d1963b45c8bf5726e9a15a9d146a067f9081aeed2de79"
@@ -535,4 +539,4 @@ dependencies = [
 "checksum winapi 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)" = "f10e386af2b13e47c89e7236a7a14a086791a2b88ebad6df9bf42040195cf770"
 "checksum winapi-i686-pc-windows-gnu 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
 "checksum winapi-x86_64-pc-windows-gnu 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
-"checksum yamakan 0.0.13 (registry+https://github.com/rust-lang/crates.io-index)" = "07a32b38af70cb66f226e1d7ef3fbcb0f7a8de3b74faf94cf1d07d11d2490584"
+"checksum yamakan 0.0.14 (registry+https://github.com/rust-lang/crates.io-index)" = "e571366ddcd298396a3e6de381d3f7c0faf847f0828f0a467186ba644ef5953b"

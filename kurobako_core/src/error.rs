@@ -1,4 +1,5 @@
 use rustats;
+use serde::{Deserialize, Serialize};
 use serde_json;
 use trackable::error::{ErrorKind as TrackableErrorKind, ErrorKindExt};
 use trackable::error::{Failure, TrackableError};
@@ -50,7 +51,8 @@ impl From<rustats::Error> for Error {
 }
 
 /// Possible error kinds.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorKind {
     /// Invalid input was given.
     InvalidInput,
