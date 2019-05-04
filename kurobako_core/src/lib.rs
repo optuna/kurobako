@@ -6,9 +6,9 @@ extern crate trackable;
 
 pub use error::{Error, ErrorKind};
 
-pub mod distribution;
+pub mod parameter;
 pub mod problem;
-pub mod problems;
+//pub mod problems;
 
 mod error;
 mod serde_json_line;

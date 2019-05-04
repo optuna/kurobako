@@ -3,14 +3,21 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ParamDomain(Vec<Param>);
+#[serde(rename_all = "kebab-case")]
+pub enum ParamDomain {
+    Continuous(Continuous),
+    Discrete(Discrete),
+    Categorical(Categorical),
+    Conditional(Conditional),
+}
 impl ParamDomain {
-    pub const fn new(domain: Vec<Param>) -> Self {
-        Self(domain)
-    }
-
-    pub fn get(&self) -> &[Param] {
-        &self.0
+    pub fn name(&self) -> &str {
+        match self {
+            ParamDomain::Continuous(p) => &p.name,
+            ParamDomain::Discrete(p) => &p.name,
+            ParamDomain::Categorical(p) => &p.name,
+            ParamDomain::Conditional(p) => p.param.name(),
+        }
     }
 }
 
@@ -20,25 +27,6 @@ pub enum ParamValue {
     Discrete(i64),
     Categorical(String),
     Conditional(Option<Box<ParamValue>>),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum Param {
-    Continuous(Continuous),
-    Discrete(Discrete),
-    Categorical(Categorical),
-    Conditional(Conditional),
-}
-impl Param {
-    pub fn name(&self) -> &str {
-        match self {
-            Param::Continuous(p) => &p.name,
-            Param::Discrete(p) => &p.name,
-            Param::Categorical(p) => &p.name,
-            Param::Conditional(p) => p.param.name(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -96,16 +84,16 @@ pub enum Distribution {
     LogUniform,
 }
 
-pub fn boolean(name: &str) -> Param {
+pub fn boolean(name: &str) -> ParamDomain {
     choices(name, &["false", "true"])
 }
 
-pub fn choices<I, C>(name: &str, choices: I) -> Param
+pub fn choices<I, C>(name: &str, choices: I) -> ParamDomain
 where
     I: IntoIterator<Item = C>,
     C: Display,
 {
-    Param::Categorical(Categorical {
+    ParamDomain::Categorical(Categorical {
         name: name.to_owned(),
         choices: choices.into_iter().map(|c| c.to_string()).collect(),
     })
