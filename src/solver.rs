@@ -3,7 +3,7 @@ use kurobako_core::problem::ProblemSpec;
 use kurobako_core::solver::{Asked, ObservedObs, Solver, SolverRecipe, SolverSpec};
 use kurobako_core::time::Elapsed;
 use kurobako_core::Result;
-use kurobako_solvers::random;
+use kurobako_solvers::{optuna, random};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
@@ -14,6 +14,7 @@ use yamakan::observation::IdGen;
 #[structopt(rename_all = "kebab-case")]
 pub enum KurobakoSolverRecipe {
     Random(random::RandomSolverRecipe),
+    Optuna(optuna::OptunaSolverRecipe),
     Command(epi::solver::ExternalProgramSolverRecipe),
 }
 impl SolverRecipe for KurobakoSolverRecipe {
@@ -23,6 +24,9 @@ impl SolverRecipe for KurobakoSolverRecipe {
         match self {
             KurobakoSolverRecipe::Random(r) => {
                 track!(r.create_solver(problem)).map(KurobakoSolver::Random)
+            }
+            KurobakoSolverRecipe::Optuna(r) => {
+                track!(r.create_solver(problem)).map(KurobakoSolver::Optuna)
             }
             KurobakoSolverRecipe::Command(r) => {
                 track!(r.create_solver(problem)).map(KurobakoSolver::Command)
@@ -34,12 +38,14 @@ impl SolverRecipe for KurobakoSolverRecipe {
 #[derive(Debug)]
 pub enum KurobakoSolver {
     Random(random::RandomSolver),
+    Optuna(optuna::OptunaSolver),
     Command(epi::solver::ExternalProgramSolver),
 }
 impl Solver for KurobakoSolver {
     fn specification(&self) -> SolverSpec {
         match self {
             KurobakoSolver::Random(s) => s.specification(),
+            KurobakoSolver::Optuna(s) => s.specification(),
             KurobakoSolver::Command(s) => s.specification(),
         }
     }
@@ -47,6 +53,7 @@ impl Solver for KurobakoSolver {
     fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<Asked> {
         match self {
             KurobakoSolver::Random(s) => track!(s.ask(rng, idg)),
+            KurobakoSolver::Optuna(s) => track!(s.ask(rng, idg)),
             KurobakoSolver::Command(s) => track!(s.ask(rng, idg)),
         }
     }
@@ -54,6 +61,7 @@ impl Solver for KurobakoSolver {
     fn tell(&mut self, obs: ObservedObs) -> Result<Elapsed> {
         match self {
             KurobakoSolver::Random(s) => track!(s.tell(obs)),
+            KurobakoSolver::Optuna(s) => track!(s.tell(obs)),
             KurobakoSolver::Command(s) => track!(s.tell(obs)),
         }
     }

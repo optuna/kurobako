@@ -69,7 +69,7 @@ impl Solver for ExternalProgramSolver {
 
     fn ask<R: Rng, G: IdGen>(&mut self, _rng: &mut R, idg: &mut G) -> Result<Asked> {
         let id_hint = track!(idg.generate())?;
-        let message = SolverMessage::AskRequest { id_hint };
+        let message = SolverMessage::AskCall { id_hint };
         track!(self.tx.send(&message))?;
 
         let now = Instant::now();
@@ -100,7 +100,7 @@ impl Solver for ExternalProgramSolver {
     }
 
     fn tell(&mut self, obs: ObservedObs) -> Result<Elapsed> {
-        let message = SolverMessage::TellRequest {
+        let message = SolverMessage::TellCall {
             id: obs.id,
             budget: obs.param.budget(),
             params: obs.param.into_inner(),
@@ -138,7 +138,7 @@ impl Drop for ExternalProgramSolver {
 pub enum SolverMessage {
     SolverSpecCast(SolverSpec),
     ProblemSpecCast(ProblemSpec),
-    AskRequest {
+    AskCall {
         id_hint: ObsId,
     },
     AskReply {
@@ -148,7 +148,7 @@ pub enum SolverMessage {
         #[serde(default)]
         elapsed: Option<Elapsed>,
     },
-    TellRequest {
+    TellCall {
         id: ObsId,
         params: Vec<ParamValue>,
         budget: Budget,

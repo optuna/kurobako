@@ -84,7 +84,7 @@ pub enum Condition {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "kebab-case")] // TODO: remove kebab-case
 pub enum Distribution {
     Uniform,
     LogUniform,
