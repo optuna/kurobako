@@ -23,7 +23,7 @@ impl ProblemRecipe for NasbenchProblemRecipe {
     type Problem = NasbenchProblem;
 
     fn create_problem(&self) -> Result<Self::Problem> {
-        let script = include_str!("../../contrib/nasbench_problem.py");
+        let script = include_str!("../contrib/nasbench_problem.py");
         let args = vec![
             "--dataset-path".to_owned(),
             track_assert_some!(self.dataset_path.to_str(), ErrorKind::InvalidInput).to_owned(),

@@ -252,7 +252,7 @@ impl ProblemRecipe for SigoptProblemRecipe {
     type Problem = SigoptProblem;
 
     fn create_problem(&self) -> Result<Self::Problem> {
-        let script = include_str!("../../contrib/sigopt_problem.py");
+        let script = include_str!("../contrib/sigopt_problem.py");
         let mut args = vec![self.name().to_owned(), self.dim().to_string()];
         if let Some(res) = self.res() {
             args.extend_from_slice(&["--res".to_owned(), res.to_string()]);
