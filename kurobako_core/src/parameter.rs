@@ -47,6 +47,7 @@ impl Unconditional {
         }
     }
 }
+// TODO: Implement PriorDistribution
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Continuous {

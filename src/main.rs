@@ -7,6 +7,7 @@ use kurobako::plot::PlotOptions;
 use kurobako::problem_suites::{BuiltinProblemSuite, ProblemSuite};
 use kurobako::problems::BuiltinProblemRecipe;
 use kurobako::runner::Runner;
+use kurobako::solver::KurobakoSolverRecipe;
 use kurobako::stats::{Stats, StatsSummary};
 use kurobako::study::StudyRecord;
 use kurobako_core::{Error, ErrorKind, Result};
@@ -17,6 +18,7 @@ use structopt::StructOpt;
 #[structopt(rename_all = "kebab-case")]
 enum Opt {
     Optimizer(OptimizerSpec),
+    Solver(KurobakoSolverRecipe),
     Problem(BuiltinProblemRecipe),
     ProblemSuite(BuiltinProblemSuite),
     Benchmark(BenchmarkSpec),
@@ -97,6 +99,9 @@ fn main() -> trackable::result::MainResult {
     match opt {
         Opt::Optimizer(o) => {
             track!(serde_json::to_writer(std::io::stdout().lock(), &o).map_err(Error::from))?
+        }
+        Opt::Solver(s) => {
+            track!(serde_json::to_writer(std::io::stdout().lock(), &s).map_err(Error::from))?
         }
         Opt::Problem(p) => {
             track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?

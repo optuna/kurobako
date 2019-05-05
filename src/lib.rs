@@ -11,6 +11,7 @@ pub mod plot;
 pub mod problem_suites;
 pub mod problems;
 pub mod runner;
+pub mod solver;
 pub mod stats;
 pub mod study;
 pub mod time;
