@@ -1,82 +1,63 @@
-use kurobako_core::problem::{Evaluate, Problem, ProblemSpace, ProblemSpec};
-use kurobako_core::problems::command::{CommandEvaluator, CommandProblem, CommandProblemSpec};
-use kurobako_core::{Error, Result};
-use rustats::range::MinMax;
+use kurobako_core::epi::problem::{
+    EmbeddedScriptEvaluator, EmbeddedScriptProblem, EmbeddedScriptProblemRecipe,
+};
+use kurobako_core::parameter::ParamValue;
+use kurobako_core::problem::{Evaluate, Evaluated, Problem, ProblemRecipe, ProblemSpec};
+use kurobako_core::{ErrorKind, Result};
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::io::Write as _;
+use std::path::PathBuf;
 use structopt::StructOpt;
-use tempfile::{NamedTempFile, TempPath};
 use yamakan::budget::Budget;
+use yamakan::observation::ObsId;
 
 #[derive(Debug, StructOpt, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[structopt(rename_all = "kebab-case")]
-pub struct NasbenchProblemSpec {
-    pub dataset_path: String, // TODO: PathBuf
+pub struct NasbenchProblemRecipe {
+    pub dataset_path: PathBuf,
+
+    #[structopt(long)]
+    pub python: Option<PathBuf>,
 }
-impl ProblemSpec for NasbenchProblemSpec {
+impl ProblemRecipe for NasbenchProblemRecipe {
     type Problem = NasbenchProblem;
 
-    fn make_problem(&self) -> Result<Self::Problem> {
-        let python_code = include_str!("../../contrib/nasbench_problem.py");
-
-        let mut temp = track!(NamedTempFile::new().map_err(Error::from))?;
-        track!(write!(temp.as_file_mut(), "{}", python_code).map_err(Error::from))?;
-        let temp = temp.into_temp_path();
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt as _;
-            track!(
-                fs::set_permissions(&temp, fs::Permissions::from_mode(0o755)).map_err(Error::from)
-            )?;
-        }
-
-        let args = vec!["--dataset-path".to_owned(), self.dataset_path.clone()];
-
-        let spec = CommandProblemSpec {
-            path: temp.to_path_buf(),
+    fn create_problem(&self) -> Result<Self::Problem> {
+        let script = include_str!("../../contrib/nasbench_problem.py");
+        let args = vec![
+            "--dataset-path".to_owned(),
+            track_assert_some!(self.dataset_path.to_str(), ErrorKind::InvalidInput).to_owned(),
+        ];
+        let recipe = EmbeddedScriptProblemRecipe {
+            script: script.to_owned(),
             args,
+            interpreter: self.python.clone(),
+            interpreter_args: Vec::new(),
             skip_lines: Some(2),
         };
-
-        let inner = track!(spec.make_problem())?;
-        Ok(NasbenchProblem { inner, temp })
+        let inner = track!(recipe.create_problem())?;
+        Ok(NasbenchProblem(inner))
     }
 }
 
 #[derive(Debug)]
-pub struct NasbenchProblem {
-    inner: CommandProblem,
-    temp: TempPath,
-}
+pub struct NasbenchProblem(EmbeddedScriptProblem);
 impl Problem for NasbenchProblem {
     type Evaluator = NasbenchEvaluator;
 
-    fn problem_space(&self) -> ProblemSpace {
-        self.inner.problem_space()
+    fn specification(&self) -> ProblemSpec {
+        self.0.specification()
     }
 
-    fn evaluation_cost(&self) -> u64 {
-        self.inner.evaluation_cost()
-    }
-
-    fn value_range(&self) -> MinMax<f64> {
-        self.inner.value_range()
-    }
-
-    fn make_evaluator(&mut self, params: &[f64]) -> Result<Option<Self::Evaluator>> {
-        let inner = track!(self.inner.make_evaluator(params))?;
-        Ok(inner.map(|inner| NasbenchEvaluator { inner }))
+    fn create_evaluator(&mut self, id: ObsId) -> Result<Self::Evaluator> {
+        track!(self.0.create_evaluator(id)).map(NasbenchEvaluator)
     }
 }
 
 #[derive(Debug)]
-pub struct NasbenchEvaluator {
-    inner: CommandEvaluator,
-}
+pub struct NasbenchEvaluator(EmbeddedScriptEvaluator);
 impl Evaluate for NasbenchEvaluator {
-    fn evaluate(&mut self, budget: &mut Budget) -> Result<f64> {
-        track!(self.inner.evaluate(budget))
+    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Evaluated> {
+        track!(self.0.evaluate(params, budget))
     }
 }

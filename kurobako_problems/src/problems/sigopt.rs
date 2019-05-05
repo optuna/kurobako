@@ -1,20 +1,21 @@
-use kurobako_core::problem::{Evaluate, Problem, ProblemSpace, ProblemSpec};
-use kurobako_core::problems::command::{CommandEvaluator, CommandProblem, CommandProblemSpec};
-use kurobako_core::{Error, Result};
-use rustats::range::MinMax;
+use kurobako_core::epi::problem::{
+    EmbeddedScriptEvaluator, EmbeddedScriptProblem, EmbeddedScriptProblemRecipe,
+};
+use kurobako_core::parameter::ParamValue;
+use kurobako_core::problem::{Evaluate, Evaluated, Problem, ProblemRecipe, ProblemSpec};
+use kurobako_core::Result;
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::io::Write as _;
+use std::path::PathBuf;
 use structopt::StructOpt;
-use tempfile::{NamedTempFile, TempPath};
 use yamakan::budget::Budget;
+use yamakan::observation::ObsId;
 
 macro_rules! define_sigopt_problem_spec {
     ($([$name:ident, $dim:expr],)*) => {
         #[derive(Debug, StructOpt, Serialize, Deserialize)]
         #[serde(rename_all = "kebab-case")]
         #[structopt(rename_all = "kebab-case")]
-        pub enum SigoptProblemSpec {
+        pub enum SigoptProblemRecipe {
             $($name {
                 #[structopt(long, default_value = $dim)]
                 dim: u32,
@@ -22,24 +23,33 @@ macro_rules! define_sigopt_problem_spec {
                 #[serde(skip_serializing_if = "Option::is_none")]
                 #[structopt(long)]
                 res: Option<f64>,
+
+                #[structopt(long)]
+                python: Option<PathBuf>,
             }),*
         }
-        impl SigoptProblemSpec {
+        impl SigoptProblemRecipe {
             pub fn name(&self) -> &'static str {
                 match self {
-                    $(SigoptProblemSpec::$name { .. } => stringify!($name)),*
+                    $(SigoptProblemRecipe::$name { .. } => stringify!($name)),*
                 }
             }
 
             pub fn dim(&self) -> u32 {
                 match *self {
-                    $(SigoptProblemSpec::$name { dim, .. } => dim),*
+                    $(SigoptProblemRecipe::$name { dim, .. } => dim),*
                 }
             }
 
             pub fn res(&self) -> Option<f64> {
                 match *self {
-                    $(SigoptProblemSpec::$name { res, .. } => res),*
+                    $(SigoptProblemRecipe::$name { res, .. } => res),*
+                }
+            }
+
+            pub fn python(&self) -> Option<&PathBuf> {
+                 match self {
+                    $(SigoptProblemRecipe::$name { python, .. } => python.as_ref()),*
                 }
             }
         }
@@ -238,71 +248,45 @@ define_sigopt_problem_spec!(
     [Problem22, "1"],
 );
 
-impl ProblemSpec for SigoptProblemSpec {
+impl ProblemRecipe for SigoptProblemRecipe {
     type Problem = SigoptProblem;
 
-    fn make_problem(&self) -> Result<Self::Problem> {
-        let python_code = include_str!("../../contrib/sigopt_problem.py");
-
-        let mut temp = track!(NamedTempFile::new().map_err(Error::from))?;
-        track!(write!(temp.as_file_mut(), "{}", python_code).map_err(Error::from))?;
-        let temp = temp.into_temp_path();
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt as _;
-            track!(
-                fs::set_permissions(&temp, fs::Permissions::from_mode(0o755)).map_err(Error::from)
-            )?;
-        }
-
+    fn create_problem(&self) -> Result<Self::Problem> {
+        let script = include_str!("../../contrib/sigopt_problem.py");
         let mut args = vec![self.name().to_owned(), self.dim().to_string()];
         if let Some(res) = self.res() {
             args.extend_from_slice(&["--res".to_owned(), res.to_string()]);
         }
-
-        let spec = CommandProblemSpec {
-            path: temp.to_path_buf(),
+        let recipe = EmbeddedScriptProblemRecipe {
+            script: script.to_owned(),
             args,
+            interpreter: self.python().cloned(),
+            interpreter_args: Vec::new(),
             skip_lines: None,
         };
-
-        let inner = track!(spec.make_problem())?;
-        Ok(SigoptProblem { inner, temp })
+        let inner = track!(recipe.create_problem())?;
+        Ok(SigoptProblem(inner))
     }
 }
 
 #[derive(Debug)]
-pub struct SigoptProblem {
-    inner: CommandProblem,
-    temp: TempPath,
-}
+pub struct SigoptProblem(EmbeddedScriptProblem);
 impl Problem for SigoptProblem {
     type Evaluator = SigoptEvaluator;
 
-    fn problem_space(&self) -> ProblemSpace {
-        self.inner.problem_space()
+    fn specification(&self) -> ProblemSpec {
+        self.0.specification()
     }
 
-    fn evaluation_cost(&self) -> u64 {
-        self.inner.evaluation_cost()
-    }
-
-    fn value_range(&self) -> MinMax<f64> {
-        self.inner.value_range()
-    }
-
-    fn make_evaluator(&mut self, params: &[f64]) -> Result<Option<Self::Evaluator>> {
-        let inner = track!(self.inner.make_evaluator(params))?;
-        Ok(inner.map(|inner| SigoptEvaluator { inner }))
+    fn create_evaluator(&mut self, id: ObsId) -> Result<Self::Evaluator> {
+        track!(self.0.create_evaluator(id)).map(SigoptEvaluator)
     }
 }
 
 #[derive(Debug)]
-pub struct SigoptEvaluator {
-    inner: CommandEvaluator,
-}
+pub struct SigoptEvaluator(EmbeddedScriptEvaluator);
 impl Evaluate for SigoptEvaluator {
-    fn evaluate(&mut self, budget: &mut Budget) -> Result<f64> {
-        track!(self.inner.evaluate(budget))
+    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Evaluated> {
+        track!(self.0.evaluate(params, budget))
     }
 }
