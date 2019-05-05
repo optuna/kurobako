@@ -52,6 +52,8 @@ impl Unconditional {
 pub struct Continuous {
     pub name: String,
     pub range: Range<FiniteF64>,
+
+    #[serde(default)]
     pub distribution: Distribution,
 }
 
@@ -84,6 +86,11 @@ pub enum Condition {
 pub enum Distribution {
     Uniform,
     LogUniform,
+}
+impl Default for Distribution {
+    fn default() -> Self {
+        Distribution::Uniform
+    }
 }
 
 pub fn boolean(name: &str) -> ParamDomain {

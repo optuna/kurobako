@@ -1,5 +1,6 @@
 use crate::study::StudyRecord;
-use crate::{Error, Name, Result};
+use crate::Name;
+use kurobako_core::{Error, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::Path;

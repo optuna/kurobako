@@ -31,10 +31,15 @@ pub trait ProblemRecipe: StructOpt + Serialize + for<'a> Deserialize<'a> {
 #[serde(rename_all = "kebab-case")]
 pub struct ProblemSpec {
     pub name: String,
+
+    #[serde(default)]
     pub version: Option<String>,
+
     pub params_domain: Vec<ParamDomain>,
     pub values_domain: Vec<MinMax<FiniteF64>>,
     pub evaluation_expense: NonZeroU64,
+
+    #[serde(default)]
     pub capabilities: EvaluatorCapabilities,
 }
 

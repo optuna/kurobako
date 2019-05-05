@@ -1,5 +1,6 @@
 use super::{ExternalCommandOptimizer, ExternalCommandOptimizerBuilder, OptimizerBuilder};
-use crate::{Error, ProblemSpace, Result};
+use kurobako_core::parameter::ParamDomain;
+use kurobako_core::{Error, Result};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -42,7 +43,7 @@ pub struct GpyoptOptimizerBuilder {}
 impl OptimizerBuilder for GpyoptOptimizerBuilder {
     type Optimizer = GpyoptOptimizer;
 
-    fn build(&self, problem_space: &ProblemSpace, eval_cost: u64) -> Result<Self::Optimizer> {
+    fn build(&self, problem_space: &[ParamDomain], eval_cost: u64) -> Result<Self::Optimizer> {
         let python_code = include_str!("../../contrib/optimizers/gpyopt_optimizer.py");
         let mut temp = track!(NamedTempFile::new().map_err(Error::from))?;
         track!(write!(temp.as_file_mut(), "{}", python_code).map_err(Error::from))?;

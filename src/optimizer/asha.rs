@@ -1,5 +1,6 @@
 use crate::optimizer::{OptimizerBuilder, RandomOptimizerBuilder, RandomOptimizerNoBudget};
-use crate::{ProblemSpace, Result};
+use kurobako_core::parameter::ParamDomain;
+use kurobako_core::Result;
 use rand::Rng;
 use rustats::num::NonNanF64;
 use serde::{Deserialize, Serialize};
@@ -63,7 +64,7 @@ impl AshaOptimizerSpec {
 impl OptimizerBuilder for AshaOptimizerSpec {
     type Optimizer = AshaOptimizer;
 
-    fn build(&self, problem_space: &ProblemSpace, eval_cost: u64) -> Result<Self::Optimizer> {
+    fn build(&self, problem_space: &[ParamDomain], eval_cost: u64) -> Result<Self::Optimizer> {
         let options = self.asha_options();
         match self {
             AshaOptimizerSpec::Random { random, .. } => {

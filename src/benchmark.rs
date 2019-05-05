@@ -1,7 +1,7 @@
 use crate::optimizer::OptimizerSpec;
-use crate::problems::BuiltinProblemSpec;
+use crate::problems::BuiltinProblemRecipe;
 use crate::runner::RunSpec;
-use crate::{Error, Result};
+use kurobako_core::{Error, Result};
 use serde::{Deserialize, Serialize};
 use serde_json;
 
@@ -21,7 +21,7 @@ pub struct BenchmarkSpec {
     pub optimizers: Vec<OptimizerSpec>,
 
     #[structopt(long, parse(try_from_str = "parse_json"))]
-    pub problems: Vec<BuiltinProblemSpec>,
+    pub problems: Vec<BuiltinProblemRecipe>,
 
     #[structopt(long, default_value = "20")]
     pub budget: usize,

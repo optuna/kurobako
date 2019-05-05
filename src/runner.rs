@@ -1,11 +1,13 @@
 use crate::optimizer::{OptimizerBuilder, OptimizerSpec};
-use crate::problems::BuiltinProblemSpec;
+use crate::problems::BuiltinProblemRecipe;
 use crate::study::StudyRecord;
 use crate::time::Stopwatch;
 use crate::trial::{AskRecord, EvalRecord, TrialRecord};
-use crate::{Error, Evaluate, Problem, ProblemSpec};
+use kurobako_core::problem::{Evaluate, Problem, ProblemRecipe};
+use kurobako_core::Error;
 use rand::rngs::ThreadRng;
 use rand::{self, Rng};
+use rustats::num::FiniteF64;
 use yamakan::budget::{Budget, Budgeted};
 use yamakan::observation::{Obs, SerialIdGenerator};
 use yamakan::Optimizer;
@@ -27,43 +29,51 @@ impl<R: Rng> Runner<R> {
     pub fn run<O, P>(
         &mut self,
         optimizer_builder: &O,
-        problem_spec: &P,
+        problem_recipe: &P,
         budget_factor: usize,
     ) -> Result<StudyRecord, Error>
     where
         O: OptimizerBuilder,
-        P: ProblemSpec,
+        P: ProblemRecipe,
     {
-        let mut problem = problem_spec.make_problem()?;
-        let mut optimizer =
-            optimizer_builder.build(&problem.problem_space(), problem.evaluation_cost())?;
-        let mut budget = Budget::new(budget_factor as u64 * problem.evaluation_cost());
+        let mut problem = problem_recipe.create_problem()?;
+        let problem_spec = problem.specification();
+        let mut optimizer = optimizer_builder.build(
+            &problem_spec.params_domain,
+            problem_spec.evaluation_expense.get(),
+        )?;
+        let mut budget = Budget::new(budget_factor as u64 * problem_spec.evaluation_expense.get());
 
         let mut study_record = StudyRecord::new(
             optimizer_builder,
-            problem_spec,
-            budget.hard_limit(),
-            problem.value_range(),
+            problem_recipe,
+            budget.amount,
+            problem_spec.values_domain[0], // TODO
         )?;
 
         let watch = Stopwatch::new();
-        while budget.hard_remaining() > 0 {
+        while !budget.is_consumed() {
             // eprintln!("  # {:?}", budget);
             let (ask, obs_id, mut opt_budget) =
                 track!(AskRecord::with(&watch, || optimizer.ask(&mut self.rng, &mut self.idgen)))?;
-            let mut evaluator =
-                if let Some(evaluator) = track!(problem.make_evaluator(&ask.params))? {
-                    evaluator
-                } else {
-                    eprintln!("[WARN] Invalid parameters");
-                    continue;
-                };
+            let mut evaluator = track!(problem.create_evaluator(obs_id))?;
 
-            let old_consumption = opt_budget.consumption();
+            let old_consumption = opt_budget.consumption;
             let eval = EvalRecord::with(&watch, || {
-                evaluator.evaluate(&mut opt_budget).expect("TODO")
+                use kurobako_core::parameter::ParamValue;
+
+                let params = ask
+                    .params
+                    .iter()
+                    .map(|p| ParamValue::Continuous(FiniteF64::new(*p).expect("TODO")))
+                    .collect::<Vec<_>>();
+                evaluator
+                    .evaluate(&params, &mut opt_budget)
+                    .expect("TODO")
+                    .values[0]
+                    .get()
             });
-            track!(budget.consume(opt_budget.consumption() - old_consumption))?;
+            budget.consumption += opt_budget.consumption - old_consumption;
 
             let obs = Obs {
                 id: obs_id,
@@ -85,6 +95,6 @@ impl<R: Rng> Runner<R> {
 #[derive(Debug)]
 pub struct RunSpec<'a> {
     pub optimizer: &'a OptimizerSpec,
-    pub problem: &'a BuiltinProblemSpec,
+    pub problem: &'a BuiltinProblemRecipe,
     pub budget: usize,
 }

@@ -169,7 +169,8 @@ impl Evaluate for ExternalProgramEvaluator {
                     budget.amount,
                     ErrorKind::InvalidInput
                 );
-                track_assert!(consumed_budget.is_consumed(), ErrorKind::InvalidInput; consumed_budget);
+                // TODO
+                // track_assert!(consumed_budget.is_consumed(), ErrorKind::InvalidInput; consumed_budget);
                 budget.consumption = consumed_budget.consumption;
 
                 let elapsed = elapsed.unwrap_or_else(|| Seconds::from(now.elapsed()));
@@ -213,10 +214,12 @@ pub enum ProblemMessage {
     EvaluateOkReply {
         values: Vec<FiniteF64>,
         budget: Budget,
+        #[serde(default)]
         elapsed: Option<Seconds>,
     },
     EvaluateErrorReply {
         kind: ErrorKind,
+        #[serde(default)]
         message: Option<String>,
     },
 }

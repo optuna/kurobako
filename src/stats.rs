@@ -1,5 +1,6 @@
 use crate::study::StudyRecord;
-use crate::{Name, Result};
+use crate::Name;
+use kurobako_core::Result;
 use rustats::num::NonNanF64;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

@@ -1,5 +1,6 @@
 use super::OptimizerBuilder;
-use crate::{Error, ErrorKind, ProblemSpace};
+use kurobako_core::parameter::ParamDomain;
+use kurobako_core::{Error, ErrorKind};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::{self, json};
@@ -94,7 +95,7 @@ impl OptimizerBuilder for ExternalCommandOptimizerBuilder {
 
     fn build(
         &self,
-        problem_space: &ProblemSpace,
+        problem_space: &[ParamDomain],
         _eval_cost: u64,
     ) -> Result<Self::Optimizer, Error> {
         let mut child = track!(Command::new(&self.name)

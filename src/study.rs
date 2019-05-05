@@ -1,9 +1,11 @@
 use crate::optimizer::OptimizerBuilder;
 use crate::time::DateTime;
 use crate::trial::TrialRecord;
-use crate::{Error, Name, ProblemSpec};
+use crate::Name;
 use chrono::Local;
-use rustats::num::NonNanF64;
+use kurobako_core::problem::ProblemRecipe;
+use kurobako_core::Error;
+use rustats::num::{FiniteF64, NonNanF64};
 use rustats::range::MinMax;
 use serde::{Deserialize, Serialize};
 use std::f64;
@@ -13,7 +15,7 @@ pub struct StudyRecord {
     pub optimizer: Name,
     pub problem: Name,
     pub budget: u64,
-    pub value_range: MinMax<f64>,
+    pub value_range: MinMax<f64>, // TODO
     pub start_time: DateTime,
     pub trials: Vec<TrialRecord>,
 }
@@ -22,12 +24,14 @@ impl StudyRecord {
         optimizer_builder: &O,
         problem: &P,
         budget: u64,
-        value_range: MinMax<f64>,
+        value_range: MinMax<FiniteF64>,
     ) -> Result<Self, Error>
     where
         O: OptimizerBuilder,
-        P: ProblemSpec,
+        P: ProblemRecipe,
     {
+        let value_range =
+            MinMax::new(value_range.min().get(), value_range.max().get()).expect("TODO");
         Ok(StudyRecord {
             optimizer: Name::new(serde_json::to_value(optimizer_builder)?),
             problem: Name::new(serde_json::to_value(problem)?),

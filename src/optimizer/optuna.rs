@@ -1,5 +1,6 @@
 use super::{ExternalCommandOptimizer, ExternalCommandOptimizerBuilder, OptimizerBuilder};
-use crate::{Error, ProblemSpace};
+use kurobako_core::parameter::ParamDomain;
+use kurobako_core::Error;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -48,7 +49,7 @@ impl OptimizerBuilder for OptunaOptimizerBuilder {
 
     fn build(
         &self,
-        problem_space: &ProblemSpace,
+        problem_space: &[ParamDomain],
         eval_cost: u64,
     ) -> Result<Self::Optimizer, Error> {
         let python_code = include_str!("../../contrib/optimizers/optuna_optimizer.py");

@@ -1,5 +1,5 @@
-use crate::distribution::Distribution;
-use crate::{Error, ProblemSpace};
+use kurobako_core::parameter::ParamDomain;
+use kurobako_core::Error;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
@@ -22,8 +22,11 @@ mod optuna;
 pub trait OptimizerBuilder: StructOpt + Serialize + for<'a> Deserialize<'a> {
     type Optimizer: Optimizer<Param = Budgeted<Vec<f64>>, Value = f64>;
 
-    fn build(&self, problem_space: &ProblemSpace, eval_cost: u64)
-        -> Result<Self::Optimizer, Error>;
+    fn build(
+        &self,
+        problem_space: &[ParamDomain],
+        eval_cost: u64,
+    ) -> Result<Self::Optimizer, Error>;
 }
 
 #[derive(Debug, StructOpt, Serialize, Deserialize)]
@@ -41,7 +44,7 @@ impl OptimizerBuilder for OptimizerSpec {
 
     fn build(
         &self,
-        problem_space: &ProblemSpace,
+        problem_space: &[ParamDomain],
         eval_cost: u64,
     ) -> Result<Self::Optimizer, Error> {
         match self {
@@ -181,13 +184,18 @@ impl<V> Optimizer for RandomOptimizerNoBudget<V> {
 pub struct RandomOptimizerBuilder {}
 impl RandomOptimizerBuilder {
     // TODO
-    fn build2<V>(&self, problem_space: &ProblemSpace) -> Result<RandomOptimizerNoBudget<V>, Error> {
+    fn build2<V>(
+        &self,
+        problem_space: &[ParamDomain],
+    ) -> Result<RandomOptimizerNoBudget<V>, Error> {
         let inner = problem_space
-            .distributions()
             .iter()
             .map(|d| {
-                let Distribution::Uniform { low, high } = *d;
-                InnerRandomOptimizer::new(F64::new(low, high).expect("TODO"))
+                if let ParamDomain::Continuous(c) = d {
+                    InnerRandomOptimizer::new(F64::from(c.range))
+                } else {
+                    panic!()
+                }
             })
             .collect();
         Ok(RandomOptimizerNoBudget { inner })
@@ -198,15 +206,17 @@ impl OptimizerBuilder for RandomOptimizerBuilder {
 
     fn build(
         &self,
-        problem_space: &ProblemSpace,
+        problem_space: &[ParamDomain],
         _eval_cost: u64,
     ) -> Result<Self::Optimizer, Error> {
         let inner = problem_space
-            .distributions()
             .iter()
             .map(|d| {
-                let Distribution::Uniform { low, high } = *d;
-                InnerRandomOptimizer::new(F64::new(low, high).expect("TODO"))
+                if let ParamDomain::Continuous(c) = d {
+                    InnerRandomOptimizer::new(F64::from(c.range))
+                } else {
+                    panic!()
+                }
             })
             .collect();
         Ok(RandomOptimizer { inner })

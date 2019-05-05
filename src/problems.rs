@@ -1,27 +1,35 @@
-use crate::{Evaluate, Problem, ProblemSpace, ProblemSpec, Result};
-use kurobako_core::problems::command;
-use kurobako_problems::problems::{nasbench, sigopt};
-use rustats::range::MinMax;
+use kurobako_core::epi::problem::{
+    ExternalProgramEvaluator, ExternalProgramProblem, ExternalProgramProblemRecipe,
+};
+use kurobako_core::parameter::ParamValue;
+use kurobako_core::problem::{Evaluate, Evaluated, Problem, ProblemRecipe, ProblemSpec};
+use kurobako_core::Result;
+use kurobako_problems::{nasbench, sigopt};
 use serde::{Deserialize, Serialize};
 use yamakan::budget::Budget;
+use yamakan::observation::ObsId;
 
 #[derive(Debug, StructOpt, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[structopt(rename_all = "kebab-case")]
-pub enum BuiltinProblemSpec {
-    Command(command::CommandProblemSpec),
-    Sigopt(sigopt::SigoptProblemSpec),
-    Nasbench(nasbench::NasbenchProblemSpec),
+pub enum BuiltinProblemRecipe {
+    Command(ExternalProgramProblemRecipe),
+    Sigopt(sigopt::SigoptProblemRecipe),
+    Nasbench(nasbench::NasbenchProblemRecipe),
 }
-impl ProblemSpec for BuiltinProblemSpec {
+impl ProblemRecipe for BuiltinProblemRecipe {
     type Problem = BuiltinProblem;
 
-    fn make_problem(&self) -> Result<Self::Problem> {
+    fn create_problem(&self) -> Result<Self::Problem> {
         match self {
-            BuiltinProblemSpec::Command(p) => track!(p.make_problem().map(BuiltinProblem::Command)),
-            BuiltinProblemSpec::Sigopt(p) => track!(p.make_problem().map(BuiltinProblem::Sigopt)),
-            BuiltinProblemSpec::Nasbench(p) => {
-                track!(p.make_problem().map(BuiltinProblem::Nasbench))
+            BuiltinProblemRecipe::Command(p) => {
+                track!(p.create_problem().map(BuiltinProblem::Command))
+            }
+            BuiltinProblemRecipe::Sigopt(p) => {
+                track!(p.create_problem().map(BuiltinProblem::Sigopt))
+            }
+            BuiltinProblemRecipe::Nasbench(p) => {
+                track!(p.create_problem().map(BuiltinProblem::Nasbench))
             }
         }
     }
@@ -29,64 +37,48 @@ impl ProblemSpec for BuiltinProblemSpec {
 
 #[derive(Debug)]
 pub enum BuiltinProblem {
-    Command(command::CommandProblem),
+    Command(ExternalProgramProblem),
     Sigopt(sigopt::SigoptProblem),
     Nasbench(nasbench::NasbenchProblem),
 }
 impl Problem for BuiltinProblem {
     type Evaluator = BuiltinEvaluator;
 
-    fn problem_space(&self) -> ProblemSpace {
+    fn specification(&self) -> ProblemSpec {
         match self {
-            BuiltinProblem::Command(p) => p.problem_space(),
-            BuiltinProblem::Sigopt(p) => p.problem_space(),
-            BuiltinProblem::Nasbench(p) => p.problem_space(),
+            BuiltinProblem::Command(p) => p.specification(),
+            BuiltinProblem::Sigopt(p) => p.specification(),
+            BuiltinProblem::Nasbench(p) => p.specification(),
         }
     }
 
-    fn evaluation_cost(&self) -> u64 {
+    fn create_evaluator(&mut self, id: ObsId) -> Result<Self::Evaluator> {
         match self {
-            BuiltinProblem::Command(p) => p.evaluation_cost(),
-            BuiltinProblem::Sigopt(p) => p.evaluation_cost(),
-            BuiltinProblem::Nasbench(p) => p.evaluation_cost(),
-        }
-    }
-
-    fn value_range(&self) -> MinMax<f64> {
-        match self {
-            BuiltinProblem::Command(p) => p.value_range(),
-            BuiltinProblem::Sigopt(p) => p.value_range(),
-            BuiltinProblem::Nasbench(p) => p.value_range(),
-        }
-    }
-
-    fn make_evaluator(&mut self, params: &[f64]) -> Result<Option<Self::Evaluator>> {
-        match self {
-            BuiltinProblem::Command(p) => track!(p
-                .make_evaluator(params)
-                .map(|t| t.map(BuiltinEvaluator::Command))),
-            BuiltinProblem::Sigopt(p) => track!(p
-                .make_evaluator(params)
-                .map(|t| t.map(BuiltinEvaluator::Sigopt))),
-            BuiltinProblem::Nasbench(p) => track!(p
-                .make_evaluator(params)
-                .map(|t| t.map(BuiltinEvaluator::Nasbench))),
+            BuiltinProblem::Command(p) => {
+                track!(p.create_evaluator(id).map(BuiltinEvaluator::Command))
+            }
+            BuiltinProblem::Sigopt(p) => {
+                track!(p.create_evaluator(id).map(BuiltinEvaluator::Sigopt))
+            }
+            BuiltinProblem::Nasbench(p) => {
+                track!(p.create_evaluator(id).map(BuiltinEvaluator::Nasbench))
+            }
         }
     }
 }
 
 #[derive(Debug)]
 pub enum BuiltinEvaluator {
-    Command(command::CommandEvaluator),
+    Command(ExternalProgramEvaluator),
     Sigopt(sigopt::SigoptEvaluator),
     Nasbench(nasbench::NasbenchEvaluator),
 }
 impl Evaluate for BuiltinEvaluator {
-    fn evaluate(&mut self, budget: &mut Budget) -> Result<f64> {
+    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Evaluated> {
         match self {
-            BuiltinEvaluator::Command(e) => track!(e.evaluate(budget)),
-            BuiltinEvaluator::Sigopt(e) => track!(e.evaluate(budget)),
-            BuiltinEvaluator::Nasbench(e) => track!(e.evaluate(budget)),
+            BuiltinEvaluator::Command(e) => track!(e.evaluate(params, budget)),
+            BuiltinEvaluator::Sigopt(e) => track!(e.evaluate(params, budget)),
+            BuiltinEvaluator::Nasbench(e) => track!(e.evaluate(params, budget)),
         }
     }
 }

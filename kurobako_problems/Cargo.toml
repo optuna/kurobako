@@ -18,6 +18,5 @@ kurobako_core = { path = "../kurobako_core/", version = "0.0" }
 rustats = "0.0"
 serde = { version = "1", features = ["derive"] }
 structopt = "0.2"
-tempfile = "3"
 trackable = "0.2"
 yamakan = "0.0"

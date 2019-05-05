@@ -1,27 +1,23 @@
 #[macro_use]
-extern crate structopt;
-#[macro_use]
 extern crate trackable;
 
 use kurobako::benchmark::BenchmarkSpec;
 use kurobako::optimizer::OptimizerSpec;
-use kurobako::optimizer_suites::{BuiltinOptimizerSuite, OptimizerSuite};
 use kurobako::plot::PlotOptions;
 use kurobako::problem_suites::{BuiltinProblemSuite, ProblemSuite};
-use kurobako::problems::BuiltinProblemSpec;
+use kurobako::problems::BuiltinProblemRecipe;
 use kurobako::runner::Runner;
 use kurobako::stats::{Stats, StatsSummary};
 use kurobako::study::StudyRecord;
-use kurobako::{Error, ErrorKind, Result};
+use kurobako_core::{Error, ErrorKind, Result};
 use std::path::PathBuf;
-use structopt::StructOpt as _;
+use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 enum Opt {
     Optimizer(OptimizerSpec),
-    OptimizerSuite(BuiltinOptimizerSuite),
-    Problem(BuiltinProblemSpec),
+    Problem(BuiltinProblemRecipe),
     ProblemSuite(BuiltinProblemSuite),
     Benchmark(BenchmarkSpec),
     Run(RunOpt),
@@ -102,11 +98,6 @@ fn main() -> trackable::result::MainResult {
         Opt::Optimizer(o) => {
             track!(serde_json::to_writer(std::io::stdout().lock(), &o).map_err(Error::from))?
         }
-        Opt::OptimizerSuite(o) => track!(serde_json::to_writer(
-            std::io::stdout().lock(),
-            &o.suite().collect::<Vec<_>>()
-        )
-        .map_err(Error::from))?,
         Opt::Problem(p) => {
             track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?
         }

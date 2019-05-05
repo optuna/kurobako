@@ -1,5 +1,5 @@
 use crate::time::{Stopwatch, Timestamp};
-use crate::Result;
+use kurobako_core::Result;
 use serde::{Deserialize, Serialize};
 use yamakan;
 use yamakan::budget::{Budget, Budgeted};
