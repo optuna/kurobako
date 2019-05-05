@@ -27,7 +27,7 @@ impl ParamDomain {
 pub enum ParamValue {
     Continuous(FiniteF64),
     Discrete(i64),
-    Categorical(String),
+    Categorical(usize),
     Conditional(Option<Box<ParamValue>>),
 }
 
@@ -78,6 +78,7 @@ pub struct Conditional {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Condition {
+    // can refer to only preceeding parameters
     Member { name: String, choices: Vec<String> },
 }
 

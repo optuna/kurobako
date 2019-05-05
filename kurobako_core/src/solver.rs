@@ -44,7 +44,22 @@ pub struct SolverSpec {
     pub capabilities: SolverCapabilities,
 }
 
-pub type SolverCapabilities = BTreeSet<SolverCapability>;
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SolverCapabilities(BTreeSet<SolverCapability>);
+impl SolverCapabilities {
+    pub fn all() -> Self {
+        let all = [
+            SolverCapability::Categorical,
+            SolverCapability::Conditional,
+            SolverCapability::Discrete,
+            SolverCapability::MultiObjective,
+        ]
+        .iter()
+        .cloned()
+        .collect();
+        Self(all)
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -52,5 +67,6 @@ pub enum SolverCapability {
     Categorical,
     Conditional,
     Discrete,
+    LogUniform,
     MultiObjective,
 }

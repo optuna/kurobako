@@ -1,7 +1,7 @@
 use crate::Result;
 use rustats::num::FiniteF64;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub type Elapsed = Seconds;
 
@@ -25,6 +25,15 @@ impl Seconds {
         let secs = self.0.get() as u64;
         let nanos = (self.0.get().fract() * 1_000_000_000.0) as u32;
         Duration::new(secs, nanos)
+    }
+
+    pub fn time<F, T>(f: F) -> (T, Self)
+    where
+        F: FnOnce() -> T,
+    {
+        let now = Instant::now();
+        let result = f();
+        (result, Self::from(now.elapsed()))
     }
 }
 impl From<Duration> for Seconds {

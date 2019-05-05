@@ -135,6 +135,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "kurobako_solvers"
+version = "0.0.1"
+dependencies = [
+ "kurobako_core 0.0.4",
+ "rand 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustats 0.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
+ "structopt 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "trackable 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
+ "yamakan 0.0.14 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
