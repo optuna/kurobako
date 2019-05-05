@@ -2,3 +2,4 @@
 
 pub mod channel;
 pub mod problem;
+pub mod solver;

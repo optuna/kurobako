@@ -164,6 +164,8 @@ impl Evaluate for ExternalProgramEvaluator {
                 budget: consumed_budget,
                 elapsed,
             } => {
+                let elapsed = elapsed.unwrap_or_else(|| Seconds::from(now.elapsed()));
+
                 track_assert_eq!(
                     consumed_budget.amount,
                     budget.amount,
@@ -173,7 +175,6 @@ impl Evaluate for ExternalProgramEvaluator {
                 // track_assert!(consumed_budget.is_consumed(), ErrorKind::InvalidInput; consumed_budget);
                 budget.consumption = consumed_budget.consumption;
 
-                let elapsed = elapsed.unwrap_or_else(|| Seconds::from(now.elapsed()));
                 self.prev_values = Some(values.clone());
 
                 Ok(Evaluated::new(values, elapsed))
