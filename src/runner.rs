@@ -1,16 +1,15 @@
-use crate::optimizer::{OptimizerBuilder, OptimizerSpec};
-use crate::problems::BuiltinProblemRecipe;
+use crate::problem::KurobakoProblemRecipe;
+use crate::solver::KurobakoSolverRecipe;
 use crate::study::StudyRecord;
 use crate::time::Stopwatch;
 use crate::trial::{AskRecord, EvalRecord, TrialRecord};
 use kurobako_core::problem::{Evaluate, Problem, ProblemRecipe};
+use kurobako_core::solver::{Solver, SolverRecipe};
 use kurobako_core::Error;
 use rand::rngs::ThreadRng;
 use rand::{self, Rng};
-use rustats::num::FiniteF64;
-use yamakan::budget::{Budget, Budgeted};
-use yamakan::observation::{Obs, SerialIdGenerator};
-use yamakan::Optimizer;
+use yamakan::budget::Budget;
+use yamakan::observation::SerialIdGenerator;
 
 #[derive(Debug)]
 pub struct Runner<R = ThreadRng> {
@@ -28,24 +27,21 @@ impl Runner<ThreadRng> {
 impl<R: Rng> Runner<R> {
     pub fn run<O, P>(
         &mut self,
-        optimizer_builder: &O,
+        solver_recipe: &O,
         problem_recipe: &P,
         budget_factor: usize,
     ) -> Result<StudyRecord, Error>
     where
-        O: OptimizerBuilder,
+        O: SolverRecipe,
         P: ProblemRecipe,
     {
         let mut problem = problem_recipe.create_problem()?;
         let problem_spec = problem.specification();
-        let mut optimizer = optimizer_builder.build(
-            &problem_spec.params_domain,
-            problem_spec.evaluation_expense.get(),
-        )?;
+        let mut solver = solver_recipe.create_solver(problem_spec.clone())?;
         let mut budget = Budget::new(budget_factor as u64 * problem_spec.evaluation_expense.get());
 
         let mut study_record = StudyRecord::new(
-            optimizer_builder,
+            solver_recipe,
             problem_recipe,
             budget.amount,
             problem_spec.values_domain[0], // TODO
@@ -54,33 +50,21 @@ impl<R: Rng> Runner<R> {
         let watch = Stopwatch::new();
         while !budget.is_consumed() {
             // eprintln!("  # {:?}", budget);
-            let (ask, obs_id, mut opt_budget) =
-                track!(AskRecord::with(&watch, || optimizer.ask(&mut self.rng, &mut self.idgen)))?;
-            let mut evaluator = track!(problem.create_evaluator(obs_id))?;
+            let (ask, mut obs) =
+                track!(AskRecord::with(&watch, || solver.ask(&mut self.rng, &mut self.idgen)))?;
+            let mut evaluator = track!(problem.create_evaluator(obs.id))?;
 
-            let old_consumption = opt_budget.consumption;
-            let eval = EvalRecord::with(&watch, || {
-                use kurobako_core::parameter::ParamValue;
-
-                let params = ask
-                    .params
-                    .iter()
-                    .map(|p| ParamValue::Continuous(FiniteF64::new(*p).expect("TODO")))
-                    .collect::<Vec<_>>();
+            let old_consumption = obs.param.budget().consumption;
+            let (eval, values) = EvalRecord::with(&watch, || {
                 evaluator
-                    .evaluate(&params, &mut opt_budget)
+                    .evaluate(&ask.params, obs.param.budget_mut())
                     .expect("TODO")
-                    .values[0]
-                    .get()
+                    .values
             });
-            budget.consumption += opt_budget.consumption - old_consumption;
+            budget.consumption += obs.param.budget().consumption - old_consumption;
 
-            let obs = Obs {
-                id: obs_id,
-                param: Budgeted::new(opt_budget, ask.params.clone()),
-                value: eval.value,
-            };
-            track!(optimizer.tell(obs))?;
+            let obs = obs.map_value(|()| values);
+            track!(solver.tell(obs))?;
 
             study_record.trials.push(TrialRecord {
                 ask,
@@ -94,7 +78,7 @@ impl<R: Rng> Runner<R> {
 
 #[derive(Debug)]
 pub struct RunSpec<'a> {
-    pub optimizer: &'a OptimizerSpec,
-    pub problem: &'a BuiltinProblemRecipe,
+    pub solver: &'a KurobakoSolverRecipe,
+    pub problem: &'a KurobakoProblemRecipe,
     pub budget: usize,
 }

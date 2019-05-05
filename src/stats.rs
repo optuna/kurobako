@@ -7,49 +7,46 @@ use std::collections::BTreeMap;
 use std::io::Write;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct StatsSummary(Vec<OptimizerSummary>);
+pub struct StatsSummary(Vec<SolverSummary>);
 impl StatsSummary {
     pub fn new(stats: &Stats) -> Self {
         let mut map = BTreeMap::new();
         for p in &stats.0 {
-            for o in &p.optimizers {
-                if !map.contains_key(&o.optimizer) {
-                    map.insert(
-                        o.optimizer.clone(),
-                        OptimizerSummary::new(o.optimizer.clone()),
-                    );
+            for o in &p.solvers {
+                if !map.contains_key(&o.solver) {
+                    map.insert(o.solver.clone(), SolverSummary::new(o.solver.clone()));
                 }
             }
         }
 
         for p in &stats.0 {
             let (worst, best) = p.min_max(|o| o.best_score.avg);
-            for o in &p.optimizers {
+            for o in &p.solvers {
                 if o.best_score.avg == worst.best_score.avg {
-                    map.get_mut(&o.optimizer).unwrap().best_score.worsts += 1;
+                    map.get_mut(&o.solver).unwrap().best_score.worsts += 1;
                 }
                 if o.best_score.avg == best.best_score.avg {
-                    map.get_mut(&o.optimizer).unwrap().best_score.bests += 1;
+                    map.get_mut(&o.solver).unwrap().best_score.bests += 1;
                 }
             }
 
             let (worst, best) = p.min_max(|o| o.auc.avg);
-            for o in &p.optimizers {
+            for o in &p.solvers {
                 if o.auc.avg == worst.auc.avg {
-                    map.get_mut(&o.optimizer).unwrap().auc.worsts += 1;
+                    map.get_mut(&o.solver).unwrap().auc.worsts += 1;
                 }
                 if o.auc.avg == best.auc.avg {
-                    map.get_mut(&o.optimizer).unwrap().auc.bests += 1;
+                    map.get_mut(&o.solver).unwrap().auc.bests += 1;
                 }
             }
 
             let (best, worst) = p.min_max(|o| o.latency.avg);
-            for o in &p.optimizers {
+            for o in &p.solvers {
                 if o.latency.avg == worst.latency.avg {
-                    map.get_mut(&o.optimizer).unwrap().latency.worsts += 1;
+                    map.get_mut(&o.solver).unwrap().latency.worsts += 1;
                 }
                 if o.latency.avg == best.latency.avg {
-                    map.get_mut(&o.optimizer).unwrap().latency.bests += 1;
+                    map.get_mut(&o.solver).unwrap().latency.bests += 1;
                 }
             }
         }
@@ -61,7 +58,7 @@ impl StatsSummary {
         writeln!(writer, "## Statistics Summary")?;
         writeln!(
             writer,
-            "| optimizer | Best Score (o/x) | AUC (o/x) | Latency (o/x) |"
+            "| solver | Best Score (o/x) | AUC (o/x) | Latency (o/x) |"
         )?;
         writeln!(
             writer,
@@ -85,13 +82,13 @@ impl StatsSummary {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct OptimizerSummary {
+pub struct SolverSummary {
     pub name: Name,
     pub best_score: VictoryStats,
     pub auc: VictoryStats,
     pub latency: VictoryStats,
 }
-impl OptimizerSummary {
+impl SolverSummary {
     fn new(name: Name) -> Self {
         Self {
             name,
@@ -136,38 +133,35 @@ impl Stats {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProblemStats {
     pub problem: Name,
-    pub optimizers: Vec<OptimizerStats>,
+    pub solvers: Vec<SolverStats>,
 }
 impl ProblemStats {
     fn new(name: &Name, studies: &[&StudyRecord]) -> Self {
-        let mut optimizers = BTreeMap::new();
+        let mut solvers = BTreeMap::new();
         for s in studies {
-            optimizers
-                .entry(&s.optimizer)
-                .or_insert_with(Vec::new)
-                .push(*s);
+            solvers.entry(&s.solver).or_insert_with(Vec::new).push(*s);
         }
-        let optimizers = optimizers
+        let solvers = solvers
             .into_iter()
-            .map(|(optimizer, studies)| OptimizerStats::new(optimizer, &studies))
+            .map(|(solver, studies)| SolverStats::new(solver, &studies))
             .collect();
         Self {
             problem: name.clone(),
-            optimizers,
+            solvers,
         }
     }
 
-    fn min_max<F>(&self, f: F) -> (&OptimizerStats, &OptimizerStats)
+    fn min_max<F>(&self, f: F) -> (&SolverStats, &SolverStats)
     where
-        F: Fn(&OptimizerStats) -> f64,
+        F: Fn(&SolverStats) -> f64,
     {
         let min = self
-            .optimizers
+            .solvers
             .iter()
             .min_by_key(|o| NonNanF64::new(f(o)).unwrap_or_else(|e| panic!("{}", e)))
             .expect("TODO");
         let max = self
-            .optimizers
+            .solvers
             .iter()
             .max_by_key(|o| NonNanF64::new(f(o)).unwrap_or_else(|e| panic!("{}", e)))
             .expect("TODO");
@@ -177,15 +171,12 @@ impl ProblemStats {
     fn write_markdown<W: Write>(&self, mut writer: W) -> Result<()> {
         writeln!(writer, "### Problem: {}", self.problem.as_json())?;
         writeln!(writer)?;
-        writeln!(
-            writer,
-            "| Optimizer | Best Score (SD) | AUC (SD) | Latency |"
-        )?;
+        writeln!(writer, "| Solver | Best Score (SD) | AUC (SD) | Latency |")?;
         writeln!(
             writer,
             "|:----------|----------------:|---------:|-------------:|"
         )?;
-        for o in &self.optimizers {
+        for o in &self.solvers {
             o.write_markdown(&mut writer)?;
         }
         writeln!(writer)?;
@@ -194,13 +185,13 @@ impl ProblemStats {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct OptimizerStats {
-    pub optimizer: Name,
+pub struct SolverStats {
+    pub solver: Name,
     pub best_score: BasicStats,
     pub auc: BasicStats,
     pub latency: BasicStats,
 }
-impl OptimizerStats {
+impl SolverStats {
     fn new(name: &Name, studies: &[&StudyRecord]) -> Self {
         let best_scores = studies.iter().map(|s| s.best_score()).collect::<Vec<_>>();
         let aucs = studies.iter().map(|s| s.auc()).collect::<Vec<_>>();
@@ -210,7 +201,7 @@ impl OptimizerStats {
             .collect::<Vec<_>>();
 
         Self {
-            optimizer: name.clone(),
+            solver: name.clone(),
             best_score: BasicStats::new(&best_scores),
             auc: BasicStats::new(&aucs),
             latency: BasicStats::new(&latencies),
@@ -218,7 +209,7 @@ impl OptimizerStats {
     }
 
     fn write_markdown<W: Write>(&self, mut writer: W) -> Result<()> {
-        write!(writer, "| {} ", self.optimizer.as_json())?;
+        write!(writer, "| {} ", self.solver.as_json())?;
         write!(
             writer,
             "| {:.3} ({:.3}) ",

@@ -1,15 +1,12 @@
 #[macro_use]
-extern crate structopt;
-#[macro_use]
 extern crate trackable;
 
 use serde::{Deserialize, Serialize};
 
 pub mod benchmark;
-pub mod optimizer;
 pub mod plot;
+pub mod problem;
 pub mod problem_suites;
-pub mod problems;
 pub mod runner;
 pub mod solver;
 pub mod stats;

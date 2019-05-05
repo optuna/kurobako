@@ -1,9 +1,10 @@
-use crate::optimizer::OptimizerSpec;
-use crate::problems::BuiltinProblemRecipe;
+use crate::problem::KurobakoProblemRecipe;
 use crate::runner::RunSpec;
+use crate::solver::KurobakoSolverRecipe;
 use kurobako_core::{Error, Result};
 use serde::{Deserialize, Serialize};
 use serde_json;
+use structopt::StructOpt;
 
 fn parse_json<T>(json: &str) -> Result<T>
 where
@@ -18,10 +19,10 @@ where
 #[structopt(rename_all = "kebab-case")]
 pub struct BenchmarkSpec {
     #[structopt(long, parse(try_from_str = "parse_json"))]
-    pub optimizers: Vec<OptimizerSpec>,
+    pub solvers: Vec<KurobakoSolverRecipe>,
 
     #[structopt(long, parse(try_from_str = "parse_json"))]
-    pub problems: Vec<BuiltinProblemRecipe>,
+    pub problems: Vec<KurobakoProblemRecipe>,
 
     #[structopt(long, default_value = "20")]
     pub budget: usize,
@@ -31,15 +32,15 @@ pub struct BenchmarkSpec {
 }
 impl BenchmarkSpec {
     pub fn len(&self) -> usize {
-        self.optimizers.len() * self.problems.len() * self.iterations
+        self.solvers.len() * self.problems.len() * self.iterations
     }
 
     pub fn run_specs<'a>(&'a self) -> Box<(dyn Iterator<Item = RunSpec> + 'a)> {
         Box::new(self.problems.iter().flat_map(move |p| {
-            self.optimizers.iter().flat_map(move |o| {
+            self.solvers.iter().flat_map(move |s| {
                 (0..self.iterations).map(move |_| RunSpec {
                     problem: p,
-                    optimizer: o,
+                    solver: s,
                     budget: self.budget,
                 })
             })

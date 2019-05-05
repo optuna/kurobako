@@ -4,6 +4,7 @@ use kurobako_core::{Error, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::Path;
+use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 pub struct PlotOptions {
@@ -36,7 +37,7 @@ impl PlotOptions {
 
             let commands = self.make_gnuplot_commands(
                 &problem.problem,
-                problem.optimizers.len(),
+                problem.solvers.len(),
                 dir.as_ref().join(format!("{}{}.dat", self.prefix, i)),
                 dir.as_ref().join(format!("{}{}.png", self.prefix, i)),
             );
@@ -55,7 +56,7 @@ impl PlotOptions {
     fn make_gnuplot_commands<P: AsRef<Path>>(
         &self,
         problem: &Name,
-        optimizers: usize,
+        solvers: usize,
         input: P,
         output: P,
     ) -> String {
@@ -79,7 +80,7 @@ impl PlotOptions {
             self.ymin.unwrap_or(0.0),
             self.ymax.unwrap_or(1.0)
         );
-        for i in 0..optimizers {
+        for i in 0..solvers {
             if i == 0 {
                 s += &format!(" {:?}", input.as_ref().to_str().expect("TODO"));
             } else {
@@ -94,24 +95,21 @@ impl PlotOptions {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProblemPlot {
     pub problem: Name,
-    pub optimizers: Vec<OptimizerPlot>,
+    pub solvers: Vec<SolverPlot>,
 }
 impl ProblemPlot {
     fn new(name: &Name, studies: &[&StudyRecord]) -> Self {
-        let mut optimizers = BTreeMap::new();
+        let mut solvers = BTreeMap::new();
         for s in studies {
-            optimizers
-                .entry(&s.optimizer)
-                .or_insert_with(Vec::new)
-                .push(*s);
+            solvers.entry(&s.solver).or_insert_with(Vec::new).push(*s);
         }
-        let optimizers = optimizers
+        let solvers = solvers
             .into_iter()
-            .map(|(optimizer, studies)| OptimizerPlot::new(optimizer, &studies))
+            .map(|(solver, studies)| SolverPlot::new(solver, &studies))
             .collect();
         Self {
             problem: name.clone(),
-            optimizers,
+            solvers,
         }
     }
 
@@ -122,11 +120,11 @@ impl ProblemPlot {
         let mut f = track!(File::create(path).map_err(Error::from))?;
         writeln!(f, "# Problem: {}", self.problem.as_json())?;
 
-        for o in &self.optimizers {
+        for o in &self.solvers {
             write!(
                 f,
                 "{:?} ",
-                o.optimizer
+                o.solver
                     .as_json()
                     .to_string()
                     .replace('"', "")
@@ -137,13 +135,13 @@ impl ProblemPlot {
         writeln!(f)?;
 
         let len = self
-            .optimizers
+            .solvers
             .iter()
             .map(|o| o.avg_scores.len())
             .max()
             .expect("TODO");
         for i in 0..len {
-            for o in &self.optimizers {
+            for o in &self.solvers {
                 write!(f, "{} ", o.score(i))?;
             }
             writeln!(f)?;
@@ -153,11 +151,11 @@ impl ProblemPlot {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct OptimizerPlot {
-    pub optimizer: Name,
+pub struct SolverPlot {
+    pub solver: Name,
     pub avg_scores: Vec<f64>,
 }
-impl OptimizerPlot {
+impl SolverPlot {
     fn new(name: &Name, studies: &[&StudyRecord]) -> Self {
         let mut avg_scores = Vec::new();
         for i in 0..studies[0].trials.len() {
@@ -166,7 +164,7 @@ impl OptimizerPlot {
             avg_scores.push(avg_score);
         }
         Self {
-            optimizer: name.clone(),
+            solver: name.clone(),
             avg_scores,
         }
     }

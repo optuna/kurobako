@@ -1,9 +1,9 @@
-use crate::optimizer::OptimizerBuilder;
 use crate::time::DateTime;
 use crate::trial::TrialRecord;
 use crate::Name;
 use chrono::Local;
 use kurobako_core::problem::ProblemRecipe;
+use kurobako_core::solver::SolverRecipe;
 use kurobako_core::Error;
 use rustats::num::{FiniteF64, NonNanF64};
 use rustats::range::MinMax;
@@ -12,7 +12,7 @@ use std::f64;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StudyRecord {
-    pub optimizer: Name,
+    pub solver: Name,
     pub problem: Name,
     pub budget: u64,
     pub value_range: MinMax<f64>, // TODO
@@ -21,19 +21,19 @@ pub struct StudyRecord {
 }
 impl StudyRecord {
     pub fn new<O, P>(
-        optimizer_builder: &O,
+        solver_recipe: &O,
         problem: &P,
         budget: u64,
         value_range: MinMax<FiniteF64>,
     ) -> Result<Self, Error>
     where
-        O: OptimizerBuilder,
+        O: SolverRecipe,
         P: ProblemRecipe,
     {
         let value_range =
             MinMax::new(value_range.min().get(), value_range.max().get()).expect("TODO");
         Ok(StudyRecord {
-            optimizer: Name::new(serde_json::to_value(optimizer_builder)?),
+            solver: Name::new(serde_json::to_value(solver_recipe)?),
             problem: Name::new(serde_json::to_value(problem)?),
             budget,
             value_range,

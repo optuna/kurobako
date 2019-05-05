@@ -6,10 +6,11 @@ use rand::Rng;
 use rustats::num::FiniteF64;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
+use structopt::StructOpt;
 use yamakan::budget::Budgeted;
 use yamakan::observation::{IdGen, Obs};
 
-pub trait SolverRecipe {
+pub trait SolverRecipe: StructOpt + Serialize + for<'a> Deserialize<'a> {
     type Solver: Solver;
 
     fn create_solver(&self, problem: ProblemSpec) -> Result<Self::Solver>;

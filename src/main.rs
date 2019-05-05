@@ -2,10 +2,9 @@
 extern crate trackable;
 
 use kurobako::benchmark::BenchmarkSpec;
-use kurobako::optimizer::OptimizerSpec;
 use kurobako::plot::PlotOptions;
-use kurobako::problem_suites::{BuiltinProblemSuite, ProblemSuite};
-use kurobako::problems::BuiltinProblemRecipe;
+use kurobako::problem::KurobakoProblemRecipe;
+use kurobako::problem_suites::{KurobakoProblemSuite, ProblemSuite};
 use kurobako::runner::Runner;
 use kurobako::solver::KurobakoSolverRecipe;
 use kurobako::stats::{Stats, StatsSummary};
@@ -17,10 +16,9 @@ use structopt::StructOpt;
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 enum Opt {
-    Optimizer(OptimizerSpec),
     Solver(KurobakoSolverRecipe),
-    Problem(BuiltinProblemRecipe),
-    ProblemSuite(BuiltinProblemSuite),
+    Problem(KurobakoProblemRecipe),
+    ProblemSuite(KurobakoProblemSuite),
     Benchmark(BenchmarkSpec),
     Run(RunOpt),
     Stats(StatsOpt),
@@ -97,9 +95,6 @@ impl std::str::FromStr for OutputFormat {
 fn main() -> trackable::result::MainResult {
     let opt = Opt::from_args();
     match opt {
-        Opt::Optimizer(o) => {
-            track!(serde_json::to_writer(std::io::stdout().lock(), &o).map_err(Error::from))?
-        }
         Opt::Solver(s) => {
             track!(serde_json::to_writer(std::io::stdout().lock(), &s).map_err(Error::from))?
         }
@@ -139,7 +134,7 @@ fn handle_run_command(_opt: RunOpt) -> Result<()> {
     for (i, spec) in benchmark_spec.run_specs().enumerate() {
         eprintln!("# [{}/{}] {:?}", i + 1, benchmark_spec.len(), spec);
         let mut runner = Runner::new();
-        match track!(runner.run(spec.optimizer, spec.problem, spec.budget)) {
+        match track!(runner.run(spec.solver, spec.problem, spec.budget)) {
             Ok(record) => {
                 track!(serde_json::to_writer(&mut stdout, &record).map_err(Error::from))?;
                 println!();
@@ -248,13 +243,18 @@ fn output_scatter_data(study: &StudyRecord) {
 
     println!(
         "# {:?}, {:?}, {:?}, {:?}, {:?}",
-        study.optimizer, study.problem, study.budget, study.value_range, study.start_time
+        study.solver, study.problem, study.budget, study.value_range, study.start_time
     );
     println!("# Budget Value Param...");
     for (i, trial) in study.trials.iter().enumerate() {
         print!("{} {}", i, trial.value().unwrap_or(NAN));
         for p in &trial.ask.params {
-            print!(" {}", p);
+            use kurobako_core::parameter::ParamValue;
+            if let ParamValue::Continuous(p) = p {
+                print!(" {}", p.get());
+            } else {
+                unimplemented!();
+            }
         }
         println!();
     }

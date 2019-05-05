@@ -50,7 +50,7 @@ impl Solver for RandomSolver {
                     }
                     ParamDomain::Conditional(p) => unimplemented!("Conditional: {:?}", p),
                     ParamDomain::Continuous(p) => {
-                        assert_eq!(p.distribution, Distribution::LogUniform, "Unimplememented");
+                        assert_eq!(p.distribution, Distribution::Uniform, "Unimplememented");
 
                         let n = rng.gen_range(p.range.low.get(), p.range.high.get());
                         ParamValue::Continuous(unsafe { FiniteF64::new_unchecked(n) })

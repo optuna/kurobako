@@ -28,7 +28,7 @@ pub enum ParamValue {
     Continuous(FiniteF64),
     Discrete(i64),
     Categorical(usize),
-    Conditional(Option<Box<ParamValue>>),
+    Conditional(Option<Box<ParamValue>>), // TODO: Conditional(Option<Box<UnconditionalValue>>)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

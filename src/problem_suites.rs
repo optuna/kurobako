@@ -1,7 +1,8 @@
-use crate::problems::BuiltinProblemRecipe;
+use crate::problem::KurobakoProblemRecipe;
 use kurobako_core::problem::ProblemRecipe;
 use kurobako_problems::sigopt::SigoptProblemRecipe;
 use serde::{Deserialize, Serialize};
+use structopt::StructOpt;
 
 pub trait ProblemSuite {
     type ProblemRecipe: ProblemRecipe;
@@ -12,16 +13,16 @@ pub trait ProblemSuite {
 #[derive(Debug, StructOpt, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[structopt(rename_all = "kebab-case")]
-pub enum BuiltinProblemSuite {
+pub enum KurobakoProblemSuite {
     Sigopt(SigoptProblemSuite),
 }
-impl ProblemSuite for BuiltinProblemSuite {
-    type ProblemRecipe = BuiltinProblemRecipe;
+impl ProblemSuite for KurobakoProblemSuite {
+    type ProblemRecipe = KurobakoProblemRecipe;
 
     fn problem_specs(&self) -> Box<dyn Iterator<Item = Self::ProblemRecipe>> {
         match self {
-            BuiltinProblemSuite::Sigopt(p) => {
-                Box::new(p.problem_specs().map(BuiltinProblemRecipe::Sigopt))
+            KurobakoProblemSuite::Sigopt(p) => {
+                Box::new(p.problem_specs().map(KurobakoProblemRecipe::Sigopt))
             }
         }
     }

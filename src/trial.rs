@@ -1,9 +1,9 @@
 use crate::time::{Stopwatch, Timestamp};
+use kurobako_core::parameter::ParamValue;
+use kurobako_core::solver::{Asked, UnobservedObs};
 use kurobako_core::Result;
+use rustats::num::FiniteF64;
 use serde::{Deserialize, Serialize};
-use yamakan;
-use yamakan::budget::{Budget, Budgeted};
-use yamakan::observation::{Obs, ObsId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrialRecord {
@@ -25,24 +25,24 @@ impl TrialRecord {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AskRecord {
-    pub params: Vec<f64>,
+    pub params: Vec<ParamValue>,
     pub start_time: Timestamp,
     pub end_time: Timestamp,
 }
 impl AskRecord {
-    pub fn with<F>(watch: &Stopwatch, f: F) -> Result<(Self, ObsId, Budget)>
+    pub fn with<F>(watch: &Stopwatch, f: F) -> Result<(Self, UnobservedObs)>
     where
-        F: FnOnce() -> yamakan::Result<Obs<Budgeted<Vec<f64>>, ()>>,
+        F: FnOnce() -> Result<Asked>,
     {
         let start_time = watch.elapsed();
-        let obs = f()?;
+        let obs = f()?.obs; // TODO
         let end_time = watch.elapsed();
         let this = Self {
             params: obs.param.get().clone(),
             start_time,
             end_time,
         };
-        Ok((this, obs.id, obs.param.budget().clone()))
+        Ok((this, obs))
     }
 
     pub fn latency(&self) -> f64 {
@@ -58,18 +58,19 @@ pub struct EvalRecord {
     pub end_time: Timestamp,
 }
 impl EvalRecord {
-    pub fn with<F>(watch: &Stopwatch, f: F) -> Self
+    pub fn with<F>(watch: &Stopwatch, f: F) -> (Self, Vec<FiniteF64>)
     where
-        F: FnOnce() -> f64,
+        F: FnOnce() -> Vec<FiniteF64>,
     {
         let start_time = watch.elapsed();
-        let value = f();
+        let values = f();
         let end_time = watch.elapsed();
-        Self {
-            value,
-            cost: 1, // TODO
+        let this = Self {
+            value: values[0].get(), // TODO
+            cost: 1,                // TODO
             start_time,
             end_time,
-        }
+        };
+        (this, values)
     }
 }
