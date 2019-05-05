@@ -60,6 +60,12 @@ pub enum ErrorKind {
     /// I/O error.
     IoError,
 
+    /// Unexpected end-of-stream.
+    UnexpectedEos,
+
+    /// Incapable feature was required.
+    Incapable,
+
     /// Other error.
     Other,
 }

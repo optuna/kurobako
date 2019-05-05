@@ -1,6 +1,6 @@
 //! The core crate for [`kurobako`](https://github.com/sile/kurobako).
 #[macro_use]
-extern crate structopt;
+extern crate log;
 #[macro_use]
 extern crate trackable;
 
@@ -10,6 +10,7 @@ pub mod epi;
 pub mod optimizer;
 pub mod parameter;
 pub mod problem;
+pub mod time;
 
 // TODO: noises
 
