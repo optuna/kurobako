@@ -39,10 +39,6 @@ message = {
 print(json.dumps(message))
 
 class Evaluator(object):
-    def __init__(self):
-        self.id_to_params = {}
-        self.id_to_value = {}
-
     def handle_eval(self, req):
         params = [p['continuous'] for p in req['params']]
         budget = req['budget']

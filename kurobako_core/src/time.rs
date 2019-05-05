@@ -3,6 +3,8 @@ use rustats::num::FiniteF64;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
+pub type Elapsed = Seconds;
+
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
 pub struct Seconds(FiniteF64);
 impl Seconds {

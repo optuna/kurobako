@@ -7,9 +7,9 @@ extern crate trackable;
 pub use error::{Error, ErrorKind};
 
 pub mod epi;
-pub mod optimizer;
 pub mod parameter;
 pub mod problem;
+pub mod solver;
 pub mod time;
 
 // TODO: noises
