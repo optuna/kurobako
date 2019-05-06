@@ -81,12 +81,16 @@ class Objective(object):
         for p in self.problem['params-domain']:
             params.append(self._suggest(p, trial))
 
+        if args.pruner == 'none':
+            amount = self.problem['evaluation-expense']
+        else:
+            amount = 1
         ask_res = {
             'type': 'ASK_REPLY',
             'id': self.next_id,
             'params': params,
             'budget': {
-                'amount': 1,
+                'amount': amount,
                 'consumption': 0
             },
         }
@@ -110,16 +114,17 @@ class Objective(object):
                     return value
                 else:
                     assert step < self.problem['evaluation-expense']
-                    if args.pruner != 'none':
-                        trial.report(value, step)
-                        if trial.should_prune(step):
-                            print(json.dumps({'type': 'TELL_REPLY'}))
+                    assert args.pruner != 'none'
 
-                            message = json.loads(input())  # 'ASK_CALL'
-                            self.next_id = message['id_hint']
+                    trial.report(value, step)
+                    if trial.should_prune(step):
+                        print(json.dumps({'type': 'TELL_REPLY'}))
 
-                            raise optuna.structs.TrialPruned(
-                                'step={}, value={}'.format(step, value))
+                        message = json.loads(input())  # 'ASK_CALL'
+                        self.next_id = message['id_hint']
+
+                        raise optuna.structs.TrialPruned(
+                            'step={}, value={}'.format(step, value))
 
                     print(json.dumps({'type': 'TELL_REPLY'}))
                     message = json.loads(input())  # 'ASK_CALL'
@@ -137,7 +142,7 @@ class Objective(object):
 
 if args.sampler == 'random':
     sampler = optuna.samplers.RandomSampler()
-elif args.samplers == 'tpe':
+elif args.sampler == 'tpe':
 
     def gamma(x):
         return min(int(np.ceil(args.tpe_gamma_factor * np.sqrt(x))), 25)
