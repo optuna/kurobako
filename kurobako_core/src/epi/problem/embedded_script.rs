@@ -12,7 +12,7 @@ use tempfile::{NamedTempFile, TempPath};
 use yamakan::budget::Budget;
 use yamakan::observation::ObsId;
 
-#[derive(Debug, StructOpt, Serialize, Deserialize)]
+#[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
 #[serde(rename_all = "kebab-case")]
 pub struct EmbeddedScriptProblemRecipe {

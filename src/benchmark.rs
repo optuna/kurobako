@@ -1,4 +1,4 @@
-use crate::problem::KurobakoProblemRecipe;
+use crate::problem::FullKurobakoProblemRecipe;
 use crate::runner::RunSpec;
 use crate::solver::KurobakoSolverRecipe;
 use kurobako_core::{Error, Result};
@@ -22,7 +22,7 @@ pub struct BenchmarkSpec {
     pub solvers: Vec<KurobakoSolverRecipe>,
 
     #[structopt(long, parse(try_from_str = "parse_json"))]
-    pub problems: Vec<KurobakoProblemRecipe>,
+    pub problems: Vec<FullKurobakoProblemRecipe>,
 
     #[structopt(long, default_value = "20")]
     pub budget: usize,

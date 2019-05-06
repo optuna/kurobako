@@ -14,6 +14,9 @@ pub mod study;
 pub mod time;
 pub mod trial;
 
+// TODO: move
+mod problem_optuna;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Name(serde_json::Value);
 impl Name {

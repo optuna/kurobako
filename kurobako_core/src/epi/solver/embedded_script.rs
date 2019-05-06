@@ -11,7 +11,7 @@ use structopt::StructOpt;
 use tempfile::{NamedTempFile, TempPath};
 use yamakan::observation::IdGen;
 
-#[derive(Debug, StructOpt, Serialize, Deserialize)]
+#[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
 #[serde(rename_all = "kebab-case")]
 pub struct EmbeddedScriptSolverRecipe {

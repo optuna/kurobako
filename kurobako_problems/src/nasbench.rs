@@ -10,14 +10,11 @@ use structopt::StructOpt;
 use yamakan::budget::Budget;
 use yamakan::observation::ObsId;
 
-#[derive(Debug, StructOpt, Serialize, Deserialize)]
+#[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[structopt(rename_all = "kebab-case")]
 pub struct NasbenchProblemRecipe {
     pub dataset_path: PathBuf,
-
-    #[structopt(long)]
-    pub python: Option<PathBuf>,
 }
 impl ProblemRecipe for NasbenchProblemRecipe {
     type Problem = NasbenchProblem;
@@ -31,7 +28,7 @@ impl ProblemRecipe for NasbenchProblemRecipe {
         let recipe = EmbeddedScriptProblemRecipe {
             script: script.to_owned(),
             args,
-            interpreter: self.python.clone(),
+            interpreter: None, // TODO: env!("KUROBAKO_PYTHON")
             interpreter_args: Vec::new(),
             skip_lines: Some(2),
         };

@@ -1,3 +1,4 @@
+use crate::Result;
 use rustats::num::FiniteF64;
 use rustats::range::Range;
 use serde::{Deserialize, Serialize};
@@ -108,4 +109,15 @@ where
         name: name.to_owned(),
         choices: choices.into_iter().map(|c| c.to_string()).collect(),
     })
+}
+
+pub fn uniform(name: &str, low: f64, high: f64) -> Result<ParamDomain> {
+    let low = track!(FiniteF64::new(low))?;
+    let high = track!(FiniteF64::new(high))?;
+    let range = track!(Range::new(low, high))?;
+    Ok(ParamDomain::Continuous(Continuous {
+        name: name.to_owned(),
+        range,
+        distribution: Distribution::Uniform,
+    }))
 }

@@ -1,4 +1,4 @@
-use crate::problem::KurobakoProblemRecipe;
+use crate::problem::FullKurobakoProblemRecipe;
 use crate::solver::KurobakoSolverRecipe;
 use crate::study::StudyRecord;
 use crate::time::Stopwatch;
@@ -47,16 +47,24 @@ impl<R: Rng> Runner<R> {
             problem_spec.values_domain[0], // TODO
         )?;
 
+        let mut curr_id = None;
+        let mut evaluator = None;
+
         let watch = Stopwatch::new();
         while !budget.is_consumed() {
-            // eprintln!("  # {:?}", budget);
             let (ask, mut obs) =
                 track!(AskRecord::with(&watch, || solver.ask(&mut self.rng, &mut self.idgen)))?;
-            let mut evaluator = track!(problem.create_evaluator(obs.id))?;
+            if Some(obs.id) != curr_id {
+                // TODO: handle cuncurrent
+                curr_id = Some(obs.id);
+                evaluator = Some(track!(problem.create_evaluator(obs.id))?);
+            }
 
             let old_consumption = obs.param.budget().consumption;
             let (eval, values) = EvalRecord::with(&watch, || {
                 evaluator
+                    .as_mut()
+                    .unwrap()
                     .evaluate(&ask.params, obs.param.budget_mut())
                     .expect("TODO")
                     .values
@@ -79,6 +87,6 @@ impl<R: Rng> Runner<R> {
 #[derive(Debug)]
 pub struct RunSpec<'a> {
     pub solver: &'a KurobakoSolverRecipe,
-    pub problem: &'a KurobakoProblemRecipe,
+    pub problem: &'a FullKurobakoProblemRecipe,
     pub budget: usize,
 }

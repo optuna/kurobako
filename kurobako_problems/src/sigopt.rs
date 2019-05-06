@@ -5,14 +5,13 @@ use kurobako_core::parameter::ParamValue;
 use kurobako_core::problem::{Evaluate, Evaluated, Problem, ProblemRecipe, ProblemSpec};
 use kurobako_core::Result;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 use structopt::StructOpt;
 use yamakan::budget::Budget;
 use yamakan::observation::ObsId;
 
 macro_rules! define_sigopt_problem_spec {
     ($([$name:ident, $dim:expr],)*) => {
-        #[derive(Debug, StructOpt, Serialize, Deserialize)]
+        #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
         #[serde(rename_all = "kebab-case")]
         #[structopt(rename_all = "kebab-case")]
         pub enum SigoptProblemRecipe {
@@ -23,9 +22,6 @@ macro_rules! define_sigopt_problem_spec {
                 #[serde(skip_serializing_if = "Option::is_none")]
                 #[structopt(long)]
                 res: Option<f64>,
-
-                #[structopt(long)]
-                python: Option<PathBuf>,
             }),*
         }
         impl SigoptProblemRecipe {
@@ -44,12 +40,6 @@ macro_rules! define_sigopt_problem_spec {
             pub fn res(&self) -> Option<f64> {
                 match *self {
                     $(SigoptProblemRecipe::$name { res, .. } => res),*
-                }
-            }
-
-            pub fn python(&self) -> Option<&PathBuf> {
-                 match self {
-                    $(SigoptProblemRecipe::$name { python, .. } => python.as_ref()),*
                 }
             }
         }
@@ -260,7 +250,7 @@ impl ProblemRecipe for SigoptProblemRecipe {
         let recipe = EmbeddedScriptProblemRecipe {
             script: script.to_owned(),
             args,
-            interpreter: self.python().cloned(),
+            interpreter: None, // TODO: env!("KUROBAKO_PYTHON")
             interpreter_args: Vec::new(),
             skip_lines: None,
         };

@@ -12,7 +12,7 @@ use structopt::StructOpt;
 use yamakan::budget::{Budget, Budgeted};
 use yamakan::observation::{IdGen, Obs};
 
-#[derive(Debug, StructOpt, Serialize, Deserialize)]
+#[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 pub struct RandomSolverRecipe {}
 impl SolverRecipe for RandomSolverRecipe {
     type Solver = RandomSolver;

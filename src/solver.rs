@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 use yamakan::observation::IdGen;
 
-#[derive(Debug, StructOpt, Serialize, Deserialize)]
+#[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[structopt(rename_all = "kebab-case")]
 pub enum KurobakoSolverRecipe {

@@ -10,7 +10,7 @@ use structopt::StructOpt;
 use yamakan::budget::Budgeted;
 use yamakan::observation::{IdGen, Obs};
 
-pub trait SolverRecipe: StructOpt + Serialize + for<'a> Deserialize<'a> {
+pub trait SolverRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> {
     type Solver: Solver;
 
     fn create_solver(&self, problem: ProblemSpec) -> Result<Self::Solver>;

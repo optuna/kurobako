@@ -66,6 +66,9 @@ pub enum ErrorKind {
     /// Incapable feature was required.
     Incapable,
 
+    /// Implementation bug.
+    Bug,
+
     /// Other error.
     Other,
 }

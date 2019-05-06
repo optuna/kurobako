@@ -3,7 +3,7 @@ extern crate trackable;
 
 use kurobako::benchmark::BenchmarkSpec;
 use kurobako::plot::PlotOptions;
-use kurobako::problem::KurobakoProblemRecipe;
+use kurobako::problem::FullKurobakoProblemRecipe;
 use kurobako::problem_suites::{KurobakoProblemSuite, ProblemSuite};
 use kurobako::runner::Runner;
 use kurobako::solver::KurobakoSolverRecipe;
@@ -17,7 +17,7 @@ use structopt::StructOpt;
 #[structopt(rename_all = "kebab-case")]
 enum Opt {
     Solver(KurobakoSolverRecipe),
-    Problem(KurobakoProblemRecipe),
+    Problem(FullKurobakoProblemRecipe),
     ProblemSuite(KurobakoProblemSuite),
     Benchmark(BenchmarkSpec),
     Run(RunOpt),
