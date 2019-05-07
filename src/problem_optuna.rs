@@ -101,7 +101,7 @@ impl Problem for OptunaProblem {
             idg: SerialIdGenerator::new(),
             curr_id: None,
             evaluator: None,
-            last_values: None,
+            best_values: None,
             params_domain: self.params_domain.clone(),
         })
     }
@@ -115,7 +115,7 @@ pub struct OptunaEvaluator {
     idg: SerialIdGenerator,
     curr_id: Option<ObsId>,
     evaluator: Option<BoxEvaluator>,
-    last_values: Option<Vec<FiniteF64>>,
+    best_values: Option<Vec<FiniteF64>>,
     params_domain: Vec<ParamDomain>,
 }
 impl OptunaEvaluator {
@@ -177,10 +177,15 @@ impl Evaluate for OptunaEvaluator {
             let (evaluated, consumption) = track!(self.evaluate_once())?;
             budget.consumption += consumption;
             elapsed += evaluated.elapsed.get();
-            self.last_values = Some(evaluated.values);
+
+            // TODO: support multi-objective (in such case, the order cannot be uniquely determined)
+            if self.best_values.is_none() || &evaluated.values < self.best_values.as_ref().unwrap()
+            {
+                self.best_values = Some(evaluated.values);
+            }
         }
         Ok(Evaluated {
-            values: track_assert_some!(self.last_values.clone().take(), ErrorKind::Bug),
+            values: track_assert_some!(self.best_values.clone().take(), ErrorKind::Bug),
             elapsed: track!(Seconds::new(elapsed))?,
         })
     }
