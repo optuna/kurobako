@@ -58,6 +58,12 @@ impl<R: Rng> Runner<R> {
                 // TODO: handle cuncurrent
                 curr_id = Some(obs.id);
                 evaluator = Some(track!(problem.create_evaluator(obs.id))?);
+
+                study_record.trials.push(TrialRecord {
+                    ask: ask.clone(),
+                    evals: vec![],
+                    complete: true, // TODO
+                });
             }
 
             let old_consumption = obs.param.budget().consumption;
@@ -74,11 +80,7 @@ impl<R: Rng> Runner<R> {
             let obs = obs.map_value(|()| values);
             track!(solver.tell(obs))?;
 
-            study_record.trials.push(TrialRecord {
-                ask,
-                evals: vec![eval],
-                complete: true,
-            });
+            study_record.trials.last_mut().unwrap().evals.push(eval);
         }
         Ok(study_record)
     }
