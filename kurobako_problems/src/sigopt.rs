@@ -2,7 +2,7 @@ use kurobako_core::epi::problem::{
     EmbeddedScriptEvaluator, EmbeddedScriptProblem, EmbeddedScriptProblemRecipe,
 };
 use kurobako_core::parameter::ParamValue;
-use kurobako_core::problem::{Evaluate, Evaluated, Problem, ProblemRecipe, ProblemSpec};
+use kurobako_core::problem::{Evaluate, Problem, ProblemRecipe, ProblemSpec, Values};
 use kurobako_core::Result;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
@@ -276,7 +276,7 @@ impl Problem for SigoptProblem {
 #[derive(Debug)]
 pub struct SigoptEvaluator(EmbeddedScriptEvaluator);
 impl Evaluate for SigoptEvaluator {
-    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Evaluated> {
+    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values> {
         track!(self.0.evaluate(params, budget))
     }
 }

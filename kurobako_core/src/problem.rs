@@ -1,5 +1,4 @@
 use crate::parameter::{ParamDomain, ParamValue};
-use crate::time::Seconds;
 use crate::Result;
 use rustats::num::FiniteF64;
 use rustats::range::MinMax;
@@ -12,10 +11,10 @@ use yamakan::budget::Budget;
 use yamakan::observation::ObsId;
 
 pub trait Evaluate {
-    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Evaluated>;
+    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values>;
 }
 impl<T: Evaluate + ?Sized> Evaluate for Box<T> {
-    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Evaluated> {
+    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values> {
         (**self).evaluate(params, budget)
     }
 }
@@ -32,6 +31,8 @@ pub trait ProblemRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a>
 
     fn create_problem(&self) -> Result<Self::Problem>;
 }
+
+pub type Values = Vec<FiniteF64>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -59,17 +60,6 @@ pub enum EvaluatorCapability {
 }
 
 pub type EvaluatorCapabilities = BTreeSet<EvaluatorCapability>;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Evaluated {
-    pub values: Vec<FiniteF64>,
-    pub elapsed: Seconds,
-}
-impl Evaluated {
-    pub const fn new(values: Vec<FiniteF64>, elapsed: Seconds) -> Self {
-        Self { values, elapsed }
-    }
-}
 
 pub struct BoxProblem {
     spec: ProblemSpec,
@@ -117,7 +107,7 @@ impl BoxEvaluator {
     }
 }
 impl Evaluate for BoxEvaluator {
-    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Evaluated> {
+    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values> {
         self.0.evaluate(params, budget)
     }
 }

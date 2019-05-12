@@ -1,7 +1,6 @@
 use crate::epi::solver::{ExternalProgramSolver, ExternalProgramSolverRecipe};
 use crate::problem::ProblemSpec;
-use crate::solver::{Asked, ObservedObs, Solver, SolverRecipe, SolverSpec};
-use crate::time::Elapsed;
+use crate::solver::{ObservedObs, Solver, SolverRecipe, SolverSpec, UnobservedObs};
 use crate::{Error, ErrorKind, Result};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -68,11 +67,11 @@ impl Solver for EmbeddedScriptSolver {
         self.inner.specification()
     }
 
-    fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<Asked> {
+    fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<UnobservedObs> {
         track!(self.inner.ask(rng, idg))
     }
 
-    fn tell(&mut self, obs: ObservedObs) -> Result<Elapsed> {
+    fn tell(&mut self, obs: ObservedObs) -> Result<()> {
         track!(self.inner.tell(obs))
     }
 }

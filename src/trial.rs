@@ -1,6 +1,6 @@
 use crate::time::{Stopwatch, Timestamp};
 use kurobako_core::parameter::ParamValue;
-use kurobako_core::solver::{Asked, UnobservedObs};
+use kurobako_core::solver::UnobservedObs;
 use kurobako_core::Result;
 use rustats::num::FiniteF64;
 use serde::{Deserialize, Serialize};
@@ -32,10 +32,10 @@ pub struct AskRecord {
 impl AskRecord {
     pub fn with<F>(watch: &Stopwatch, f: F) -> Result<(Self, UnobservedObs)>
     where
-        F: FnOnce() -> Result<Asked>,
+        F: FnOnce() -> Result<UnobservedObs>,
     {
         let start_time = watch.elapsed();
-        let obs = f()?.obs; // TODO
+        let obs = f()?;
         let end_time = watch.elapsed();
         let this = Self {
             params: obs.param.get().clone(),

@@ -73,7 +73,6 @@ impl<R: Rng> Runner<R> {
                     .unwrap()
                     .evaluate(&ask.params, obs.param.budget_mut())
                     .expect("TODO")
-                    .values
             });
             budget.consumption += obs.param.budget().consumption - old_consumption;
 

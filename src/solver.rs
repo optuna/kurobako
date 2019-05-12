@@ -1,7 +1,6 @@
 use kurobako_core::epi;
 use kurobako_core::problem::ProblemSpec;
-use kurobako_core::solver::{Asked, ObservedObs, Solver, SolverRecipe, SolverSpec};
-use kurobako_core::time::Elapsed;
+use kurobako_core::solver::{ObservedObs, Solver, SolverRecipe, SolverSpec, UnobservedObs};
 use kurobako_core::Result;
 use kurobako_solvers::{optuna, random};
 use rand::Rng;
@@ -50,7 +49,7 @@ impl Solver for KurobakoSolver {
         }
     }
 
-    fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<Asked> {
+    fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<UnobservedObs> {
         match self {
             KurobakoSolver::Random(s) => track!(s.ask(rng, idg)),
             KurobakoSolver::Optuna(s) => track!(s.ask(rng, idg)),
@@ -58,7 +57,7 @@ impl Solver for KurobakoSolver {
         }
     }
 
-    fn tell(&mut self, obs: ObservedObs) -> Result<Elapsed> {
+    fn tell(&mut self, obs: ObservedObs) -> Result<()> {
         match self {
             KurobakoSolver::Random(s) => track!(s.tell(obs)),
             KurobakoSolver::Optuna(s) => track!(s.tell(obs)),

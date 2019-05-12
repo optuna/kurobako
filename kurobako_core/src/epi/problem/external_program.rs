@@ -1,10 +1,9 @@
 use crate::epi::channel::{JsonMessageReceiver, JsonMessageSender};
 use crate::parameter::ParamValue;
 use crate::problem::{
-    Evaluate, Evaluated, EvaluatorCapabilities, EvaluatorCapability, Problem, ProblemRecipe,
-    ProblemSpec,
+    Evaluate, EvaluatorCapabilities, EvaluatorCapability, Problem, ProblemRecipe, ProblemSpec,
+    Values,
 };
-use crate::time::Seconds;
 use crate::{Error, ErrorKind, Result};
 use rustats::num::FiniteF64;
 use serde::{Deserialize, Serialize};
@@ -13,7 +12,6 @@ use std::io::{BufRead, BufReader, BufWriter};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::rc::Rc;
-use std::time::Instant;
 use structopt::StructOpt;
 use yamakan::budget::Budget;
 use yamakan::observation::ObsId;
@@ -140,13 +138,13 @@ impl ExternalProgramEvaluator {
 }
 
 impl Evaluate for ExternalProgramEvaluator {
-    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Evaluated> {
+    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values> {
         track!(self.check_capabilities(params))?;
         self.prev_params = Some(Vec::from(params));
 
         if budget.is_consumed() {
             if let Some(prev_values) = self.prev_values.clone() {
-                return Ok(Evaluated::new(prev_values, Seconds::zero()));
+                return Ok(prev_values);
             }
         }
 
@@ -157,15 +155,11 @@ impl Evaluate for ExternalProgramEvaluator {
         };
         track!(self.tx.borrow_mut().send(&m))?;
 
-        let now = Instant::now();
         match track!(self.rx.borrow_mut().recv())? {
             ProblemMessage::EvaluateOkReply {
                 values,
                 budget: consumed_budget,
-                elapsed,
             } => {
-                let elapsed = elapsed.unwrap_or_else(|| Seconds::from(now.elapsed()));
-
                 track_assert_eq!(
                     consumed_budget.amount,
                     budget.amount,
@@ -177,7 +171,7 @@ impl Evaluate for ExternalProgramEvaluator {
 
                 self.prev_values = Some(values.clone());
 
-                Ok(Evaluated::new(values, elapsed))
+                Ok(values)
             }
             ProblemMessage::EvaluateErrorReply { kind, message } => {
                 if let Some(message) = message {
@@ -215,8 +209,6 @@ pub enum ProblemMessage {
     EvaluateOkReply {
         values: Vec<FiniteF64>,
         budget: Budget,
-        #[serde(default)]
-        elapsed: Option<Seconds>,
     },
     EvaluateErrorReply {
         kind: ErrorKind,

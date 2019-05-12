@@ -1,9 +1,8 @@
 use kurobako_core::parameter::{Distribution, ParamDomain, ParamValue};
 use kurobako_core::problem::ProblemSpec;
 use kurobako_core::solver::{
-    Asked, ObservedObs, Solver, SolverCapabilities, SolverRecipe, SolverSpec,
+    ObservedObs, Solver, SolverCapabilities, SolverRecipe, SolverSpec, UnobservedObs,
 };
-use kurobako_core::time::Elapsed;
 use kurobako_core::Result;
 use rand::Rng;
 use rustats::num::FiniteF64;
@@ -39,33 +38,31 @@ impl Solver for RandomSolver {
         }
     }
 
-    fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<Asked> {
-        let (obs, elapsed) = Elapsed::time(|| {
-            let params = self
-                .params_domain
-                .iter()
-                .map(|p| match p {
-                    ParamDomain::Categorical(p) => {
-                        ParamValue::Categorical(rng.gen_range(0, p.choices.len()))
-                    }
-                    ParamDomain::Conditional(p) => unimplemented!("Conditional: {:?}", p),
-                    ParamDomain::Continuous(p) => {
-                        assert_eq!(p.distribution, Distribution::Uniform, "Unimplememented");
+    fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<UnobservedObs> {
+        let params = self
+            .params_domain
+            .iter()
+            .map(|p| match p {
+                ParamDomain::Categorical(p) => {
+                    ParamValue::Categorical(rng.gen_range(0, p.choices.len()))
+                }
+                ParamDomain::Conditional(p) => unimplemented!("Conditional: {:?}", p),
+                ParamDomain::Continuous(p) => {
+                    assert_eq!(p.distribution, Distribution::Uniform, "Unimplememented");
 
-                        let n = rng.gen_range(p.range.low.get(), p.range.high.get());
-                        ParamValue::Continuous(unsafe { FiniteF64::new_unchecked(n) })
-                    }
-                    ParamDomain::Discrete(p) => {
-                        ParamValue::Discrete(rng.gen_range(p.range.low, p.range.high))
-                    }
-                })
-                .collect();
-            track!(Obs::new(idg, Budgeted::new(self.budget, params)))
-        });
-        Ok(Asked { obs: obs?, elapsed })
+                    let n = rng.gen_range(p.range.low.get(), p.range.high.get());
+                    ParamValue::Continuous(unsafe { FiniteF64::new_unchecked(n) })
+                }
+                ParamDomain::Discrete(p) => {
+                    ParamValue::Discrete(rng.gen_range(p.range.low, p.range.high))
+                }
+            })
+            .collect();
+        let obs = track!(Obs::new(idg, Budgeted::new(self.budget, params)))?;
+        Ok(obs)
     }
 
-    fn tell(&mut self, _obs: ObservedObs) -> Result<Elapsed> {
-        Ok(Elapsed::zero())
+    fn tell(&mut self, _obs: ObservedObs) -> Result<()> {
+        Ok(())
     }
 }

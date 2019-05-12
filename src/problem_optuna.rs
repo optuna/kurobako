@@ -1,10 +1,9 @@
 use crate::problem::KurobakoProblemRecipe;
 use kurobako_core::parameter::{uniform, ParamDomain, ParamValue};
 use kurobako_core::problem::{
-    BoxEvaluator, BoxProblem, Evaluate, Evaluated, Problem, ProblemRecipe, ProblemSpec,
+    BoxEvaluator, BoxProblem, Evaluate, Problem, ProblemRecipe, ProblemSpec, Values,
 };
 use kurobako_core::solver::{Solver, SolverRecipe, SolverSpec};
-use kurobako_core::time::Seconds;
 use kurobako_core::{ErrorKind, Result};
 use kurobako_solvers::optuna::{OptunaSolver, OptunaSolverRecipe};
 use rand;
@@ -119,41 +118,37 @@ pub struct OptunaEvaluator {
     params_domain: Vec<ParamDomain>,
 }
 impl OptunaEvaluator {
-    fn evaluate_once(&mut self) -> Result<(Evaluated, u64)> {
+    fn evaluate_once(&mut self) -> Result<(Values, u64)> {
         let mut rng = rand::thread_rng(); // TODO
 
-        let mut asked = track!(self.solver.as_mut().unwrap().ask(&mut rng, &mut self.idg))?;
-        if Some(asked.obs.id) != self.curr_id {
+        let mut asked_obs = track!(self.solver.as_mut().unwrap().ask(&mut rng, &mut self.idg))?;
+        if Some(asked_obs.id) != self.curr_id {
             // TODO: handle cuncurrent
-            self.curr_id = Some(asked.obs.id);
+            self.curr_id = Some(asked_obs.id);
             self.evaluator = Some(track!(self
                 .problem
                 .borrow_mut()
-                .create_evaluator(asked.obs.id))?);
+                .create_evaluator(asked_obs.id))?);
         }
 
-        let mut budget = asked.obs.param.budget();
+        let mut budget = asked_obs.param.budget();
         let old_consumption = budget.consumption;
-        let mut evaluated = track!(self
+        let evaluated_values = track!(self
             .evaluator
             .as_mut()
             .unwrap()
-            .evaluate(asked.obs.param.get(), &mut budget))?;
+            .evaluate(asked_obs.param.get(), &mut budget))?;
         let delta_consumption = budget.consumption - old_consumption;
 
-        *asked.obs.param.budget_mut() = budget;
-        let obs = asked.obs.map_value(|()| evaluated.values.clone());
-        let tell_elapsed = track!(self.solver.as_mut().unwrap().tell(obs))?;
+        *asked_obs.param.budget_mut() = budget;
+        let obs = asked_obs.map_value(|()| evaluated_values.clone());
+        track!(self.solver.as_mut().unwrap().tell(obs))?;
 
-        evaluated.elapsed = track!(Seconds::new(
-            evaluated.elapsed.get() + asked.elapsed.get() + tell_elapsed.get()
-        ))?;
-
-        Ok((evaluated, delta_consumption))
+        Ok((evaluated_values, delta_consumption))
     }
 }
 impl Evaluate for OptunaEvaluator {
-    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Evaluated> {
+    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values> {
         if self.solver.is_none() {
             for (name, p) in self
                 .params_domain
@@ -172,21 +167,19 @@ impl Evaluate for OptunaEvaluator {
                 .create_solver(self.problem.borrow().specification()))?);
         }
 
-        let mut elapsed = 0.0;
         while !budget.is_consumed() {
-            let (evaluated, consumption) = track!(self.evaluate_once())?;
+            let (evaluated_values, consumption) = track!(self.evaluate_once())?;
             budget.consumption += consumption;
-            elapsed += evaluated.elapsed.get();
 
             // TODO: support multi-objective (in such case, the order cannot be uniquely determined)
-            if self.best_values.is_none() || &evaluated.values < self.best_values.as_ref().unwrap()
+            if self.best_values.is_none() || &evaluated_values < self.best_values.as_ref().unwrap()
             {
-                self.best_values = Some(evaluated.values);
+                self.best_values = Some(evaluated_values);
             }
         }
-        Ok(Evaluated {
-            values: track_assert_some!(self.best_values.clone().take(), ErrorKind::Bug),
-            elapsed: track!(Seconds::new(elapsed))?,
-        })
+        Ok(track_assert_some!(
+            self.best_values.clone().take(),
+            ErrorKind::Bug
+        ))
     }
 }

@@ -1,7 +1,6 @@
 use kurobako_core::epi::solver::{EmbeddedScriptSolver, EmbeddedScriptSolverRecipe};
 use kurobako_core::problem::ProblemSpec;
-use kurobako_core::solver::{Asked, ObservedObs, Solver, SolverRecipe, SolverSpec};
-use kurobako_core::time::Elapsed;
+use kurobako_core::solver::{ObservedObs, Solver, SolverRecipe, SolverSpec, UnobservedObs};
 use kurobako_core::Result;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -183,11 +182,11 @@ impl Solver for OptunaSolver {
         self.0.specification()
     }
 
-    fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<Asked> {
+    fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<UnobservedObs> {
         track!(self.0.ask(rng, idg))
     }
 
-    fn tell(&mut self, obs: ObservedObs) -> Result<Elapsed> {
+    fn tell(&mut self, obs: ObservedObs) -> Result<()> {
         track!(self.0.tell(obs))
     }
 }

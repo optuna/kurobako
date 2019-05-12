@@ -1,8 +1,7 @@
 use crate::epi::channel::{JsonMessageReceiver, JsonMessageSender};
 use crate::parameter::ParamValue;
 use crate::problem::ProblemSpec;
-use crate::solver::{Asked, ObservedObs, Solver, SolverRecipe, SolverSpec};
-use crate::time::Elapsed;
+use crate::solver::{ObservedObs, Solver, SolverRecipe, SolverSpec, UnobservedObs};
 use crate::{Error, ErrorKind, Result};
 use rand::Rng;
 use rustats::num::FiniteF64;
@@ -10,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use std::io::{BufReader, BufWriter};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
-use std::time::Instant;
 use structopt::StructOpt;
 use yamakan::budget::{Budget, Budgeted};
 use yamakan::observation::{IdGen, Obs, ObsId};
@@ -67,26 +65,19 @@ impl Solver for ExternalProgramSolver {
         self.spec.clone()
     }
 
-    fn ask<R: Rng, G: IdGen>(&mut self, _rng: &mut R, idg: &mut G) -> Result<Asked> {
+    fn ask<R: Rng, G: IdGen>(&mut self, _rng: &mut R, idg: &mut G) -> Result<UnobservedObs> {
         let id_hint = track!(idg.generate())?;
         let message = SolverMessage::AskCall { id_hint };
         track!(self.tx.send(&message))?;
 
-        let now = Instant::now();
         match track!(self.rx.recv())? {
-            SolverMessage::AskReply {
-                id,
-                params,
-                budget,
-                elapsed,
-            } => {
-                let elapsed = elapsed.unwrap_or_else(|| Elapsed::from(now.elapsed()));
+            SolverMessage::AskReply { id, params, budget } => {
                 let obs = Obs {
                     id,
                     param: Budgeted::new(budget, params),
                     value: (),
                 };
-                Ok(Asked { obs, elapsed })
+                Ok(obs)
             }
             SolverMessage::ErrorReply { kind, message } => {
                 if let Some(message) = message {
@@ -99,7 +90,7 @@ impl Solver for ExternalProgramSolver {
         }
     }
 
-    fn tell(&mut self, obs: ObservedObs) -> Result<Elapsed> {
+    fn tell(&mut self, obs: ObservedObs) -> Result<()> {
         let message = SolverMessage::TellCall {
             id: obs.id,
             budget: obs.param.budget(),
@@ -108,12 +99,8 @@ impl Solver for ExternalProgramSolver {
         };
         track!(self.tx.send(&message))?;
 
-        let now = Instant::now();
         match track!(self.rx.recv())? {
-            SolverMessage::TellReply { elapsed } => {
-                let elapsed = elapsed.unwrap_or_else(|| Elapsed::from(now.elapsed()));
-                Ok(elapsed)
-            }
+            SolverMessage::TellReply => Ok(()),
             SolverMessage::ErrorReply { kind, message } => {
                 if let Some(message) = message {
                     track_panic!(kind, "{}", message);
@@ -145,8 +132,6 @@ pub enum SolverMessage {
         id: ObsId,
         params: Vec<ParamValue>,
         budget: Budget,
-        #[serde(default)]
-        elapsed: Option<Elapsed>,
     },
     TellCall {
         id: ObsId,
@@ -154,10 +139,7 @@ pub enum SolverMessage {
         budget: Budget,
         values: Vec<FiniteF64>,
     },
-    TellReply {
-        #[serde(default)]
-        elapsed: Option<Elapsed>,
-    },
+    TellReply,
     ErrorReply {
         kind: ErrorKind,
         #[serde(default)]

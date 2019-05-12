@@ -2,7 +2,7 @@ use crate::epi::problem::{
     ExternalProgramEvaluator, ExternalProgramProblem, ExternalProgramProblemRecipe,
 };
 use crate::parameter::ParamValue;
-use crate::problem::{Evaluate, Evaluated, Problem, ProblemRecipe, ProblemSpec};
+use crate::problem::{Evaluate, Problem, ProblemRecipe, ProblemSpec, Values};
 use crate::{Error, ErrorKind, Result};
 use serde::{Deserialize, Serialize};
 use std::io::Write as _;
@@ -87,7 +87,7 @@ impl Problem for EmbeddedScriptProblem {
 #[derive(Debug)]
 pub struct EmbeddedScriptEvaluator(ExternalProgramEvaluator);
 impl Evaluate for EmbeddedScriptEvaluator {
-    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Evaluated> {
+    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values> {
         track!(self.0.evaluate(params, budget))
     }
 }

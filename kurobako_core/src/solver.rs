@@ -1,6 +1,5 @@
 use crate::parameter::ParamValue;
 use crate::problem::ProblemSpec;
-use crate::time::Elapsed;
 use crate::Result;
 use rand::Rng;
 use rustats::num::FiniteF64;
@@ -22,15 +21,9 @@ pub type ObservedObs = Obs<Budgeted<Vec<ParamValue>>, Vec<FiniteF64>>;
 pub trait Solver {
     fn specification(&self) -> SolverSpec;
 
-    fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<Asked>;
+    fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<UnobservedObs>;
 
-    fn tell(&mut self, obs: ObservedObs) -> Result<Elapsed>;
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Asked {
-    pub obs: UnobservedObs,
-    pub elapsed: Elapsed,
+    fn tell(&mut self, obs: ObservedObs) -> Result<()>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
