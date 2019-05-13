@@ -1,5 +1,5 @@
 use crate::time::DateTime;
-use crate::trial::TrialRecord;
+use crate::trial::{EvalRecord, TrialRecord};
 use crate::Name;
 use chrono::Local;
 use kurobako_core::problem::{ProblemRecipe, ProblemSpec};
@@ -9,6 +9,42 @@ use rustats::num::NonNanF64;
 use rustats::range::MinMax;
 use serde::{Deserialize, Serialize};
 use std::f64;
+
+#[derive(Debug)]
+pub struct Scorer {
+    evals: Vec<EvalRecord>,
+    value_range: MinMax<f64>,
+}
+impl Scorer {
+    fn new(study: &StudyRecord) -> Self {
+        let mut evals = Vec::new();
+        for trial in study
+            .trials
+            .iter()
+            .filter(|t| t.consumption() >= study.problem_spec.evaluation_expense.get())
+        {
+            if let Some(eval) = trial.evals.last() {
+                evals.push(eval.clone());
+            }
+        }
+        evals.sort_by_key(|e| e.end_budget);
+        Self {
+            evals,
+            value_range: study.value_range(),
+        }
+    }
+
+    pub fn best_score_until(&self, i: u64) -> f64 {
+        let normalized_value = self
+            .evals
+            .iter()
+            .take_while(|e| e.end_budget <= i)
+            .min_by_key(|e| unsafe { NonNanF64::new_unchecked(e.value) })
+            .map(|e| self.value_range.normalize(e.value))
+            .unwrap_or(1.0);
+        1.0 - normalized_value
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StudyRecord {
@@ -52,6 +88,10 @@ impl StudyRecord {
     pub fn value_range(&self) -> MinMax<f64> {
         let r = self.problem_spec.values_domain[0];
         unsafe { MinMax::new_unchecked(r.min().get(), r.max().get()) }
+    }
+
+    pub fn scorer(&self) -> Scorer {
+        Scorer::new(self)
     }
 
     pub fn best_score_until(&self, i: usize) -> f64 {

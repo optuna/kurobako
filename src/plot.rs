@@ -158,9 +158,10 @@ pub struct SolverPlot {
 impl SolverPlot {
     fn new(name: &Name, studies: &[&StudyRecord]) -> Self {
         let mut avg_scores = Vec::new();
-        for i in 0..studies[0].trials.len() {
+        let scorers = studies.iter().map(|s| s.scorer()).collect::<Vec<_>>();
+        for i in 0..studies[0].budget {
             let avg_score =
-                studies.iter().map(|s| s.best_score_until(i)).sum::<f64>() / studies.len() as f64;
+                scorers.iter().map(|s| s.best_score_until(i)).sum::<f64>() / studies.len() as f64;
             avg_scores.push(avg_score);
         }
         Self {
