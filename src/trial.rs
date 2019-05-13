@@ -58,12 +58,12 @@ pub struct EvalRecord {
     pub end_time: Timestamp,
 }
 impl EvalRecord {
-    pub fn with<F>(watch: &Stopwatch, f: F) -> (Self, Vec<FiniteF64>)
+    pub fn with<F>(watch: &Stopwatch, f: F) -> Result<(Self, Vec<FiniteF64>)>
     where
-        F: FnOnce() -> Vec<FiniteF64>,
+        F: FnOnce() -> Result<Vec<FiniteF64>>,
     {
         let start_time = watch.elapsed();
-        let values = f();
+        let values = f()?;
         let end_time = watch.elapsed();
         let this = Self {
             value: values[0].get(), // TODO
@@ -71,6 +71,6 @@ impl EvalRecord {
             start_time,
             end_time,
         };
-        (this, values)
+        Ok((this, values))
     }
 }

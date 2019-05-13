@@ -67,19 +67,28 @@ impl<R: Rng> Runner<R> {
             }
 
             let old_consumption = obs.param.budget().consumption;
-            let (eval, values) = EvalRecord::with(&watch, || {
-                evaluator
+            let eval_result = EvalRecord::with(&watch, || {
+                track!(evaluator
                     .as_mut()
                     .unwrap()
-                    .evaluate(&ask.params, obs.param.budget_mut())
-                    .expect("TODO")
+                    .evaluate(&ask.params, obs.param.budget_mut()))
             });
-            budget.consumption += obs.param.budget().consumption - old_consumption;
+            match eval_result {
+                Ok((eval, values)) => {
+                    budget.consumption += obs.param.budget().consumption - old_consumption;
+                    let obs = obs.map_value(|()| values);
+                    track!(solver.tell(obs))?;
 
-            let obs = obs.map_value(|()| values);
-            track!(solver.tell(obs))?;
-
-            study_record.trials.last_mut().unwrap().evals.push(eval);
+                    study_record.trials.last_mut().unwrap().evals.push(eval);
+                }
+                Err(e) => {
+                    // TODO
+                    eprintln!("# Error: {}", e);
+                    study_record.trials.last_mut().unwrap().complete = false;
+                    curr_id = None;
+                    evaluator = None;
+                }
+            }
         }
         Ok(study_record)
     }
