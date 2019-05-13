@@ -7,8 +7,8 @@ matrix:
     sudo: required
     before_script: rustup component add clippy-preview
     script:
-      - cargo test --all-features
-      - cargo clippy --all-features
+      - cargo test --all-features --all
+      - cargo clippy --all-features --all
     env: RUSTFLAGS="-C link-dead-code -D warnings"
     addons:
       apt:
@@ -38,7 +38,7 @@ matrix:
 
   - name: "beta test"
     rust: beta
-    script: cargo test --all-features
+    script: cargo test --all-features --all
 
   - name: "beta build"
     rust: beta
@@ -48,12 +48,12 @@ matrix:
   - name: "beta clippy"
     rust: beta
     before_script: rustup component add clippy-preview
-    script: cargo clippy --all-features
+    script: cargo clippy --all-features --all
     env: RUSTFLAGS="-D warnings"
 
   - name: "nightly test"
     rust: nightly
-    script: cargo test --all-features
+    script: cargo test --all-features --all
 
   - name: "nightly build"
     rust: nightly
@@ -63,7 +63,7 @@ matrix:
   - name: "nightly clippy"
     rust: nightly
     before_script: rustup component add clippy-preview
-    script: cargo clippy --all-features
+    script: cargo clippy --all-features --all
     env: RUSTFLAGS="-D warnings"
 
   allow_failures:
