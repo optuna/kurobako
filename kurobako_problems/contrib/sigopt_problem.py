@@ -9,7 +9,7 @@ from pkg_resources import get_distribution
 
 parser = argparse.ArgumentParser()
 parser.add_argument('name')
-parser.add_argument('dim', type=int)
+parser.add_argument('--dim', type=int)
 parser.add_argument('--int', type=int, nargs='*')
 parser.add_argument('--res', type=float)
 
