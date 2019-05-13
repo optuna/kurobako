@@ -2,10 +2,10 @@ use crate::time::DateTime;
 use crate::trial::TrialRecord;
 use crate::Name;
 use chrono::Local;
-use kurobako_core::problem::ProblemRecipe;
-use kurobako_core::solver::SolverRecipe;
+use kurobako_core::problem::{ProblemRecipe, ProblemSpec};
+use kurobako_core::solver::{SolverRecipe, SolverSpec};
 use kurobako_core::Error;
-use rustats::num::{FiniteF64, NonNanF64};
+use rustats::num::NonNanF64;
 use rustats::range::MinMax;
 use serde::{Deserialize, Serialize};
 use std::f64;
@@ -14,8 +14,9 @@ use std::f64;
 pub struct StudyRecord {
     pub solver: Name,
     pub problem: Name,
+    pub solver_spec: SolverSpec,
+    pub problem_spec: ProblemSpec,
     pub budget: u64,
-    pub value_range: MinMax<f64>, // TODO
     pub start_time: DateTime,
     pub trials: Vec<TrialRecord>,
 }
@@ -24,19 +25,19 @@ impl StudyRecord {
         solver_recipe: &O,
         problem: &P,
         budget: u64,
-        value_range: MinMax<FiniteF64>,
+        problem_spec: ProblemSpec,
+        solver_spec: SolverSpec,
     ) -> Result<Self, Error>
     where
         O: SolverRecipe,
         P: ProblemRecipe,
     {
-        let value_range =
-            MinMax::new(value_range.min().get(), value_range.max().get()).expect("TODO");
         Ok(StudyRecord {
-            solver: Name::new(serde_json::to_value(solver_recipe)?),
+            solver: Name::new(serde_json::to_value(solver_recipe)?), // TODO
             problem: Name::new(serde_json::to_value(problem)?),
+            solver_spec,
+            problem_spec,
             budget,
-            value_range,
             start_time: Local::now(),
             trials: Vec::new(),
         })
@@ -47,6 +48,12 @@ impl StudyRecord {
         self.trials.truncate(budget as usize); // TODO:
     }
 
+    // TODO: remove
+    pub fn value_range(&self) -> MinMax<f64> {
+        let r = self.problem_spec.values_domain[0];
+        unsafe { MinMax::new_unchecked(r.min().get(), r.max().get()) }
+    }
+
     pub fn best_score_until(&self, i: usize) -> f64 {
         let normalized_value = self
             .trials
@@ -54,7 +61,7 @@ impl StudyRecord {
             .take(i)
             .filter_map(|t| t.value())
             .min_by_key(|v| unsafe { NonNanF64::new_unchecked(*v) })
-            .map(|v| self.value_range.normalize(v))
+            .map(|v| self.value_range().normalize(v))
             .unwrap_or(1.0);
         1.0 - normalized_value
     }
@@ -65,7 +72,7 @@ impl StudyRecord {
             .iter()
             .filter_map(|t| t.value())
             .min_by_key(|v| NonNanF64::new(*v).unwrap_or_else(|e| panic!("{}", e)))
-            .map(|v| self.value_range.normalize(v))
+            .map(|v| self.value_range().normalize(v))
             .expect("TODO");
         1.0 - normalized_value
     }
@@ -77,7 +84,7 @@ impl StudyRecord {
             .trials
             .iter()
             .filter_map(|t| t.value())
-            .map(|v| 1.0 - self.value_range.normalize(v))
+            .map(|v| 1.0 - self.value_range().normalize(v))
         {
             if let Some(&last) = vs.last() {
                 if last < v {

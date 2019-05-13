@@ -61,7 +61,7 @@ impl PlotOptions {
         output: P,
     ) -> String {
         let mut s = format!(
-            "set title {:?}; set ylabel \"Score\"; set xlabel \"Trials\"; set grid;",
+            "set title {:?}; set ylabel \"Score\"; set xlabel \"Budget\"; set grid;",
             problem
                 .as_json()
                 .to_string()

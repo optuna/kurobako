@@ -44,7 +44,8 @@ impl<R: Rng> Runner<R> {
             solver_recipe,
             problem_recipe,
             budget.amount,
-            problem_spec.values_domain[0], // TODO
+            problem_spec.clone(),
+            solver.specification(),
         )?;
 
         let mut curr_id = None;
@@ -62,20 +63,18 @@ impl<R: Rng> Runner<R> {
                 study_record.trials.push(TrialRecord {
                     ask: ask.clone(),
                     evals: vec![],
-                    complete: true, // TODO
                 });
             }
 
-            let old_consumption = obs.param.budget().consumption;
-            let eval_result = EvalRecord::with(&watch, || {
-                track!(evaluator
-                    .as_mut()
-                    .unwrap()
-                    .evaluate(&ask.params, obs.param.budget_mut()))
-            });
+            let eval_result = EvalRecord::with(
+                &watch,
+                budget.consumption,
+                obs.param.budget_mut(),
+                |budget| track!(evaluator.as_mut().unwrap().evaluate(&ask.params, budget)),
+            );
             match eval_result {
                 Ok((eval, values)) => {
-                    budget.consumption += obs.param.budget().consumption - old_consumption;
+                    budget.consumption += eval.cost();
                     let obs = obs.map_value(|()| values);
                     track!(solver.tell(obs))?;
 
@@ -84,7 +83,6 @@ impl<R: Rng> Runner<R> {
                 Err(e) => {
                     // TODO
                     eprintln!("# Error: {}", e);
-                    study_record.trials.last_mut().unwrap().complete = false;
                     curr_id = None;
                     evaluator = None;
                 }

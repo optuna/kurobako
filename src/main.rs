@@ -243,7 +243,11 @@ fn output_scatter_data(study: &StudyRecord) {
 
     println!(
         "# {:?}, {:?}, {:?}, {:?}, {:?}",
-        study.solver, study.problem, study.budget, study.value_range, study.start_time
+        study.solver,
+        study.problem,
+        study.budget,
+        study.value_range(),
+        study.start_time
     );
     println!("# Budget Value Param...");
     for (i, trial) in study.trials.iter().enumerate() {

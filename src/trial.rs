@@ -4,12 +4,12 @@ use kurobako_core::solver::UnobservedObs;
 use kurobako_core::Result;
 use rustats::num::FiniteF64;
 use serde::{Deserialize, Serialize};
+use yamakan::budget::Budget;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrialRecord {
     pub ask: AskRecord,
     pub evals: Vec<EvalRecord>,
-    pub complete: bool,
 }
 impl TrialRecord {
     pub fn value(&self) -> Option<f64> {
@@ -20,6 +20,10 @@ impl TrialRecord {
         self.evals
             .last()
             .map_or(Timestamp::new(0.0), |x| x.end_time)
+    }
+
+    pub fn consumption(&self) -> u64 {
+        self.evals.iter().map(|e| e.cost()).sum()
     }
 }
 
@@ -53,24 +57,37 @@ impl AskRecord {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EvalRecord {
     pub value: f64,
-    pub cost: usize,
+    pub start_budget: u64,
+    pub end_budget: u64,
     pub start_time: Timestamp,
     pub end_time: Timestamp,
 }
 impl EvalRecord {
-    pub fn with<F>(watch: &Stopwatch, f: F) -> Result<(Self, Vec<FiniteF64>)>
+    pub fn with<F>(
+        watch: &Stopwatch,
+        start_budget: u64,
+        budget: &mut Budget,
+        f: F,
+    ) -> Result<(Self, Vec<FiniteF64>)>
     where
-        F: FnOnce() -> Result<Vec<FiniteF64>>,
+        F: FnOnce(&mut Budget) -> Result<Vec<FiniteF64>>,
     {
+        let before_consumption = budget.consumption;
         let start_time = watch.elapsed();
-        let values = f()?;
+        let values = f(budget)?;
         let end_time = watch.elapsed();
+        let cost = budget.consumption - before_consumption;
         let this = Self {
             value: values[0].get(), // TODO
-            cost: 1,                // TODO
+            start_budget,
+            end_budget: start_budget + cost,
             start_time,
             end_time,
         };
         Ok((this, values))
+    }
+
+    pub fn cost(&self) -> u64 {
+        self.end_budget - self.start_budget
     }
 }
