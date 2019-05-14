@@ -35,6 +35,11 @@ pub struct FfmpegProblemRecipe {
     #[structopt(long)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resolution: Option<String>,
+
+    // TODO: evaluation_points (?)
+    #[structopt(long)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub safe_points: Vec<u64>,
 }
 impl FfmpegProblemRecipe {
     fn ffmpeg_version(&self) -> Result<String> {
@@ -86,6 +91,7 @@ impl ProblemRecipe for FfmpegProblemRecipe {
             duration: track!(self.video_duration())?,
             bitrate: self.bitrate.clone(),
             resolution: self.resolution.clone(),
+            safe_points: self.safe_points.clone(),
         })
     }
 }
@@ -97,6 +103,7 @@ pub struct FfmpegProblem {
     duration: Duration,
     bitrate: Option<String>,
     resolution: Option<String>,
+    safe_points: Vec<u64>,
 }
 impl Problem for FfmpegProblem {
     type Evaluator = FfmpegEvaluator;
@@ -122,6 +129,12 @@ impl Problem for FfmpegProblem {
             input_video_path: self.input_video_path.clone(),
             bitrate: self.bitrate.clone(),
             resolution: self.resolution.clone(),
+            safe_points: self
+                .safe_points
+                .iter()
+                .map(|p| cmp::min(*p, self.duration.as_secs()))
+                .rev()
+                .collect(),
         })
     }
 }
@@ -131,10 +144,19 @@ pub struct FfmpegEvaluator {
     input_video_path: PathBuf,
     bitrate: Option<String>,
     resolution: Option<String>,
+    safe_points: Vec<u64>,
 }
 impl Evaluate for FfmpegEvaluator {
     fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values> {
-        let duration = Duration::from_secs(budget.amount);
+        while !self.safe_points.is_empty() && self.safe_points.last() < Some(&budget.amount) {
+            self.safe_points.pop();
+        }
+
+        let duration = if let Some(point) = self.safe_points.pop() {
+            Duration::from_secs(point)
+        } else {
+            Duration::from_secs(budget.amount)
+        };
         let ffmpeg = track!(Ffmpeg::new(
             params,
             &self.input_video_path,
@@ -143,7 +165,7 @@ impl Evaluate for FfmpegEvaluator {
             self.resolution.as_ref()
         ))?;
         let ssim = track!(ffmpeg.run())?;
-        budget.consumption = budget.amount;
+        budget.consumption = duration.as_secs();
 
         Ok(vec![track!(FiniteF64::new(1.0 - ssim))?])
     }
