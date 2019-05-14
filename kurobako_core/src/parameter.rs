@@ -31,6 +31,31 @@ pub enum ParamValue {
     Categorical(usize),
     Conditional(Option<Box<ParamValue>>), // TODO: Conditional(Option<Box<UnconditionalValue>>)
 }
+impl ParamValue {
+    pub fn as_discrete(&self) -> Option<i64> {
+        if let ParamValue::Discrete(v) = self {
+            Some(*v)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_continuous(&self) -> Option<FiniteF64> {
+        if let ParamValue::Continuous(v) = self {
+            Some(*v)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_categorical(&self) -> Option<usize> {
+        if let ParamValue::Categorical(v) = self {
+            Some(*v)
+        } else {
+            None
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -119,5 +144,13 @@ pub fn uniform(name: &str, low: f64, high: f64) -> Result<ParamDomain> {
         name: name.to_owned(),
         range,
         distribution: Distribution::Uniform,
+    }))
+}
+
+pub fn int(name: &str, low: i64, high: i64) -> Result<ParamDomain> {
+    let range = track!(Range::new(low, high))?;
+    Ok(ParamDomain::Discrete(Discrete {
+        name: name.to_owned(),
+        range,
     }))
 }
