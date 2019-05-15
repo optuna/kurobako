@@ -13,8 +13,8 @@ parser.add_argument('--metric', choices=['auc'], default='auc')
 parser.add_argument('--min-iterations', type=int, default=10)
 args = parser.parse_args()
 
-dtrain = lgb.Dataset(args.training_data_path, free_raw_data=False).construct()
-dtest = lgb.Dataset(args.validation_data_path, free_raw_data=False).construct()
+dtrain = lgb.Dataset(args.training_data_path, free_raw_data=False, silent=True)
+dtest = lgb.Dataset(args.validation_data_path, reference=dtrain, free_raw_data=False, silent=True)
 
 ##
 ##
@@ -58,41 +58,31 @@ print(json.dumps(message))
 ##
 class Evaluator(object):
     def __init__(self, raw_params):
-
-        self.params = {
+        params = {
             'objective': 'binary',
             'verbosity': -1,
             'metric': args.metric,
         }
         for k, v in zip(params_domain, raw_params):
             if 'continuous' in k:
-                self.params[k['continuous']['name']] = v['continuous']
+                params[k['continuous']['name']] = v['continuous']
             elif 'discrete' in k:
-                self.params[k['discrete']['name']] = v['discrete']
+                params[k['discrete']['name']] = v['discrete']
             elif 'categorical' in k:
-                self.params[k['categorical']['name']] = k['categorical']['choices'][v['categorical']]
+                params[k['categorical']['name']] = k['categorical']['choices'][v['categorical']]
             else:
                 raise ValueError()
 
-        self.gbm = None
+        self.gbm = lgb.Booster(params, dtrain, silent=True)
+        self.gbm.add_valid(dtest, 'valid')
 
     def handle_eval(self, budget):
-        import sys # TODO: remove
-
         num_boost_round = max(args.min_iterations, budget['amount'] - budget['consumption'])
 
-        sys.stderr.write("# TRAIN\n") # TODO
-        self.gbm = lgb.train(self.params,
-                             dtrain,
-                             init_model=self.gbm,
-                             num_boost_round=num_boost_round,
-                             valid_sets=[dtest],
-                             verbose_eval=False,
-                             keep_training_booster=True
-        )
-        sys.stderr.write("# EVAL\n") # TODO
+        for _ in range(num_boost_round):
+            self.gbm.update() # TODO: check return value
+
         _, _, value, maximize = self.gbm.eval_valid()[0]
-        sys.stderr.write("# GBM: {}, {}\n".format( self.gbm.current_iteration(), value))  # TODO: remove
 
         if maximize:
             value = 1.0 - value
@@ -104,18 +94,13 @@ class Evaluator(object):
 
 evaluators = {}
 while True:
-    import sys  # TODO: remove
-
     req = json.loads(input())
     if req['type'] == 'CREATE_EVALUATOR_CAST':
-        sys.stderr.write("# CREATE: {}\n".format(req))  # TODO: remove
         assert req['id'] not in evaluators
         evaluators[req['id']] = None
     elif req['type'] == 'DROP_EVALUATOR_CAST':
-        sys.stderr.write("# DROP: {}\n".format(req))  # TODO: remove
         del evaluators[req['id']]
     elif req['type'] == 'EVALUATE_CALL':
-        sys.stderr.write("# EVAL: {}\n".format(req))  # TODO: remove
         if evaluators[req['id']] is None:
             evaluators[req['id']] = Evaluator(req['params'])
         evaluators[req['id']].handle_eval(req['budget'])
