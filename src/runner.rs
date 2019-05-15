@@ -51,6 +51,7 @@ impl<R: Rng> Runner<R> {
         let mut curr_id = None;
         let mut evaluator = None;
 
+        let mut errors = 0;
         let watch = Stopwatch::new();
         while !budget.is_consumed() {
             let (ask, mut obs) =
@@ -74,6 +75,7 @@ impl<R: Rng> Runner<R> {
             );
             match eval_result {
                 Ok((eval, values)) => {
+                    errors = 0;
                     budget.consumption += eval.cost();
                     let obs = obs.map_value(|()| values);
                     track!(solver.tell(obs))?;
@@ -83,6 +85,11 @@ impl<R: Rng> Runner<R> {
                 Err(e) => {
                     // TODO
                     eprintln!("# Error: {}", e);
+                    errors += 1;
+                    if errors > 1000 {
+                        return Err(track!(e));
+                    }
+
                     curr_id = None;
                     evaluator = None;
                 }
