@@ -5,6 +5,7 @@ import lightgbm as lgb
 import os
 from pkg_resources import get_distribution
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument('training_data_path')
 parser.add_argument('validation_data_path')
@@ -80,15 +81,15 @@ class Evaluator(object):
         num_boost_round = max(args.min_iterations, budget['amount'] - budget['consumption'])
 
         for _ in range(num_boost_round):
-            self.gbm.update() # TODO: check return value
+            if self.gbm.update():
+                break
 
         _, _, value, maximize = self.gbm.eval_valid()[0]
 
         if maximize:
             value = 1.0 - value
 
-        assert self.gbm.current_iteration() == num_boost_round + budget['consumption']
-        budget['consumption'] = self.gbm.current_iteration()
+        budget['consumption'] += num_boost_round
 
         print(json.dumps({'type': 'EVALUATE_OK_REPLY', 'values': [value], 'budget': budget}))
 
