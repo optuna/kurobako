@@ -79,6 +79,7 @@ class Evaluator(object):
 
     def handle_eval(self, budget):
         num_boost_round = max(args.min_iterations, budget['amount'] - budget['consumption'])
+        num_boost_round = min(args.num_boost_round - budget['consumption'], num_boost_round)
 
         for _ in range(num_boost_round):
             if self.gbm.update():
