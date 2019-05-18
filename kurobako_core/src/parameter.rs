@@ -1,7 +1,8 @@
-use crate::Result;
+use crate::{Error, ErrorKind, Result};
 use rustats::num::FiniteF64;
 use rustats::range::Range;
 use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
 use std::fmt::Display;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -73,6 +74,18 @@ impl Unconditional {
         }
     }
 }
+impl TryFrom<ParamDomain> for Unconditional {
+    type Error = Error;
+
+    fn try_from(f: ParamDomain) -> Result<Self> {
+        Ok(match f {
+            ParamDomain::Categorical(p) => Unconditional::Categorical(p),
+            ParamDomain::Conditional(_) => track_panic!(ErrorKind::InvalidInput),
+            ParamDomain::Continuous(p) => Unconditional::Continuous(p),
+            ParamDomain::Discrete(p) => Unconditional::Discrete(p),
+        })
+    }
+}
 // TODO: Implement PriorDistribution
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -121,6 +134,18 @@ impl Default for Distribution {
     }
 }
 
+pub fn when(condition: Condition, param: ParamDomain) -> Result<ParamDomain> {
+    let param = Box::new(track!(Unconditional::try_from(param))?);
+    Ok(ParamDomain::Conditional(Conditional { condition, param }))
+}
+
+pub fn category_eq(name: &str, value: &str) -> Condition {
+    Condition::Member {
+        name: name.to_owned(),
+        choices: vec![value.to_owned()],
+    }
+}
+
 pub fn boolean(name: &str) -> ParamDomain {
     choices(name, &["false", "true"])
 }
@@ -144,6 +169,17 @@ pub fn uniform(name: &str, low: f64, high: f64) -> Result<ParamDomain> {
         name: name.to_owned(),
         range,
         distribution: Distribution::Uniform,
+    }))
+}
+
+pub fn log_uniform(name: &str, low: f64, high: f64) -> Result<ParamDomain> {
+    let low = track!(FiniteF64::new(low))?;
+    let high = track!(FiniteF64::new(high))?;
+    let range = track!(Range::new(low, high))?;
+    Ok(ParamDomain::Continuous(Continuous {
+        name: name.to_owned(),
+        range,
+        distribution: Distribution::LogUniform,
     }))
 }
 

@@ -2,7 +2,7 @@ use crate::problem_optuna;
 use kurobako_core::epi::problem::ExternalProgramProblemRecipe;
 use kurobako_core::problem::{BoxProblem, ProblemRecipe};
 use kurobako_core::Result;
-use kurobako_problems::{ffmpeg, lightgbm, nasbench, sigopt};
+use kurobako_problems::{deepobs, ffmpeg, lightgbm, nasbench, sigopt};
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
@@ -15,6 +15,7 @@ pub enum FullKurobakoProblemRecipe {
     Nasbench(nasbench::NasbenchProblemRecipe),
     Ffmpeg(ffmpeg::FfmpegProblemRecipe),
     Lightgbm(lightgbm::LightgbmProblemRecipe),
+    Deepobs(deepobs::DeepobsProblemRecipe),
     Optuna(problem_optuna::OptunaProblemRecipe),
 }
 impl ProblemRecipe for FullKurobakoProblemRecipe {
@@ -33,6 +34,9 @@ impl ProblemRecipe for FullKurobakoProblemRecipe {
             FullKurobakoProblemRecipe::Lightgbm(p) => {
                 track!(p.create_problem().map(BoxProblem::new))
             }
+            FullKurobakoProblemRecipe::Deepobs(p) => {
+                track!(p.create_problem().map(BoxProblem::new))
+            }
             FullKurobakoProblemRecipe::Optuna(p) => track!(p.create_problem().map(BoxProblem::new)),
         }
     }
@@ -47,6 +51,7 @@ pub enum KurobakoProblemRecipe {
     Nasbench(nasbench::NasbenchProblemRecipe),
     Ffmpeg(ffmpeg::FfmpegProblemRecipe),
     Lightgbm(lightgbm::LightgbmProblemRecipe),
+    Deepobs(deepobs::DeepobsProblemRecipe),
 }
 impl ProblemRecipe for KurobakoProblemRecipe {
     type Problem = BoxProblem;
@@ -58,6 +63,7 @@ impl ProblemRecipe for KurobakoProblemRecipe {
             KurobakoProblemRecipe::Nasbench(p) => track!(p.create_problem().map(BoxProblem::new)),
             KurobakoProblemRecipe::Ffmpeg(p) => track!(p.create_problem().map(BoxProblem::new)),
             KurobakoProblemRecipe::Lightgbm(p) => track!(p.create_problem().map(BoxProblem::new)),
+            KurobakoProblemRecipe::Deepobs(p) => track!(p.create_problem().map(BoxProblem::new)),
         }
     }
 }
