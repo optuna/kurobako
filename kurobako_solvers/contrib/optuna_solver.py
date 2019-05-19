@@ -72,7 +72,13 @@ class Objective(object):
             v = data['choices'].index(category)
             return {'categorical': v}
         elif kind == 'conditional':
-            raise NotImplementedError
+            assert 'member' in data['condition']
+            dependent_param_name = data['condition']['member']['name']
+            dependent_param_choices = data['condition']['member']['choices']
+            if dependent_param_name in trial.params:
+                if trial.params[dependent_param_name] in dependent_param_choices:
+                    return {'conditional': self._suggest(data['param'], trial)}
+            return {'conditional': None}
         else:
             raise ValueError("Unknown parameter domain: {}".format(p))
 
