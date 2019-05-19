@@ -28,7 +28,10 @@ enum Opt {
 
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
-struct RunOpt {}
+struct RunOpt {
+    #[structopt(long, default_value = "1")]
+    concurrency: usize,
+}
 
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
@@ -126,15 +129,20 @@ fn main() -> trackable::result::MainResult {
     Ok(())
 }
 
-fn handle_run_command(_opt: RunOpt) -> Result<()> {
+fn handle_run_command(opt: RunOpt) -> Result<()> {
     let benchmark_spec: BenchmarkSpec = serde_json::from_reader(std::io::stdin().lock())?;
 
     let stdout = std::io::stdout();
     let mut stdout = stdout.lock();
     for (i, spec) in benchmark_spec.run_specs().enumerate() {
         eprintln!("# [{}/{}] {:?}", i + 1, benchmark_spec.len(), spec);
-        let mut runner = Runner::new();
-        match track!(runner.run(spec.solver, spec.problem, spec.budget)) {
+        let runner = track!(Runner::new(
+            spec.solver,
+            spec.problem,
+            spec.budget as f64,
+            opt.concurrency
+        ))?;
+        match track!(runner.run()) {
             Ok(record) => {
                 track!(serde_json::to_writer(&mut stdout, &record).map_err(Error::from))?;
                 println!();

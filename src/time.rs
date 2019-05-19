@@ -16,7 +16,7 @@ impl Timestamp {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Stopwatch(Instant);
 impl Stopwatch {
     pub fn new() -> Self {
