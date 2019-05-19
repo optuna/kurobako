@@ -7,6 +7,7 @@ pub mod benchmark;
 pub mod plot;
 pub mod problem;
 pub mod problem_suites;
+pub mod record;
 pub mod runner;
 pub mod solver;
 pub mod stats;
@@ -17,6 +18,7 @@ pub mod trial;
 // TODO: move
 mod problem_optuna;
 
+// TODO: remove
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Name(serde_json::Value);
 impl Name {
