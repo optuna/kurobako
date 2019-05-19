@@ -134,7 +134,7 @@ class Objective(object):
 
                     print(json.dumps({'type': 'TELL_REPLY'}))
                     message = json.loads(input())  # 'ASK_CALL'
-                    budget['amount'] += 1
+                    budget['amount'] = budget['consumption'] + 1
                     ask_res = {
                         'type': 'ASK_REPLY',
                         'id': self.next_id,

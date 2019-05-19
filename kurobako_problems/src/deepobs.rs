@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use std::fmt;
 use std::num::NonZeroU64;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use structopt::StructOpt;
 use tempfile::tempdir;
@@ -22,7 +22,7 @@ const OPTIMIZERS: &[&str] = &[
     "adadelta",
     "adagrad",
     "adam",
-    "ftrl",
+    // "ftrl",
     "gradient-descent",
     "momentum",
     "proximal-adagrad",
@@ -34,13 +34,14 @@ const OPTIMIZERS: &[&str] = &[
 #[serde(rename_all = "kebab-case")]
 #[structopt(rename_all = "kebab-case")]
 pub struct DeepobsProblemRecipe {
-    pub data_dir: PathBuf,
-
     #[structopt(subcommand)]
     pub problem: TestProblem,
 
+    #[structopt(long)]
+    pub data_dir: PathBuf,
+
     #[structopt(long, default_value = "100")]
-    pub epochs: u64,
+    pub epochs: Vec<u64>,
 }
 impl DeepobsProblemRecipe {
     fn params_domain(&self) -> Result<Vec<ParamDomain>> {
@@ -57,9 +58,9 @@ impl DeepobsProblemRecipe {
             // optimizer
             choices("optimizer", OPTIMIZERS),
             // common
-            log_uniform("learning-rate", 0.0000001, 1.0)?,
-            uniform("weight-decay", 0.0000001, 1.0)?,
-            int("batch-size", 1, 1024)?,
+            log_uniform("learning_rate", 0.0000001, 1.0)?,
+            uniform("weight_decay", 0.0000001, 1.0)?,
+            int("batch_size", 1, 1024)?,
             // adadelta
             opt_param("adadelta", uniform("adadelta.rho", 1e-10, 1.0)?)?,
             opt_param("adadelta", log_uniform("adadelta.epsilon", 1e-10, 1.0)?)?,
@@ -73,20 +74,20 @@ impl DeepobsProblemRecipe {
             opt_param("adam", uniform("adam.beta2", 1e-10, 1.0)?)?,
             opt_param("adam", log_uniform("adam.epsilon", 1e-10, 1.0)?)?,
             // ftrl
-            opt_param("ftrl", uniform("ftrl.learning_rate_power", -1.0, 0.0)?)?,
-            opt_param("ftrl", uniform("ftrl.initial_accumulator_value", 0.0, 1.0)?)?,
-            opt_param(
-                "ftrl",
-                uniform("ftrl.l1_regularization_strength", 0.0, 1.0)?,
-            )?,
-            opt_param(
-                "ftrl",
-                uniform("ftrl.l2_regularization_strength", 0.0, 1.0)?,
-            )?,
-            opt_param(
-                "ftrl",
-                uniform("ftrl.l2_shrinkage_regularization_strength", 0.0, 1.0)?,
-            )?,
+            // opt_param("ftrl", uniform("ftrl.learning_rate_power", -1.0, 0.0)?)?,
+            // opt_param("ftrl", uniform("ftrl.initial_accumulator_value", 0.0, 1.0)?)?,
+            // opt_param(
+            //     "ftrl",
+            //     uniform("ftrl.l1_regularization_strength", 0.0, 1.0)?,
+            // )?,
+            // opt_param(
+            //     "ftrl",
+            //     uniform("ftrl.l2_regularization_strength", 0.0, 1.0)?,
+            // )?,
+            // opt_param(
+            //     "ftrl",
+            //     uniform("ftrl.l2_shrinkage_regularization_strength", 0.0, 1.0)?,
+            // )?,
             // momentum
             opt_param("momentum", uniform("momentum.momentum", 1e-10, 1.0)?)?,
             opt_param("momentum", boolean("momentum.use_nesterov"))?,
@@ -132,7 +133,8 @@ impl ProblemRecipe for DeepobsProblemRecipe {
     type Problem = DeepobsProblem;
 
     fn create_problem(&self) -> Result<Self::Problem> {
-        track_assert_ne!(self.epochs, 0, ErrorKind::InvalidInput);
+        track_assert!(!self.epochs.is_empty(), ErrorKind::InvalidInput);
+        track_assert_ne!(*self.epochs.last().unwrap(), 0, ErrorKind::InvalidInput);
 
         let script = track!(EmbeddedScript::new(include_str!(
             "../contrib/deepobs_problem.py"
@@ -165,7 +167,9 @@ impl Problem for DeepobsProblem {
                     FiniteF64::new_unchecked(1.0),
                 )]
             },
-            evaluation_expense: unsafe { NonZeroU64::new_unchecked(self.recipe.epochs) },
+            evaluation_expense: unsafe {
+                NonZeroU64::new_unchecked(*self.recipe.epochs.last().unwrap())
+            },
             capabilities: vec![EvaluatorCapability::Concurrent].into_iter().collect(),
         }
     }
@@ -174,6 +178,7 @@ impl Problem for DeepobsProblem {
         Ok(DeepobsEvaluator {
             problem: self.clone(),
             seed: rand::random(),
+            epochs: self.recipe.epochs.clone().into_iter().rev().collect(),
         })
     }
 }
@@ -182,9 +187,40 @@ impl Problem for DeepobsProblem {
 pub struct DeepobsEvaluator {
     problem: DeepobsProblem,
     seed: u32,
+    epochs: Vec<u64>,
+}
+impl DeepobsEvaluator {
+    fn get_score<P: AsRef<Path>>(&self, dir: P) -> Result<f64> {
+        use std::fs;
+
+        for entry in track_any_err!(fs::read_dir(&dir))? {
+            let entry = track_any_err!(entry)?;
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("json") {
+                let file = track_any_err!(fs::File::open(path))?;
+                let result: TestResult = track_any_err!(serde_json::from_reader(file))?;
+                let accurary =
+                    track_assert_some!(result.test_accuracies.last(), ErrorKind::InvalidInput);
+                return Ok(*accurary);
+            } else if path.is_dir() {
+                return track!(self.get_score(path));
+            }
+        }
+
+        track_panic!(
+            ErrorKind::InvalidInput,
+            "No result JSON file is found: {:?}",
+            dir.as_ref()
+        );
+    }
 }
 impl Evaluate for DeepobsEvaluator {
     fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values> {
+        while self.epochs.len() > 1 && self.epochs.last() < Some(&budget.amount) {
+            self.epochs.pop();
+        }
+
+        let epochs = *self.epochs.last().unwrap();
         let output_dir = tempdir()?;
         let optimizer =
             OPTIMIZERS[track_assert_some!(params[0].as_categorical(), ErrorKind::InvalidInput)];
@@ -195,7 +231,7 @@ impl Evaluate for DeepobsEvaluator {
         command.arg("--data_dir").arg(&self.problem.recipe.data_dir);
         command.arg("--output_dir").arg(output_dir.path());
         command.arg("--random_seed").arg(self.seed.to_string());
-        command.arg("--num_epochs").arg(budget.amount.to_string());
+        command.arg("--num_epochs").arg(epochs.to_string());
         for (name, value) in self
             .problem
             .params_domain
@@ -204,7 +240,7 @@ impl Evaluate for DeepobsEvaluator {
             .map(|p| p.name())
             .zip(params.iter().skip(1))
         {
-            if optimizer != track_assert_some!(name.splitn(2, '.').nth(0), ErrorKind::Bug) {
+            if name.contains('.') && Some(optimizer) != name.splitn(2, '.').nth(0) {
                 continue;
             }
 
@@ -222,26 +258,24 @@ impl Evaluate for DeepobsEvaluator {
                     continue;
                 }
             };
-            let k = track_assert_some!(name.splitn(2, '.').nth(1), ErrorKind::Bug);
+            let k = if name.contains('.') {
+                track_assert_some!(name.splitn(2, '.').nth(1), ErrorKind::Bug)
+            } else {
+                name
+            };
             command.arg(format!("--{}", k)).arg(v);
         }
 
         command.stdin(Stdio::null());
-        #[cfg(unix)]
-        {
-            use std::os::unix::io::FromRawFd as _;
-            command.stdout(unsafe { Stdio::from_raw_fd(2) });
-        }
-        #[cfg(not(unix))]
-        {
-            command.stdout(Stdout::null());
-        }
+        command.stdout(Stdio::null());
+
         let status = track_any_err!(command.status())?;
         track_assert!(status.success(), ErrorKind::Other);
 
-        budget.consumption = budget.amount;
+        budget.consumption = epochs;
 
-        panic!()
+        let score = track!(self.get_score(output_dir))?;
+        Ok(vec![track!(FiniteF64::new(score))?])
     }
 }
 
@@ -279,6 +313,27 @@ pub enum TestProblem {
 }
 impl fmt::Display for TestProblem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        serde_json::to_string(self).map_err(|_| fmt::Error)?.fmt(f)
+        write!(
+            f,
+            "{}",
+            serde_json::to_string(self)
+                .map_err(|_| fmt::Error)?
+                .replace('"', "")
+        )
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct TestResult {
+    test_accuracies: Vec<f64>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_problem_display_works() {
+        assert_eq!(TestProblem::Svhn_3c3d.to_string(), "svhn_3c3d");
     }
 }
