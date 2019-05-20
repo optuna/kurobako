@@ -105,9 +105,14 @@ where
             let mut obs = result?;
             obs.param.budget_mut().amount = self.next_evaluation_point(obs.param.budget().amount);
 
-            let evaluator = if let Some(evaluator) = self.scheduler.pendings.remove(&obs.id) {
-                evaluator
+            let evaluator = if let Some(pending) = self.scheduler.pendings.remove(&obs.id) {
+                pending.evaluator
             } else if self.scheduler.cancelled.contains(&obs.id) {
+                debug!(
+                    "{:?} has been cancelled: budget={:?}",
+                    obs.id,
+                    obs.param.budget()
+                );
                 continue;
             } else {
                 track!(self.problem.create_evaluator(obs.id))?
@@ -165,18 +170,21 @@ where
 
                 if trial_budget.consumption < self.trial_max_budget() {
                     track_assert!(trial_budget.is_consumed(), ErrorKind::Other; trial_budget);
-                    self.scheduler
-                        .pendings
-                        .insert(trial.obs.id, trial.evaluator);
+                    let pending = Pending {
+                        evaluator: trial.evaluator,
+                        seqno: self.study_budget.consumption,
+                    };
+                    self.scheduler.pendings.insert(trial.obs.id, pending);
                     if let Some(max_pendings) = self.study_record.runner.max_pendings {
                         if max_pendings < self.scheduler.pendings.len() {
                             let id = self
                                 .scheduler
                                 .pendings
-                                .keys()
-                                .cloned()
+                                .iter()
+                                .map(|t| (t.1.seqno, *t.0))
                                 .min()
-                                .unwrap_or_else(|| unreachable!());
+                                .unwrap_or_else(|| unreachable!())
+                                .1;
                             self.scheduler.pendings.remove(&id);
                             self.scheduler.cancelled.insert(id);
                         }
@@ -226,7 +234,7 @@ where
 #[derive(Debug)]
 struct TrialThreadScheduler<E> {
     threads: Vec<TrialThread<E>>,
-    pendings: HashMap<ObsId, E>,
+    pendings: HashMap<ObsId, Pending<E>>,
     cancelled: HashSet<ObsId>,
 }
 impl<E> TrialThreadScheduler<E> {
@@ -275,4 +283,10 @@ impl<E> TrialThread<E> {
             t.obs.param.budget().amount + self.budget_consumption
         })
     }
+}
+
+#[derive(Debug)]
+struct Pending<E> {
+    evaluator: E,
+    seqno: u64,
 }
