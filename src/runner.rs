@@ -195,6 +195,7 @@ where
                 .evaluation_points
                 .iter()
                 .cloned()
+                .rev()
                 .take_while(|p| candidate <= *p)
                 .last()
                 .unwrap_or_else(|| self.trial_max_budget())

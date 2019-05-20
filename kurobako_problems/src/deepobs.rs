@@ -34,14 +34,13 @@ const OPTIMIZERS: &[&str] = &[
 #[serde(rename_all = "kebab-case")]
 #[structopt(rename_all = "kebab-case")]
 pub struct DeepobsProblemRecipe {
-    #[structopt(subcommand)]
-    pub problem: TestProblem,
-
-    #[structopt(long)]
     pub data_dir: PathBuf,
 
     #[structopt(long, default_value = "100")]
-    pub epochs: Vec<u64>,
+    pub epochs: u64,
+
+    #[structopt(subcommand)]
+    pub problem: TestProblem,
 }
 impl DeepobsProblemRecipe {
     fn params_domain(&self) -> Result<Vec<ParamDomain>> {
@@ -133,8 +132,7 @@ impl ProblemRecipe for DeepobsProblemRecipe {
     type Problem = DeepobsProblem;
 
     fn create_problem(&self) -> Result<Self::Problem> {
-        track_assert!(!self.epochs.is_empty(), ErrorKind::InvalidInput);
-        track_assert_ne!(*self.epochs.last().unwrap(), 0, ErrorKind::InvalidInput);
+        track_assert_ne!(self.epochs, 0, ErrorKind::InvalidInput);
 
         let script = track!(EmbeddedScript::new(include_str!(
             "../contrib/deepobs_problem.py"
@@ -167,9 +165,7 @@ impl Problem for DeepobsProblem {
                     FiniteF64::new_unchecked(1.0),
                 )]
             },
-            evaluation_expense: unsafe {
-                NonZeroU64::new_unchecked(*self.recipe.epochs.last().unwrap())
-            },
+            evaluation_expense: unsafe { NonZeroU64::new_unchecked(self.recipe.epochs) },
             capabilities: vec![EvaluatorCapability::Concurrent].into_iter().collect(),
         }
     }
@@ -178,7 +174,6 @@ impl Problem for DeepobsProblem {
         Ok(DeepobsEvaluator {
             problem: self.clone(),
             seed: rand::random(),
-            epochs: self.recipe.epochs.clone().into_iter().rev().collect(),
         })
     }
 }
@@ -187,7 +182,6 @@ impl Problem for DeepobsProblem {
 pub struct DeepobsEvaluator {
     problem: DeepobsProblem,
     seed: u32,
-    epochs: Vec<u64>,
 }
 impl DeepobsEvaluator {
     fn get_score<P: AsRef<Path>>(&self, dir: P) -> Result<f64> {
@@ -216,11 +210,7 @@ impl DeepobsEvaluator {
 }
 impl Evaluate for DeepobsEvaluator {
     fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values> {
-        while self.epochs.len() > 1 && self.epochs.last() < Some(&budget.amount) {
-            self.epochs.pop();
-        }
-
-        let epochs = *self.epochs.last().unwrap();
+        let epochs = budget.amount;
         let output_dir = tempdir()?;
         let optimizer =
             OPTIMIZERS[track_assert_some!(params[0].as_categorical(), ErrorKind::InvalidInput)];
