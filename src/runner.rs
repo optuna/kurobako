@@ -7,7 +7,7 @@ use rand;
 use rand::rngs::ThreadRng;
 use serde::{Deserialize, Serialize};
 use std;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use structopt::StructOpt;
 use yamakan::budget::Budget;
 use yamakan::observation::{ObsId, SerialIdGenerator};
@@ -23,6 +23,9 @@ pub struct StudyRunnerOptions {
 
     #[structopt(long)]
     pub evaluation_points: Vec<u64>,
+
+    #[structopt(long)]
+    pub max_pendings: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -96,23 +99,27 @@ where
     }
 
     fn ask_trial(&mut self) -> Result<TrialState<P::Evaluator>> {
-        let (result, elapsed) =
-            ElapsedSeconds::time(|| track!(self.solver.ask(&mut self.rng, &mut self.idgen)));
-        let mut obs = result?;
-        obs.param.budget_mut().amount = self.next_evaluation_point(obs.param.budget().amount);
+        loop {
+            let (result, elapsed) =
+                ElapsedSeconds::time(|| track!(self.solver.ask(&mut self.rng, &mut self.idgen)));
+            let mut obs = result?;
+            obs.param.budget_mut().amount = self.next_evaluation_point(obs.param.budget().amount);
 
-        let evaluator = if let Some(evaluator) = self.scheduler.pendings.remove(&obs.id) {
-            evaluator
-        } else {
-            track!(self.problem.create_evaluator(obs.id))?
-        };
+            let evaluator = if let Some(evaluator) = self.scheduler.pendings.remove(&obs.id) {
+                evaluator
+            } else if self.scheduler.cancelled.contains(&obs.id) {
+                continue;
+            } else {
+                track!(self.problem.create_evaluator(obs.id))?
+            };
 
-        let params = obs.param.get().clone();
-        Ok(TrialState {
-            obs,
-            evaluator,
-            ask: AskRecord { params, elapsed },
-        })
+            let params = obs.param.get().clone();
+            return Ok(TrialState {
+                obs,
+                evaluator,
+                ask: AskRecord { params, elapsed },
+            });
+        }
     }
 
     fn evaluate_trial(&mut self) -> Result<()> {
@@ -161,6 +168,19 @@ where
                     self.scheduler
                         .pendings
                         .insert(trial.obs.id, trial.evaluator);
+                    if let Some(max_pendings) = self.study_record.runner.max_pendings {
+                        if max_pendings < self.scheduler.pendings.len() {
+                            let id = self
+                                .scheduler
+                                .pendings
+                                .keys()
+                                .cloned()
+                                .min()
+                                .unwrap_or_else(|| unreachable!());
+                            self.scheduler.pendings.remove(&id);
+                            self.scheduler.cancelled.insert(id);
+                        }
+                    }
                 }
             }
             Err(e) => {
@@ -207,12 +227,14 @@ where
 struct TrialThreadScheduler<E> {
     threads: Vec<TrialThread<E>>,
     pendings: HashMap<ObsId, E>,
+    cancelled: HashSet<ObsId>,
 }
 impl<E> TrialThreadScheduler<E> {
     fn new(options: &StudyRunnerOptions) -> Self {
         Self {
             threads: (0..options.concurrency).map(TrialThread::new).collect(),
             pendings: HashMap::new(),
+            cancelled: HashSet::new(),
         }
     }
 
