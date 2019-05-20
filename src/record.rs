@@ -4,7 +4,7 @@ use std;
 use std::hash::{Hash, Hasher};
 
 pub use self::study::{RecipeAndSpec, StudyRecord};
-pub use self::trial::TrialRecord;
+pub use self::trial::{AskRecord, EvaluateRecord, TellRecord, TrialRecord};
 
 mod study;
 mod trial;

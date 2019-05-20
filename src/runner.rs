@@ -10,7 +10,7 @@ use kurobako_core::{ErrorKind, Result};
 use rand::rngs::ThreadRng;
 use rand::{self, Rng};
 use std;
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use yamakan::budget::Budget;
 use yamakan::observation::{ObsId, SerialIdGenerator};
 
@@ -46,14 +46,12 @@ impl<E> EvaluationThread<E> {
 #[derive(Debug)]
 struct Scheduler<E> {
     threads: Vec<EvaluationThread<E>>,
-    runnables: VecDeque<Trial<E>>,
     pendings: HashMap<ObsId, Trial<E>>,
 }
 impl<E> Scheduler<E> {
     fn new(concurrency: usize) -> Self {
         Self {
             threads: (0..concurrency).map(EvaluationThread::new).collect(),
-            runnables: VecDeque::new(),
             pendings: HashMap::new(),
         }
     }
@@ -68,6 +66,7 @@ pub struct Runner<S, P, R = ThreadRng>
 where
     P: Problem,
 {
+    // TODO: prunable_points
     rng: R,
     idgen: SerialIdGenerator,
     solver: S,
@@ -137,12 +136,6 @@ where
             track!(self.evaluate())?;
         }
 
-        // TODO
-        // for trial in self.scheduler.runnables.drain(..) {
-        // }
-        // peindings
-        // threads.trial
-
         Ok(self.study_record)
     }
 
@@ -151,28 +144,26 @@ where
         let (ask, obs) = track!(AskRecord::with(&self.watch.clone(), || self
             .solver
             .ask(&mut self.rng, &mut self.idgen)))?;
-        if let Some(mut trial) = self.scheduler.pendings.remove(&obs.id) {
+        let trial = if let Some(mut trial) = self.scheduler.pendings.remove(&obs.id) {
             trial.obs = obs;
-            self.scheduler.runnables.push_back(trial);
+            trial
         } else {
             let evaluator = track!(self.problem.create_evaluator(obs.id))?;
             let record = TrialRecord { ask, evals: vec![] };
-            let trial = Trial {
+            Trial {
                 evaluator,
                 obs,
                 record,
-            };
-            self.scheduler.runnables.push_back(trial);
-        }
+            }
+        };
 
         for thread in &mut self.scheduler.threads {
             if thread.trial.is_none() {
-                if let Some(trial) = self.scheduler.runnables.pop_front() {
-                    thread.trial = Some(trial);
-                }
+                thread.trial = Some(trial);
+                return Ok(());
             }
         }
-        Ok(())
+        unreachable!();
     }
 
     fn evaluate(&mut self) -> Result<()> {

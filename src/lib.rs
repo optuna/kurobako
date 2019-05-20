@@ -11,9 +11,9 @@ pub mod record;
 pub mod runner;
 pub mod solver;
 pub mod stats;
-pub mod study;
-pub mod time;
-pub mod trial;
+pub mod study; // TODO: delete
+pub mod time; // TODO: delete
+pub mod trial; // TODO: delete
 
 // TODO: move
 mod problem_optuna;
