@@ -11,57 +11,98 @@ use yamakan::observation::IdGen;
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[structopt(rename_all = "kebab-case")]
-pub enum KurobakoSolverRecipe {
-    Random(random::RandomSolverRecipe),
-    Optuna(optuna::OptunaSolverRecipe),
-    Command(epi::solver::ExternalProgramSolverRecipe),
+pub struct KurobakoSolverRecipe {
+    #[structopt(long)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    tag: Option<String>,
+
+    #[structopt(flatten)]
+    #[serde(flatten)]
+    inner: InnerRecipe,
 }
 impl SolverRecipe for KurobakoSolverRecipe {
     type Solver = KurobakoSolver;
 
     fn create_solver(&self, problem: ProblemSpec) -> Result<Self::Solver> {
+        let inner = track!(self.inner.create_solver(problem))?;
+        Ok(KurobakoSolver {
+            tag: self.tag.clone(),
+            inner,
+        })
+    }
+}
+
+#[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[structopt(rename_all = "kebab-case")]
+enum InnerRecipe {
+    Random(random::RandomSolverRecipe),
+    Optuna(optuna::OptunaSolverRecipe),
+    Command(epi::solver::ExternalProgramSolverRecipe),
+}
+impl SolverRecipe for InnerRecipe {
+    type Solver = InnerSolver;
+
+    fn create_solver(&self, problem: ProblemSpec) -> Result<Self::Solver> {
         match self {
-            KurobakoSolverRecipe::Random(r) => {
-                track!(r.create_solver(problem)).map(KurobakoSolver::Random)
-            }
-            KurobakoSolverRecipe::Optuna(r) => {
-                track!(r.create_solver(problem)).map(KurobakoSolver::Optuna)
-            }
-            KurobakoSolverRecipe::Command(r) => {
-                track!(r.create_solver(problem)).map(KurobakoSolver::Command)
-            }
+            InnerRecipe::Random(r) => track!(r.create_solver(problem)).map(InnerSolver::Random),
+            InnerRecipe::Optuna(r) => track!(r.create_solver(problem)).map(InnerSolver::Optuna),
+            InnerRecipe::Command(r) => track!(r.create_solver(problem)).map(InnerSolver::Command),
         }
     }
 }
 
 #[derive(Debug)]
-pub enum KurobakoSolver {
+pub struct KurobakoSolver {
+    tag: Option<String>,
+    inner: InnerSolver,
+}
+impl Solver for KurobakoSolver {
+    fn specification(&self) -> SolverSpec {
+        let mut spec = self.inner.specification();
+        if let Some(tag) = &self.tag {
+            spec.name.push_str(&format!("#{}", tag));
+        }
+        spec
+    }
+
+    fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<UnobservedObs> {
+        track!(self.inner.ask(rng, idg))
+    }
+
+    fn tell(&mut self, obs: ObservedObs) -> Result<()> {
+        track!(self.inner.tell(obs))
+    }
+}
+
+#[derive(Debug)]
+pub enum InnerSolver {
     Random(random::RandomSolver),
     Optuna(optuna::OptunaSolver),
     Command(epi::solver::ExternalProgramSolver),
 }
-impl Solver for KurobakoSolver {
+impl Solver for InnerSolver {
     fn specification(&self) -> SolverSpec {
         match self {
-            KurobakoSolver::Random(s) => s.specification(),
-            KurobakoSolver::Optuna(s) => s.specification(),
-            KurobakoSolver::Command(s) => s.specification(),
+            InnerSolver::Random(s) => s.specification(),
+            InnerSolver::Optuna(s) => s.specification(),
+            InnerSolver::Command(s) => s.specification(),
         }
     }
 
     fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<UnobservedObs> {
         match self {
-            KurobakoSolver::Random(s) => track!(s.ask(rng, idg)),
-            KurobakoSolver::Optuna(s) => track!(s.ask(rng, idg)),
-            KurobakoSolver::Command(s) => track!(s.ask(rng, idg)),
+            InnerSolver::Random(s) => track!(s.ask(rng, idg)),
+            InnerSolver::Optuna(s) => track!(s.ask(rng, idg)),
+            InnerSolver::Command(s) => track!(s.ask(rng, idg)),
         }
     }
 
     fn tell(&mut self, obs: ObservedObs) -> Result<()> {
         match self {
-            KurobakoSolver::Random(s) => track!(s.tell(obs)),
-            KurobakoSolver::Optuna(s) => track!(s.tell(obs)),
-            KurobakoSolver::Command(s) => track!(s.tell(obs)),
+            InnerSolver::Random(s) => track!(s.tell(obs)),
+            InnerSolver::Optuna(s) => track!(s.tell(obs)),
+            InnerSolver::Command(s) => track!(s.tell(obs)),
         }
     }
 }
