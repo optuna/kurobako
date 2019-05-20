@@ -11,7 +11,6 @@ parser.add_argument('training_data_path')
 parser.add_argument('validation_data_path')
 parser.add_argument('--num-boost-round', type=int, default=100)
 parser.add_argument('--metric', choices=['auc'], default='auc')
-parser.add_argument('--min-iterations', type=int, default=10)
 args = parser.parse_args()
 
 dtrain = lgb.Dataset(args.training_data_path, free_raw_data=False, silent=True)
@@ -51,6 +50,7 @@ message = {
     'params-domain': params_domain,
     'values-domain': [{"min": 0.0, "max": 1.0}],
     'evaluation-expense': args.num_boost_round,
+    'capabilities': ['CONCURRENT']
 }
 print(json.dumps(message))
 
@@ -78,8 +78,7 @@ class Evaluator(object):
         self.gbm.add_valid(dtest, 'valid')
 
     def handle_eval(self, budget):
-        num_boost_round = max(args.min_iterations, budget['amount'] - budget['consumption'])
-        num_boost_round = min(args.num_boost_round - budget['consumption'], num_boost_round)
+        num_boost_round = min(args.num_boost_round - budget['consumption'], budget['amount'] - budget['consumption'])
 
         for _ in range(num_boost_round):
             if self.gbm.update():

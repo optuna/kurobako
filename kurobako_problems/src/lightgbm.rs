@@ -25,10 +25,6 @@ pub struct LightgbmProblemRecipe {
     #[structopt(long, default_value = "auc")]
     #[serde(default, skip_serializing_if = "Metric::is_default")]
     pub metric: Metric,
-
-    #[structopt(long)]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub min_iterations: Option<usize>,
 }
 impl ProblemRecipe for LightgbmProblemRecipe {
     type Problem = LightgbmProblem;
@@ -43,9 +39,6 @@ impl ProblemRecipe for LightgbmProblemRecipe {
         ];
         if let Some(round) = self.num_boost_round {
             args.extend(vec!["--num-boost-round".to_owned(), round.to_string()]);
-        }
-        if let Some(n) = self.min_iterations {
-            args.extend(vec!["--min-iterations".to_owned(), n.to_string()]);
         }
 
         let recipe = EmbeddedScriptProblemRecipe {
