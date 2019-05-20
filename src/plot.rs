@@ -1,5 +1,4 @@
-use crate::study::StudyRecord;
-use crate::Name;
+use crate::record::StudyRecord;
 use kurobako_core::{Error, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -27,11 +26,14 @@ impl PlotOptions {
     pub fn plot_problems<P: AsRef<Path>>(&self, studies: &[StudyRecord], dir: P) -> Result<()> {
         let mut problems = BTreeMap::new();
         for s in studies {
-            problems.entry(&s.problem).or_insert_with(Vec::new).push(s);
+            problems
+                .entry(s.problem.id())
+                .or_insert_with(Vec::new)
+                .push(s);
         }
         let problems = problems
             .into_iter()
-            .map(|(problem, studies)| ProblemPlot::new(problem, &studies));
+            .map(|(problem, studies)| ProblemPlot::new(problem.0, &studies));
         for (i, problem) in problems.enumerate() {
             track!(problem.plot(dir.as_ref().join(format!("{}{}.dat", self.prefix, i))))?;
 
@@ -55,19 +57,14 @@ impl PlotOptions {
 
     fn make_gnuplot_commands<P: AsRef<Path>>(
         &self,
-        problem: &Name,
+        problem: &str,
         solvers: usize,
         input: P,
         output: P,
     ) -> String {
         let mut s = format!(
-            "set title {:?}; set ylabel \"Score\"; set xlabel \"Budget\"; set grid;",
+            "set title {:?}; set ylabel \"Objective Value\"; set xlabel \"Budget\"; set grid;",
             problem
-                .as_json()
-                .to_string()
-                .replace('"', "")
-                .replace('{', "(")
-                .replace('}', ")")
         );
         s += &format!(
             "set key bmargin; set terminal pngcairo size {},{}; set output {:?}; ",
@@ -77,8 +74,8 @@ impl PlotOptions {
         );
         s += &format!(
             "plot [] [{}:{}]",
-            self.ymin.unwrap_or(0.0),
-            self.ymax.unwrap_or(1.0)
+            self.ymin.map(|v| v.to_string()).unwrap_or("".to_string()),
+            self.ymax.map(|v| v.to_string()).unwrap_or("".to_string()),
         );
         for i in 0..solvers {
             if i == 0 {
@@ -94,21 +91,24 @@ impl PlotOptions {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProblemPlot {
-    pub problem: Name,
+    pub problem: String,
     pub solvers: Vec<SolverPlot>,
 }
 impl ProblemPlot {
-    fn new(name: &Name, studies: &[&StudyRecord]) -> Self {
+    fn new(name: &str, studies: &[&StudyRecord]) -> Self {
         let mut solvers = BTreeMap::new();
         for s in studies {
-            solvers.entry(&s.solver).or_insert_with(Vec::new).push(*s);
+            solvers
+                .entry(s.solver.id())
+                .or_insert_with(Vec::new)
+                .push(*s);
         }
         let solvers = solvers
             .into_iter()
-            .map(|(solver, studies)| SolverPlot::new(solver, &studies))
+            .map(|(solver, studies)| SolverPlot::new(solver.0, &studies))
             .collect();
         Self {
-            problem: name.clone(),
+            problem: name.to_owned(),
             solvers,
         }
     }
@@ -118,19 +118,10 @@ impl ProblemPlot {
         use std::io::Write;
 
         let mut f = track!(File::create(path).map_err(Error::from))?;
-        writeln!(f, "# Problem: {}", self.problem.as_json())?;
+        writeln!(f, "# Problem: {}", self.problem)?;
 
         for o in &self.solvers {
-            write!(
-                f,
-                "{:?} ",
-                o.solver
-                    .as_json()
-                    .to_string()
-                    .replace('"', "")
-                    .replace('{', "(")
-                    .replace('}', ")")
-            )?;
+            write!(f, "{:?} ", o.solver)?;
         }
         writeln!(f)?;
 
@@ -152,20 +143,20 @@ impl ProblemPlot {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SolverPlot {
-    pub solver: Name,
+    pub solver: String,
     pub avg_scores: Vec<f64>,
 }
 impl SolverPlot {
-    fn new(name: &Name, studies: &[&StudyRecord]) -> Self {
+    fn new(name: &str, studies: &[&StudyRecord]) -> Self {
         let mut avg_scores = Vec::new();
         let scorers = studies.iter().map(|s| s.scorer()).collect::<Vec<_>>();
-        for i in 0..studies[0].budget {
+        for i in 0..studies[0].study_budget() {
             let avg_score =
-                scorers.iter().map(|s| s.best_score_until(i)).sum::<f64>() / studies.len() as f64;
+                scorers.iter().map(|s| s.best_value(i)).sum::<f64>() / studies.len() as f64;
             avg_scores.push(avg_score);
         }
         Self {
-            solver: name.clone(),
+            solver: name.to_owned(),
             avg_scores,
         }
     }

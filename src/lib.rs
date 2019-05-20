@@ -4,7 +4,7 @@ extern crate log;
 extern crate trackable;
 
 pub mod benchmark;
-// pub mod plot;
+pub mod plot;
 pub mod problem;
 pub mod problem_suites;
 pub mod record;

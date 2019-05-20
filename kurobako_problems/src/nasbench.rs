@@ -139,7 +139,11 @@ impl Evaluate for NasbenchEvaluator {
             let value = 1.0 - epoch.complete.validation_accuracy;
             Ok(vec![track!(FiniteF64::new(value))?])
         } else {
-            track_panic!(ErrorKind::Other, "Unknown model: {:?}", model_spec);
+            track_panic!(
+                ErrorKind::UnevaluableParams,
+                "Unknown model: {:?}",
+                model_spec
+            );
         }
     }
 }

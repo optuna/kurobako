@@ -91,6 +91,7 @@ where
             track!(self.evaluate_trial())?;
         }
 
+        self.study_record.finish();
         Ok(self.study_record)
     }
 
