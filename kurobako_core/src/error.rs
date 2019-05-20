@@ -66,6 +66,8 @@ pub enum ErrorKind {
     /// Incapable feature was required.
     Incapable,
 
+    UnevaluableParams,
+
     /// Implementation bug.
     Bug,
 

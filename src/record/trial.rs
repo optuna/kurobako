@@ -1,6 +1,6 @@
+use crate::time::ElapsedSeconds;
 use kurobako_core::num::FiniteF64;
 use kurobako_core::parameter::ParamValue;
-use kurobako_core::time::Elapsed;
 use serde::{Deserialize, Serialize};
 use yamakan::observation::ObsId;
 
@@ -16,17 +16,17 @@ pub struct TrialRecord {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AskRecord {
     pub params: Vec<ParamValue>,
-    pub elapsed: Elapsed,
+    pub elapsed: ElapsedSeconds,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EvaluateRecord {
     pub values: Vec<FiniteF64>,
-    pub elapsed: Elapsed,
+    pub elapsed: ElapsedSeconds,
     pub expense: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TellRecord {
-    pub elapsed: Elapsed,
+    pub elapsed: ElapsedSeconds,
 }

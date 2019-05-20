@@ -1,4 +1,5 @@
 use super::{JsonValue, TrialRecord};
+use crate::runner::StudyRunnerOptions;
 use crate::time::DateTime;
 use chrono::Local;
 use kurobako_core::problem::{ProblemRecipe, ProblemSpec};
@@ -9,7 +10,7 @@ use serde_json;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecipeAndSpec<T> {
-    pub recipe: JsonValue,
+    pub recipe: JsonValue, // TODO: FullKurobakoProblemRecipe or KurobakoSolverRecipe
     pub spec: T,
 }
 
@@ -17,18 +18,19 @@ pub struct RecipeAndSpec<T> {
 pub struct StudyRecord {
     pub solver: RecipeAndSpec<SolverSpec>,
     pub problem: RecipeAndSpec<ProblemSpec>,
+    pub runner: StudyRunnerOptions,
     pub start_time: DateTime,
     pub end_time: Option<DateTime>,
-    pub budget: u64,
+    pub unevaluable_trials: usize,
     pub trials: Vec<TrialRecord>,
 }
 impl StudyRecord {
     pub fn new<O, P>(
         solver_recipe: &O,
+        solver_spec: SolverSpec,
         problem_recipe: &P,
         problem_spec: ProblemSpec,
-        solver_spec: SolverSpec,
-        budget: u64,
+        runner: StudyRunnerOptions,
     ) -> Result<Self>
     where
         O: SolverRecipe,
@@ -49,9 +51,10 @@ impl StudyRecord {
         Ok(StudyRecord {
             solver,
             problem,
-            budget,
+            runner,
             start_time: Local::now(),
             end_time: None,
+            unevaluable_trials: 0,
             trials: Vec::new(),
         })
     }

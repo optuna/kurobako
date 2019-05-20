@@ -1,5 +1,5 @@
 use crate::problem::FullKurobakoProblemRecipe;
-use crate::runner::RunSpec;
+use crate::runner::StudyRunnerOptions;
 use crate::solver::KurobakoSolverRecipe;
 use kurobako_core::{Error, Result};
 use serde::{Deserialize, Serialize};
@@ -24,26 +24,34 @@ pub struct BenchmarkSpec {
     #[structopt(long, parse(try_from_str = "parse_json"))]
     pub problems: Vec<FullKurobakoProblemRecipe>,
 
-    #[structopt(long, default_value = "20")]
-    pub budget: usize,
-
     #[structopt(long, default_value = "10")]
     pub iterations: usize,
+
+    #[serde(flatten)]
+    #[structopt(flatten)]
+    pub runner: StudyRunnerOptions,
 }
 impl BenchmarkSpec {
     pub fn len(&self) -> usize {
         self.solvers.len() * self.problems.len() * self.iterations
     }
 
-    pub fn run_specs<'a>(&'a self) -> Box<(dyn Iterator<Item = RunSpec> + 'a)> {
+    pub fn studies<'a>(&'a self) -> Box<(dyn Iterator<Item = StudySpec> + 'a)> {
         Box::new(self.problems.iter().flat_map(move |p| {
             self.solvers.iter().flat_map(move |s| {
-                (0..self.iterations).map(move |_| RunSpec {
+                (0..self.iterations).map(move |_| StudySpec {
                     problem: p,
                     solver: s,
-                    budget: self.budget,
+                    runner: &self.runner,
                 })
             })
         }))
     }
+}
+
+#[derive(Debug)]
+pub struct StudySpec<'a> {
+    pub solver: &'a KurobakoSolverRecipe,
+    pub problem: &'a FullKurobakoProblemRecipe,
+    pub runner: &'a StudyRunnerOptions,
 }

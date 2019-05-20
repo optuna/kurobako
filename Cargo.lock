@@ -140,6 +140,7 @@ dependencies = [
  "kurobako_core 0.0.6",
  "kurobako_problems 0.0.5",
  "kurobako_solvers 0.0.2",
+ "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustats 0.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.91 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -18,6 +18,7 @@ chrono = { version = "0.4", features = ["serde"] }
 kurobako_core = { path = "kurobako_core", version = "0.0" }
 kurobako_problems = { path = "kurobako_problems", version = "0.0" }
 kurobako_solvers = { path = "kurobako_solvers", version = "0.0" }
+log = "0.4"
 rand = "0.6"
 rustats = "0.0"
 serde = { version = "1", features = ["derive"] }

@@ -11,7 +11,6 @@ pub mod num;
 pub mod parameter;
 pub mod problem;
 pub mod solver;
-pub mod time;
 
 // TODO: noises
 
