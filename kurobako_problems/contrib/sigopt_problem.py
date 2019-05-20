@@ -35,6 +35,7 @@ message = {
     'params-domain': params_domain,
     'values-domain': [{"min": float(test_function.fmin), "max": float(test_function.fmax)}],
     'evaluation-expense': 1,
+    'capabilities': ['CONCURRENT']
 }
 print(json.dumps(message))
 
