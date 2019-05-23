@@ -1,6 +1,6 @@
 use crate::record::StudyRecord;
 use kurobako_core::{Error, Result};
-use serde::{Deserialize, Serialize};
+use rustats::fundamental::{average, stddev};
 use std::collections::BTreeMap;
 use std::path::Path;
 use structopt::StructOpt;
@@ -21,6 +21,9 @@ pub struct PlotOptions {
 
     #[structopt(long, default_value = "")]
     pub prefix: String,
+
+    #[structopt(long)]
+    pub errorbar: bool,
 }
 impl PlotOptions {
     pub fn plot_problems<P: AsRef<Path>>(&self, studies: &[StudyRecord], dir: P) -> Result<()> {
@@ -83,16 +86,24 @@ impl PlotOptions {
             } else {
                 s += ", \"\"";
             }
-            s += &format!(" u 0:{} w l t columnhead", i + 1);
+            if self.errorbar {
+                s += &format!(
+                    " u 0:{}:{} with yerrorlines t columnhead",
+                    (i * 2) + 1,
+                    (i * 2) + 1 + 1
+                );
+            } else {
+                s += &format!(" u 0:{} w l t columnhead", (i * 2) + 1);
+            }
         }
         s
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct ProblemPlot {
-    pub problem: String,
-    pub solvers: Vec<SolverPlot>,
+    problem: String,
+    solvers: Vec<SolverPlot>,
 }
 impl ProblemPlot {
     fn new(name: &str, studies: &[&StudyRecord]) -> Self {
@@ -128,12 +139,13 @@ impl ProblemPlot {
         let len = self
             .solvers
             .iter()
-            .map(|o| o.avg_scores.len())
+            .map(|o| o.scores.len())
             .max()
             .expect("TODO");
         for i in 0..len {
             for o in &self.solvers {
-                write!(f, "{} ", o.score(i))?;
+                let s = o.score(i);
+                write!(f, "{} {} ", s.avg, s.sd)?;
             }
             writeln!(f)?;
         }
@@ -141,30 +153,36 @@ impl ProblemPlot {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SolverPlot {
-    pub solver: String,
-    pub avg_scores: Vec<f64>,
+#[derive(Debug)]
+struct SolverPlot {
+    solver: String,
+    scores: Vec<Score>,
 }
 impl SolverPlot {
     fn new(name: &str, studies: &[&StudyRecord]) -> Self {
-        let mut avg_scores = Vec::new();
+        let mut scores = Vec::new();
         let scorers = studies.iter().map(|s| s.scorer()).collect::<Vec<_>>();
         for i in 0..studies[0].study_budget() {
-            let avg_score =
-                scorers.iter().map(|s| s.best_value(i)).sum::<f64>() / studies.len() as f64;
-            avg_scores.push(avg_score);
+            let best_values = scorers.iter().map(|s| s.best_value(i));
+            let avg = average(best_values.clone());
+            let sd = stddev(best_values);
+            scores.push(Score { avg, sd });
         }
         Self {
             solver: name.to_owned(),
-            avg_scores,
+            scores,
         }
     }
 
-    fn score(&self, i: usize) -> f64 {
-        *self
-            .avg_scores
+    fn score(&self, i: usize) -> &Score {
+        self.scores
             .get(i)
-            .unwrap_or_else(|| self.avg_scores.last().expect("TODO"))
+            .unwrap_or_else(|| self.scores.last().expect("TODO"))
     }
+}
+
+#[derive(Debug)]
+struct Score {
+    avg: f64,
+    sd: f64,
 }
