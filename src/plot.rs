@@ -70,11 +70,14 @@ impl PlotOptions {
             problem
         );
         s += &format!(
-            "set key bmargin; set terminal pngcairo size {},{}; set output {:?}; ",
+            "set key bmargin; set terminal pngcairo size {},{}; set output {:?};",
             self.width,
             self.height,
             output.as_ref().to_str().expect("TODO")
         );
+        if self.errorbar {
+            //s += "set bars small;";
+        }
         s += &format!(
             "plot [] [{}:{}]",
             self.ymin.map(|v| v.to_string()).unwrap_or("".to_string()),
@@ -132,7 +135,7 @@ impl ProblemPlot {
         writeln!(f, "# Problem: {}", self.problem)?;
 
         for o in &self.solvers {
-            write!(f, "{:?} ", o.solver)?;
+            write!(f, "{:?} {:?}", o.solver, o.solver)?;
         }
         writeln!(f)?;
 
