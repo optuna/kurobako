@@ -1,237 +1,91 @@
-use crate::study::StudyRecord;
-use crate::Name;
+use crate::markdown::{Align, ColumnHeader, MarkdownWriter, Table};
+use crate::rankings::{Borda, Firsts};
+use crate::record::BenchmarkRecord;
 use kurobako_core::Result;
-use rustats::num::NonNanF64;
-use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use rustats::fundamental::average;
+use rustats::hypothesis_testings::{Alpha, MannWhitneyU};
+use std::cmp::Ordering;
 use std::io::Write;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct StatsSummary(Vec<SolverSummary>);
-impl StatsSummary {
-    pub fn new(stats: &Stats) -> Self {
-        let mut map = BTreeMap::new();
-        for p in &stats.0 {
-            for o in &p.solvers {
-                if !map.contains_key(&o.solver) {
-                    map.insert(o.solver.clone(), SolverSummary::new(o.solver.clone()));
-                }
-            }
-        }
-
-        for p in &stats.0 {
-            let (worst, best) = p.min_max(|o| o.best_score.avg);
-            for o in &p.solvers {
-                if o.best_score.avg == worst.best_score.avg {
-                    map.get_mut(&o.solver).unwrap().best_score.worsts += 1;
-                }
-                if o.best_score.avg == best.best_score.avg {
-                    map.get_mut(&o.solver).unwrap().best_score.bests += 1;
-                }
-            }
-
-            let (worst, best) = p.min_max(|o| o.auc.avg);
-            for o in &p.solvers {
-                if o.auc.avg == worst.auc.avg {
-                    map.get_mut(&o.solver).unwrap().auc.worsts += 1;
-                }
-                if o.auc.avg == best.auc.avg {
-                    map.get_mut(&o.solver).unwrap().auc.bests += 1;
-                }
-            }
-
-            let (best, worst) = p.min_max(|o| o.latency.avg);
-            for o in &p.solvers {
-                if o.latency.avg == worst.latency.avg {
-                    map.get_mut(&o.solver).unwrap().latency.worsts += 1;
-                }
-                if o.latency.avg == best.latency.avg {
-                    map.get_mut(&o.solver).unwrap().latency.bests += 1;
-                }
-            }
-        }
-
-        Self(map.into_iter().map(|(_, v)| v).collect())
-    }
-
-    pub fn write_markdown<W: Write>(&self, mut writer: W) -> Result<()> {
-        writeln!(writer, "## Statistics Summary")?;
-        writeln!(
-            writer,
-            "| solver | Best Score (o/x) | AUC (o/x) | Latency (o/x) |"
-        )?;
-        writeln!(
-            writer,
-            "|:----------|-----------------:|----------:|--------------:|"
-        )?;
-        for o in &self.0 {
-            writeln!(
-                writer,
-                "| {} | {:03}/{:03} | {:03}/{:03} | {:03}/{:03} |",
-                o.name.as_json(),
-                o.best_score.bests,
-                o.best_score.worsts,
-                o.auc.bests,
-                o.auc.worsts,
-                o.latency.bests,
-                o.latency.worsts
-            )?;
-        }
-        Ok(())
-    }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Metric {
+    Best,
+    Auc,
+    Latency,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SolverSummary {
-    pub name: Name,
-    pub best_score: VictoryStats,
-    pub auc: VictoryStats,
-    pub latency: VictoryStats,
+#[derive(Debug)]
+pub struct SolverRanking {
+    benchmark: BenchmarkRecord,
 }
-impl SolverSummary {
-    fn new(name: Name) -> Self {
-        Self {
-            name,
-            best_score: VictoryStats::default(),
-            auc: VictoryStats::default(),
-            latency: VictoryStats::default(),
-        }
-    }
-}
-
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct VictoryStats {
-    pub bests: usize,
-    pub worsts: usize,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Stats(Vec<ProblemStats>);
-impl Stats {
-    pub fn new(studies: &[StudyRecord]) -> Self {
-        let mut problems = BTreeMap::new();
-        for s in studies {
-            problems.entry(&s.problem).or_insert_with(Vec::new).push(s);
-        }
-        let problems = problems
-            .into_iter()
-            .map(|(problem, studies)| ProblemStats::new(problem, &studies))
-            .collect();
-        Self(problems)
+impl SolverRanking {
+    pub fn new(benchmark: BenchmarkRecord) -> Self {
+        Self { benchmark }
     }
 
-    pub fn write_markdown<W: Write>(&self, mut writer: W) -> Result<()> {
-        writeln!(writer, "# Statistics")?;
-        for p in &self.0 {
-            p.write_markdown(&mut writer)?;
-            writeln!(writer)?;
-        }
-        Ok(())
-    }
-}
+    pub fn write_markdown<W: Write>(&self, mut writer: MarkdownWriter<W>) -> Result<()> {
+        let mut writer = track!(writer.heading("Solver Ranking"))?;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ProblemStats {
-    pub problem: Name,
-    pub solvers: Vec<SolverStats>,
-}
-impl ProblemStats {
-    fn new(name: &Name, studies: &[&StudyRecord]) -> Self {
-        let mut solvers = BTreeMap::new();
-        for s in studies {
-            solvers.entry(&s.solver).or_insert_with(Vec::new).push(*s);
-        }
-        let solvers = solvers
-            .into_iter()
-            .map(|(solver, studies)| SolverStats::new(solver, &studies))
-            .collect();
-        Self {
-            problem: name.clone(),
-            solvers,
-        }
-    }
+        let solver_ids = self.benchmark.solver_ids();
+        let mut borda_ranking = Borda::new(solver_ids.iter().cloned());
+        let mut firsts_ranking = Firsts::new(solver_ids.iter().cloned());
+        for problem in self.benchmark.problems().values() {
+            track!(borda_ranking.try_compete(|&a, &b| {
+                let a = track!(problem.fetch_solver(a))?;
+                let b = track!(problem.fetch_solver(b))?;
 
-    fn min_max<F>(&self, f: F) -> (&SolverStats, &SolverStats)
-    where
-        F: Fn(&SolverStats) -> f64,
-    {
-        let min = self
-            .solvers
+                if MannWhitneyU::new(a.best_values(), b.best_values()).test(Alpha::P05) {
+                    if average(a.best_values().map(|v| v.get()))
+                        < average(b.best_values().map(|v| v.get()))
+                    {
+                        Ok(Ordering::Less)
+                    } else {
+                        Ok(Ordering::Greater)
+                    }
+                } else {
+                    Ok(Ordering::Equal)
+                }
+            }))?;
+            track!(firsts_ranking.try_compete(|&a, &b| {
+                let a = track!(problem.fetch_solver(a))?;
+                let b = track!(problem.fetch_solver(b))?;
+
+                if MannWhitneyU::new(a.best_values(), b.best_values()).test(Alpha::P05) {
+                    if average(a.best_values().map(|v| v.get()))
+                        < average(b.best_values().map(|v| v.get()))
+                    {
+                        Ok(Ordering::Less)
+                    } else {
+                        Ok(Ordering::Greater)
+                    }
+                } else {
+                    Ok(Ordering::Equal)
+                }
+            }))?;
+        }
+
+        let mut table = Table::new(
+            vec![
+                ColumnHeader::new("Solver", Align::Left),
+                ColumnHeader::new("Borda", Align::Right),
+                ColumnHeader::new("Firsts", Align::Right),
+            ]
+            .into_iter(),
+        );
+        for (i, (id, (borda, firsts))) in solver_ids
             .iter()
-            .min_by_key(|o| NonNanF64::new(f(o)).unwrap_or_else(|e| panic!("{}", e)))
-            .expect("TODO");
-        let max = self
-            .solvers
-            .iter()
-            .max_by_key(|o| NonNanF64::new(f(o)).unwrap_or_else(|e| panic!("{}", e)))
-            .expect("TODO");
-        (min, max)
-    }
-
-    fn write_markdown<W: Write>(&self, mut writer: W) -> Result<()> {
-        writeln!(writer, "### Problem: {}", self.problem.as_json())?;
-        writeln!(writer)?;
-        writeln!(writer, "| Solver | Best Score (SD) | AUC (SD) | Latency |")?;
-        writeln!(
-            writer,
-            "|:----------|----------------:|---------:|-------------:|"
-        )?;
-        for o in &self.solvers {
-            o.write_markdown(&mut writer)?;
+            .zip(borda_ranking.scores().zip(firsts_ranking.scores()))
+            .enumerate()
+        {
+            table
+                .row()
+                .item(format!("({}) {}", i, id.name))
+                .item(borda)
+                .item(firsts);
         }
-        writeln!(writer)?;
+        track!(writer.write_table(&table))?;
+
+        track!(writer.newline())?;
         Ok(())
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SolverStats {
-    pub solver: Name,
-    pub best_score: BasicStats,
-    pub auc: BasicStats,
-    pub latency: BasicStats,
-}
-impl SolverStats {
-    fn new(name: &Name, studies: &[&StudyRecord]) -> Self {
-        let best_scores = studies.iter().map(|s| s.best_score()).collect::<Vec<_>>();
-        let aucs = studies.iter().map(|s| s.auc()).collect::<Vec<_>>();
-        let latencies = studies
-            .iter()
-            .flat_map(|s| s.ack_latencies())
-            .collect::<Vec<_>>();
-
-        Self {
-            solver: name.clone(),
-            best_score: BasicStats::new(&best_scores),
-            auc: BasicStats::new(&aucs),
-            latency: BasicStats::new(&latencies),
-        }
-    }
-
-    fn write_markdown<W: Write>(&self, mut writer: W) -> Result<()> {
-        write!(writer, "| {} ", self.solver.as_json())?;
-        write!(
-            writer,
-            "| {:.3} ({:.3}) ",
-            self.best_score.avg, self.best_score.sd
-        )?;
-        write!(writer, "| {:.3} ({:.3}) ", self.auc.avg, self.auc.sd)?;
-        write!(writer, "| {:.6} ", self.latency.avg)?;
-        writeln!(writer, "|")?;
-        Ok(())
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BasicStats {
-    pub avg: f64,
-    pub sd: f64,
-}
-impl BasicStats {
-    fn new(xs: &[f64]) -> Self {
-        let sum = xs.iter().sum::<f64>();
-        let avg = sum / xs.len() as f64;
-        let sd = (xs.iter().map(|&x| (x - avg).powi(2)).sum::<f64>() / xs.len() as f64).sqrt();
-        Self { avg, sd }
     }
 }

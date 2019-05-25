@@ -36,7 +36,7 @@ impl PlotOptions {
         }
         let problems = problems
             .into_iter()
-            .map(|(problem, studies)| ProblemPlot::new(problem.0, &studies));
+            .map(|(problem, studies)| ProblemPlot::new(problem.name, &studies));
         for (i, problem) in problems.enumerate() {
             track!(problem.plot(dir.as_ref().join(format!("{}{}.dat", self.prefix, i))))?;
 
@@ -119,7 +119,7 @@ impl ProblemPlot {
         }
         let solvers = solvers
             .into_iter()
-            .map(|(solver, studies)| SolverPlot::new(solver.0, &studies))
+            .map(|(solver, studies)| SolverPlot::new(solver.name, &studies))
             .collect();
         Self {
             problem: name.to_owned(),

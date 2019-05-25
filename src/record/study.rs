@@ -2,6 +2,7 @@ use super::{JsonValue, TrialRecord};
 use crate::runner::StudyRunnerOptions;
 use crate::time::DateTime;
 use chrono::Local;
+use kurobako_core::num::FiniteF64;
 use kurobako_core::problem::{ProblemRecipe, ProblemSpec};
 use kurobako_core::solver::{SolverRecipe, SolverSpec};
 use kurobako_core::{Error, Result};
@@ -16,14 +17,29 @@ pub struct RecipeAndSpec<T> {
     pub recipe: JsonValue, // TODO: FullKurobakoProblemRecipe or KurobakoSolverRecipe
 }
 impl RecipeAndSpec<ProblemSpec> {
-    pub fn id(&self) -> (&String, Option<&String>, &JsonValue) {
-        (&self.spec.name, self.spec.version.as_ref(), &self.recipe)
+    pub fn id(&self) -> Id {
+        Id {
+            name: &self.spec.name,
+            version: self.spec.version.as_ref().map(|s| s.as_str()),
+            recipe: &self.recipe,
+        }
     }
 }
 impl RecipeAndSpec<SolverSpec> {
-    pub fn id(&self) -> (&String, Option<&String>, &JsonValue) {
-        (&self.spec.name, self.spec.version.as_ref(), &self.recipe)
+    pub fn id(&self) -> Id {
+        Id {
+            name: &self.spec.name,
+            version: self.spec.version.as_ref().map(|s| s.as_str()),
+            recipe: &self.recipe,
+        }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Id<'a> {
+    pub name: &'a str,
+    pub version: Option<&'a str>,
+    pub recipe: &'a JsonValue,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -85,6 +101,11 @@ impl StudyRecord {
 
     pub fn scorer(&self) -> Scorer {
         Scorer::new(self)
+    }
+
+    pub fn best_value(&self) -> Option<FiniteF64> {
+        let v = self.scorer().best_value(self.study_budget());
+        Some(FiniteF64::new(v).unwrap_or_else(|e| panic!("{}", e)))
     }
 }
 

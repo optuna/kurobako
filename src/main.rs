@@ -2,13 +2,14 @@
 extern crate trackable;
 
 use kurobako::benchmark::BenchmarkSpec;
+use kurobako::markdown::MarkdownWriter;
 use kurobako::plot::PlotOptions;
 use kurobako::problem::FullKurobakoProblemRecipe;
 use kurobako::problem_suites::{KurobakoProblemSuite, ProblemSuite};
+use kurobako::record::{BenchmarkRecord, StudyRecord};
 use kurobako::runner::StudyRunner;
 use kurobako::solver::KurobakoSolverRecipe;
-//use kurobako::stats::{Stats, StatsSummary};
-use kurobako::record::StudyRecord;
+use kurobako::stats::SolverRanking;
 use kurobako_core::{Error, Result};
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -21,7 +22,7 @@ enum Opt {
     ProblemSuite(KurobakoProblemSuite),
     Benchmark(BenchmarkSpec),
     Run(RunOpt),
-    // Stats(StatsOpt),
+    Stats(StatsOpt),
     Plot(PlotOpt),
     // PlotData(PlotDataOpt),
 }
@@ -30,22 +31,11 @@ enum Opt {
 #[structopt(rename_all = "kebab-case")]
 struct RunOpt {}
 
-// #[derive(Debug, StructOpt)]
-// #[structopt(rename_all = "kebab-case")]
-// struct StatsOpt {
-//     #[structopt(
-//         long,
-//         default_value = "json",
-//         raw(possible_values = "&[\"json\", \"markdown\"]")
-//     )]
-//     format: OutputFormat,
-
-//     #[structopt(long)]
-//     summary: bool,
-
-//     #[structopt(long)]
-//     budget: Option<u64>,
-// }
+#[derive(Debug, StructOpt)]
+#[structopt(rename_all = "kebab-case")]
+enum StatsOpt {
+    Ranking,
+}
 
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
@@ -69,29 +59,6 @@ struct PlotOpt {
 //     },
 // }
 
-// #[derive(Debug, StructOpt)]
-// #[structopt(rename_all = "kebab-case")]
-// enum OutputFormat {
-//     Json,
-//     Markdown,
-// }
-// impl Default for OutputFormat {
-//     fn default() -> Self {
-//         OutputFormat::Json
-//     }
-// }
-// impl std::str::FromStr for OutputFormat {
-//     type Err = Error;
-
-//     fn from_str(s: &str) -> Result<Self> {
-//         match s {
-//             "json" => Ok(OutputFormat::Json),
-//             "markdown" => Ok(OutputFormat::Markdown),
-//             _ => track_panic!(ErrorKind::Other, "Uknown output format: {:?}", s),
-//         }
-//     }
-// }
-
 fn main() -> trackable::result::MainResult {
     let opt = Opt::from_args();
     match opt {
@@ -112,9 +79,10 @@ fn main() -> trackable::result::MainResult {
         }
         Opt::Run(opt) => {
             handle_run_command(opt)?;
-        } // Opt::Stats(opt) => {
-        //     handle_stats_command(opt)?;
-        // }
+        }
+        Opt::Stats(opt) => {
+            handle_stats_command(opt)?;
+        }
         Opt::Plot(opt) => {
             handle_plot_command(opt)?;
         } // Opt::PlotData(opt) => {
@@ -145,47 +113,30 @@ fn handle_run_command(_opt: RunOpt) -> Result<()> {
     Ok(())
 }
 
-// fn handle_stats_command(opt: StatsOpt) -> Result<()> {
-//     let stdin = std::io::stdin();
-//     let mut studies = Vec::new();
-//     for study in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
-//         match track!(study.map_err(Error::from)) {
-//             Err(e) => {
-//                 eprintln!("{}", e);
-//             }
-//             Ok(study) => {
-//                 let mut study: StudyRecord = study;
-//                 if let Some(budget) = opt.budget {
-//                     study.limit_budget(budget);
-//                 }
-//                 studies.push(study);
-//             }
-//         }
-//     }
+fn handle_stats_command(opt: StatsOpt) -> Result<()> {
+    let stdin = std::io::stdin();
+    let mut studies = Vec::new();
+    for study in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
+        match track!(study.map_err(Error::from)) {
+            Err(e) => {
+                eprintln!("{}", e);
+            }
+            Ok(study) => {
+                let study: StudyRecord = study;
+                studies.push(study);
+            }
+        }
+    }
 
-//     let stats = Stats::new(&studies);
-//     if opt.summary {
-//         let summary = StatsSummary::new(&stats);
-//         match opt.format {
-//             OutputFormat::Json => {
-//                 serde_json::to_writer(std::io::stdout().lock(), &summary)?;
-//             }
-//             OutputFormat::Markdown => {
-//                 summary.write_markdown(std::io::stdout().lock())?;
-//             }
-//         }
-//     } else {
-//         match opt.format {
-//             OutputFormat::Json => {
-//                 serde_json::to_writer(std::io::stdout().lock(), &stats)?;
-//             }
-//             OutputFormat::Markdown => {
-//                 stats.write_markdown(std::io::stdout().lock())?;
-//             }
-//         }
-//     }
-//     Ok(())
-// }
+    match opt {
+        StatsOpt::Ranking => {
+            let ranking = SolverRanking::new(BenchmarkRecord::new(studies));
+            track!(ranking.write_markdown(MarkdownWriter::new(&mut std::io::stdout().lock())))?;
+        }
+    }
+
+    Ok(())
+}
 
 fn handle_plot_command(opt: PlotOpt) -> Result<()> {
     use std::fs;

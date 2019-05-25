@@ -5,9 +5,11 @@ use std;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 
-pub use self::study::{RecipeAndSpec, StudyRecord};
+pub use self::benchmark::{BenchmarkRecord, ProblemRecord};
+pub use self::study::{Id, RecipeAndSpec, StudyRecord};
 pub use self::trial::{AskRecord, EvaluateRecord, TellRecord, TrialRecord};
 
+mod benchmark;
 mod study;
 mod trial;
 
