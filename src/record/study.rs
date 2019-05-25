@@ -6,6 +6,7 @@ use kurobako_core::num::FiniteF64;
 use kurobako_core::problem::{ProblemRecipe, ProblemSpec};
 use kurobako_core::solver::{SolverRecipe, SolverSpec};
 use kurobako_core::{Error, Result};
+use rustats::fundamental::average;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
@@ -107,10 +108,15 @@ impl StudyRecord {
         let v = self.scorer().best_value(self.study_budget());
         Some(FiniteF64::new(v).unwrap_or_else(|e| panic!("{}", e)))
     }
+
+    pub fn auc(&self) -> Option<FiniteF64> {
+        self.scorer().auc(self.study_budget())
+    }
 }
 
 #[derive(Debug)]
 pub struct Scorer {
+    lower_bound: f64,
     bests: Vec<(u64, f64)>,
 }
 impl Scorer {
@@ -131,7 +137,10 @@ impl Scorer {
             }
         }
 
-        Self { bests }
+        Self {
+            bests,
+            lower_bound: study.problem.spec.values_domain[0].min().get(),
+        }
     }
 
     // TODO: return Option<f64>
@@ -142,5 +151,11 @@ impl Scorer {
             .map(|t| t.1)
             .last()
             .unwrap()
+    }
+
+    pub fn auc(&self, budget: u64) -> Option<FiniteF64> {
+        // TODO: change starting point (for trials that support pruning)
+        let auc = average((0..budget).map(|i| self.best_value(i) - self.lower_bound));
+        Some(FiniteF64::new(auc).unwrap_or_else(|e| panic!("{}", e)))
     }
 }

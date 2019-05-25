@@ -52,4 +52,19 @@ impl<'a> SolverRecord<'a> {
     pub fn best_values<'b>(&'b self) -> impl 'b + Iterator<Item = FiniteF64> {
         self.studies.iter().filter_map(|s| s.best_value())
     }
+
+    pub fn aucs<'b>(&'b self) -> impl 'b + Iterator<Item = FiniteF64> {
+        self.studies.iter().filter_map(|s| s.auc())
+    }
+
+    pub fn elapsed_times<'b>(&'b self) -> impl 'b + Iterator<Item = FiniteF64> {
+        self.studies.iter().map(|s| {
+            let elapsed = s
+                .trials
+                .iter()
+                .map(|t| t.ask.elapsed.get() + t.tell.elapsed.get())
+                .sum::<f64>();
+            FiniteF64::new(elapsed).unwrap_or_else(|e| panic!("{}", e))
+        })
+    }
 }

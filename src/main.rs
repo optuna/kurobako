@@ -9,7 +9,7 @@ use kurobako::problem_suites::{KurobakoProblemSuite, ProblemSuite};
 use kurobako::record::{BenchmarkRecord, StudyRecord};
 use kurobako::runner::StudyRunner;
 use kurobako::solver::KurobakoSolverRecipe;
-use kurobako::stats::SolverRanking;
+use kurobako::stats::{SolverRanking, SolverRankingOptions};
 use kurobako_core::{Error, Result};
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -34,7 +34,7 @@ struct RunOpt {}
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 enum StatsOpt {
-    Ranking,
+    Ranking(SolverRankingOptions),
 }
 
 #[derive(Debug, StructOpt)]
@@ -129,8 +129,8 @@ fn handle_stats_command(opt: StatsOpt) -> Result<()> {
     }
 
     match opt {
-        StatsOpt::Ranking => {
-            let ranking = SolverRanking::new(BenchmarkRecord::new(studies));
+        StatsOpt::Ranking(opt) => {
+            let ranking = SolverRanking::new(BenchmarkRecord::new(studies), opt);
             track!(ranking.write_markdown(MarkdownWriter::new(&mut std::io::stdout().lock())))?;
         }
     }
