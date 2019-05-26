@@ -9,7 +9,7 @@ use kurobako::problem_suites::{KurobakoProblemSuite, ProblemSuite};
 use kurobako::record::{BenchmarkRecord, StudyRecord};
 use kurobako::runner::StudyRunner;
 use kurobako::solver::KurobakoSolverRecipe;
-use kurobako::stats::{SolverRanking, SolverRankingOptions};
+use kurobako::stats::ranking::{SolverRanking, SolverRankingOptions};
 use kurobako_core::{Error, Result};
 use std::path::PathBuf;
 use structopt::StructOpt;
