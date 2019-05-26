@@ -1,4 +1,5 @@
 use crate::parameter::{ParamDomain, ParamValue};
+use crate::solver::SolverCapabilities;
 use crate::Result;
 use rustats::num::FiniteF64;
 use rustats::range::MinMax;
@@ -49,8 +50,18 @@ pub struct ProblemSpec {
     #[serde(default)]
     pub capabilities: EvaluatorCapabilities,
 }
-
-// TODO: stripped ProblemSpec for solvers
+impl ProblemSpec {
+    pub fn required_solver_capabilities(&self) -> SolverCapabilities {
+        let mut c = SolverCapabilities::empty();
+        if self.values_domain.len() > 1 {
+            c = c.multi_objective();
+        }
+        for p in &self.params_domain {
+            c = c.union(p.required_solver_capabilities());
+        }
+        c
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]

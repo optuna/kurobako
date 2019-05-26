@@ -1,11 +1,11 @@
+use kurobako_core::num::FiniteF64;
 use kurobako_core::parameter::{Distribution, ParamDomain, ParamValue};
 use kurobako_core::problem::ProblemSpec;
 use kurobako_core::solver::{
     ObservedObs, Solver, SolverCapabilities, SolverRecipe, SolverSpec, UnobservedObs,
 };
-use kurobako_core::Result;
+use kurobako_core::{ErrorKind, Result};
 use rand::Rng;
-use rustats::num::FiniteF64;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 use yamakan::budget::{Budget, Budgeted};
@@ -34,21 +34,25 @@ impl Solver for RandomSolver {
         SolverSpec {
             name: "random".to_owned(),
             version: Some(env!("CARGO_PKG_VERSION").to_owned()),
-            capabilities: SolverCapabilities::all(),
+            capabilities: SolverCapabilities::empty()
+                .categorical()
+                .discrete()
+                .multi_objective(),
         }
     }
 
     fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<UnobservedObs> {
-        let params = self
-            .params_domain
-            .iter()
-            .map(|p| match p {
+        let mut params = Vec::new();
+        for p in &self.params_domain {
+            let v = match p {
                 ParamDomain::Categorical(p) => {
                     ParamValue::Categorical(rng.gen_range(0, p.choices.len()))
                 }
-                ParamDomain::Conditional(p) => unimplemented!("Conditional: {:?}", p),
+                ParamDomain::Conditional(_) => {
+                    track_panic!(ErrorKind::Bug);
+                }
                 ParamDomain::Continuous(p) => {
-                    assert_eq!(p.distribution, Distribution::Uniform, "Unimplememented");
+                    track_assert_eq!(p.distribution, Distribution::Uniform, ErrorKind::Bug);
 
                     let n = rng.gen_range(p.range.low.get(), p.range.high.get());
                     ParamValue::Continuous(unsafe { FiniteF64::new_unchecked(n) })
@@ -56,8 +60,9 @@ impl Solver for RandomSolver {
                 ParamDomain::Discrete(p) => {
                     ParamValue::Discrete(rng.gen_range(p.range.low, p.range.high))
                 }
-            })
-            .collect();
+            };
+            params.push(v);
+        }
         let obs = track!(Obs::new(idg, Budgeted::new(self.budget, params)))?;
         Ok(obs)
     }

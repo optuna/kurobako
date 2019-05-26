@@ -187,6 +187,7 @@ name = "kurobako_solvers"
 version = "0.0.2"
 dependencies = [
  "kurobako_core 0.0.6",
+ "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustats 0.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.91 (registry+https://github.com/rust-lang/crates.io-index)",

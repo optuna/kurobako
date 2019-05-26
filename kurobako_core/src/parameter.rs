@@ -1,3 +1,4 @@
+use crate::solver::SolverCapabilities;
 use crate::{Error, ErrorKind, Result};
 use rustats::num::FiniteF64;
 use rustats::range::Range;
@@ -21,6 +22,29 @@ impl ParamDomain {
             ParamDomain::Categorical(p) => &p.name,
             ParamDomain::Conditional(p) => p.param.name(),
         }
+    }
+
+    pub fn required_solver_capabilities(&self) -> SolverCapabilities {
+        let mut c = SolverCapabilities::empty();
+        match self {
+            ParamDomain::Continuous(p) => {
+                if p.distribution == Distribution::LogUniform {
+                    c = c.log_uniform();
+                }
+            }
+            ParamDomain::Discrete(_) => {
+                c = c.discrete();
+            }
+            ParamDomain::Categorical(_) => {
+                c = c.categorical();
+            }
+            ParamDomain::Conditional(p) => {
+                c = c
+                    .conditional()
+                    .union(p.param.required_solver_capabilities());
+            }
+        }
+        c
     }
 }
 
@@ -72,6 +96,24 @@ impl Unconditional {
             Unconditional::Discrete(p) => &p.name,
             Unconditional::Categorical(p) => &p.name,
         }
+    }
+
+    pub fn required_solver_capabilities(&self) -> SolverCapabilities {
+        let mut c = SolverCapabilities::empty();
+        match self {
+            Unconditional::Continuous(p) => {
+                if p.distribution == Distribution::LogUniform {
+                    c = c.log_uniform();
+                }
+            }
+            Unconditional::Discrete(_) => {
+                c = c.discrete();
+            }
+            Unconditional::Categorical(_) => {
+                c = c.categorical();
+            }
+        }
+        c
     }
 }
 impl TryFrom<ParamDomain> for Unconditional {
