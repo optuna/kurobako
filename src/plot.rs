@@ -76,7 +76,8 @@ impl PlotOptions {
             output.as_ref().to_str().expect("TODO")
         );
         if self.errorbar {
-            //s += "set bars small;";
+            s += "set style fill transparent solid 0.15;";
+            s += "set style fill noborder;";
         }
         s += &format!(
             "plot [] [{}:{}]",
@@ -89,14 +90,16 @@ impl PlotOptions {
             } else {
                 s += ", \"\"";
             }
+            s += &format!(" u 0:{} w l t columnhead lc {}", (i * 2) + 1, i + 1);
             if self.errorbar {
                 s += &format!(
-                    " u 0:{}:{} with yerrorlines t columnhead",
+                    ", \"\" u 0:(${}-${}):(${}+${}) with filledcurves notitle lc {}",
                     (i * 2) + 1,
-                    (i * 2) + 1 + 1
+                    (i * 2) + 1 + 1,
+                    (i * 2) + 1,
+                    (i * 2) + 1 + 1,
+                    i + 1
                 );
-            } else {
-                s += &format!(" u 0:{} w l t columnhead", (i * 2) + 1);
             }
         }
         s

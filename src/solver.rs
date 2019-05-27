@@ -1,10 +1,11 @@
 use crate::filter::KurobakoFilterRecipe;
 use kurobako_core::epi;
+use kurobako_core::filter::{BoxFilter, Filter as _, FilterRecipe as _};
 use kurobako_core::problem::ProblemSpec;
 use kurobako_core::solver::{ObservedObs, Solver, SolverRecipe, SolverSpec, UnobservedObs};
 use kurobako_core::Result;
 use kurobako_solvers::{optuna, random};
-use rand::Rng;
+use rand::{self, Rng};
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 use yamakan::observation::IdGen;
@@ -23,7 +24,7 @@ pub struct KurobakoSolverRecipe {
 
     #[structopt(long)]
     #[serde(default, skip_serializing)]
-    filter_end: bool,
+    filters_end: bool,
 
     #[structopt(flatten)]
     #[serde(flatten)]
@@ -32,11 +33,21 @@ pub struct KurobakoSolverRecipe {
 impl SolverRecipe for KurobakoSolverRecipe {
     type Solver = KurobakoSolver;
 
-    fn create_solver(&self, problem: ProblemSpec) -> Result<Self::Solver> {
+    fn create_solver(&self, mut problem: ProblemSpec) -> Result<Self::Solver> {
+        let mut filters = self
+            .filters
+            .iter()
+            .map(|r| track!(r.create_filter()))
+            .collect::<Result<Vec<_>>>()?;
+        for f in &mut filters {
+            track!(f.filter_problem_spec(&mut problem))?;
+        }
+
         let inner = track!(self.inner.create_solver(problem))?;
         Ok(KurobakoSolver {
             tag: self.tag.clone(),
             inner,
+            filters,
         })
     }
 }
@@ -64,6 +75,7 @@ impl SolverRecipe for InnerRecipe {
 #[derive(Debug)]
 pub struct KurobakoSolver {
     tag: Option<String>,
+    filters: Vec<BoxFilter>,
     inner: InnerSolver,
 }
 impl Solver for KurobakoSolver {
@@ -76,10 +88,18 @@ impl Solver for KurobakoSolver {
     }
 
     fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<UnobservedObs> {
-        track!(self.inner.ask(rng, idg))
+        let mut obs = track!(self.inner.ask(rng, idg))?;
+        for f in &mut self.filters {
+            track!(f.filter_ask(rng, &mut obs))?;
+        }
+        Ok(obs)
     }
 
-    fn tell(&mut self, obs: ObservedObs) -> Result<()> {
+    fn tell(&mut self, mut obs: ObservedObs) -> Result<()> {
+        let mut rng = rand::thread_rng(); // TODO
+        for f in &mut self.filters {
+            track!(f.filter_tell(&mut rng, &mut obs))?;
+        }
         track!(self.inner.tell(obs))
     }
 }

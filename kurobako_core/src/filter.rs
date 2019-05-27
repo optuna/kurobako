@@ -1,5 +1,6 @@
+use crate::problem::ProblemSpec;
 use crate::solver::{ObservedObs, UnobservedObs};
-use crate::{ErrorKind, Result};
+use crate::Result;
 use rand::{Rng, RngCore};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -14,14 +15,15 @@ pub trait FilterRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> 
 pub trait Filter {
     fn specification(&self) -> FilterSpec;
 
-    // TODO: filter_problem_spec
-    fn filter_ask<R: Rng>(&mut self, rng: &mut R, obs: UnobservedObs) -> Result<UnobservedObs>;
-    fn filter_tell<R: Rng>(&mut self, rng: &mut R, obs: ObservedObs) -> Result<ObservedObs>;
+    fn filter_problem_spec(&mut self, spec: &mut ProblemSpec) -> Result<()>;
+    fn filter_ask<R: Rng>(&mut self, rng: &mut R, obs: &mut UnobservedObs) -> Result<()>;
+    fn filter_tell<R: Rng>(&mut self, rng: &mut R, obs: &mut ObservedObs) -> Result<()>;
 }
 
-enum Observation {
-    Observed(ObservedObs),
-    Unobserved(UnobservedObs),
+enum Arg<'a> {
+    Spec(&'a mut ProblemSpec),
+    Ask(&'a mut RngCore, &'a mut UnobservedObs),
+    Tell(&'a mut RngCore, &'a mut ObservedObs),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,7 +34,7 @@ pub struct FilterSpec {
 
 pub struct BoxFilter {
     spec: FilterSpec,
-    filter: Box<FnMut(&mut RngCore, Observation) -> Result<Observation>>,
+    filter: Box<FnMut(Arg) -> Result<()>>,
 }
 impl BoxFilter {
     pub fn new<T>(mut inner: T) -> Self
@@ -40,13 +42,10 @@ impl BoxFilter {
         T: 'static + Filter,
     {
         let spec = inner.specification();
-        let filter = Box::new(move |mut rng: &mut RngCore, obs| match obs {
-            Observation::Unobserved(obs) => {
-                inner.filter_ask(&mut rng, obs).map(Observation::Unobserved)
-            }
-            Observation::Observed(obs) => {
-                inner.filter_tell(&mut rng, obs).map(Observation::Observed)
-            }
+        let filter = Box::new(move |arg: Arg| match arg {
+            Arg::Spec(a) => inner.filter_problem_spec(a),
+            Arg::Ask(mut a, b) => inner.filter_ask(&mut a, b),
+            Arg::Tell(mut a, b) => inner.filter_tell(&mut a, b),
         });
         Self { spec, filter }
     }
@@ -56,24 +55,16 @@ impl Filter for BoxFilter {
         self.spec.clone()
     }
 
-    fn filter_ask<R: Rng>(&mut self, mut rng: &mut R, obs: UnobservedObs) -> Result<UnobservedObs> {
-        if let Observation::Unobserved(obs) =
-            track!((self.filter)(&mut rng, Observation::Unobserved(obs)))?
-        {
-            Ok(obs)
-        } else {
-            track_panic!(ErrorKind::Bug);
-        }
+    fn filter_problem_spec(&mut self, spec: &mut ProblemSpec) -> Result<()> {
+        track!((self.filter)(Arg::Spec(spec)))
     }
 
-    fn filter_tell<R: Rng>(&mut self, mut rng: &mut R, obs: ObservedObs) -> Result<ObservedObs> {
-        if let Observation::Observed(obs) =
-            track!((self.filter)(&mut rng, Observation::Observed(obs)))?
-        {
-            Ok(obs)
-        } else {
-            track_panic!(ErrorKind::Bug);
-        }
+    fn filter_ask<R: Rng>(&mut self, mut rng: &mut R, obs: &mut UnobservedObs) -> Result<()> {
+        track!((self.filter)(Arg::Ask(&mut rng, obs)))
+    }
+
+    fn filter_tell<R: Rng>(&mut self, mut rng: &mut R, obs: &mut ObservedObs) -> Result<()> {
+        track!((self.filter)(Arg::Tell(&mut rng, obs)))
     }
 }
 impl fmt::Debug for BoxFilter {

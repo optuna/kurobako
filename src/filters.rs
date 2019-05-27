@@ -1,6 +1,7 @@
 // TODO: Move to `kurobako_filters` crate
 use kurobako_core::filter::{Filter, FilterRecipe, FilterSpec};
 use kurobako_core::num::FiniteF64;
+use kurobako_core::problem::ProblemSpec;
 use kurobako_core::solver::{ObservedObs, UnobservedObs};
 use kurobako_core::{Error, Result};
 use rand::distributions::{Distribution as _, Normal};
@@ -39,11 +40,15 @@ impl Filter for GaussianNoiseFilter {
         }
     }
 
-    fn filter_ask<R: Rng>(&mut self, _rng: &mut R, obs: UnobservedObs) -> Result<UnobservedObs> {
-        Ok(obs)
+    fn filter_problem_spec(&mut self, _spec: &mut ProblemSpec) -> Result<()> {
+        Ok(())
     }
 
-    fn filter_tell<R: Rng>(&mut self, rng: &mut R, obs: ObservedObs) -> Result<ObservedObs> {
+    fn filter_ask<R: Rng>(&mut self, _rng: &mut R, _obs: &mut UnobservedObs) -> Result<()> {
+        Ok(())
+    }
+
+    fn filter_tell<R: Rng>(&mut self, rng: &mut R, obs: &mut ObservedObs) -> Result<()> {
         if self.values_domain.is_empty() {
             self.values_domain = obs
                 .value
@@ -51,7 +56,7 @@ impl Filter for GaussianNoiseFilter {
                 .map(|&v| track!(MinMax::new(v, v)).map_err(Error::from))
                 .collect::<Result<Vec<_>>>()?;
             trace!("Initial values domain: {:?}", self.values_domain);
-            return Ok(obs);
+            return Ok(());
         }
 
         let mut values = Vec::with_capacity(obs.value.len());
@@ -73,6 +78,8 @@ impl Filter for GaussianNoiseFilter {
             );
             values.push(noised_value);
         }
-        Ok(obs.map_value(|_| values))
+
+        obs.value = values;
+        Ok(())
     }
 }
