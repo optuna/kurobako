@@ -60,6 +60,8 @@ struct PlotOpt {
 // }
 
 fn main() -> trackable::result::MainResult {
+    env_logger::init();
+
     let opt = Opt::from_args();
     match opt {
         Opt::Solver(s) => {

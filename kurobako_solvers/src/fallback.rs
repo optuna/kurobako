@@ -41,6 +41,10 @@ impl<T: Solver> FallbackSolver<T> {
 
             let adjuster = ProblemSpecAdjuster::new(incapables, &problem);
             let adjusted = track!(adjuster.adjust())?;
+
+            trace!("Actual domain: {:?}", problem.params_domain);
+            trace!("Adjusted domain: {:?}", adjusted.0);
+
             inner = track!(recipe.create_solver(adjusted.0))?;
             adaptors = adjusted.1;
         }
@@ -50,6 +54,10 @@ impl<T: Solver> FallbackSolver<T> {
             adaptors,
             obss: HashMap::new(),
         })
+    }
+
+    pub fn inner(&self) -> &T {
+        &self.inner
     }
 }
 impl<T: Solver> Solver for FallbackSolver<T> {
@@ -150,7 +158,7 @@ impl ProblemSpecAdjuster {
             ParamDomain::Conditional(p) => {
                 let adaptor = track!(self.adjust_param_domain(&p.param.to_domain()))?;
                 Ok(Adaptor::Conditional(ConditionalAdaptor::new(
-                    !self.incapables.contains(SolverCapability::Conditional),
+                    self.incapables.contains(SolverCapability::Conditional),
                     &p.condition,
                     &p.param,
                     adaptor,

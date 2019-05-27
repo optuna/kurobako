@@ -15,6 +15,7 @@ codecov = {repository = "sile/kurobako"}
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
+env_logger = "0.6"
 kurobako_core = { path = "kurobako_core", version = "0.0" }
 kurobako_problems = { path = "kurobako_problems", version = "0.0" }
 kurobako_solvers = { path = "kurobako_solvers", version = "0.0" }
