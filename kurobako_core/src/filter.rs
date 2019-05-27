@@ -14,6 +14,7 @@ pub trait FilterRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> 
 pub trait Filter {
     fn specification(&self) -> FilterSpec;
 
+    // TODO: filter_problem_spec
     fn filter_ask<R: Rng>(&mut self, rng: &mut R, obs: UnobservedObs) -> Result<UnobservedObs>;
     fn filter_tell<R: Rng>(&mut self, rng: &mut R, obs: ObservedObs) -> Result<ObservedObs>;
 }

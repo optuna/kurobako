@@ -1,27 +1,17 @@
 use crate::problem::FullKurobakoProblemRecipe;
 use crate::runner::StudyRunnerOptions;
 use crate::solver::KurobakoSolverRecipe;
-use kurobako_core::{Error, Result};
 use serde::{Deserialize, Serialize};
-use serde_json;
 use structopt::StructOpt;
-
-fn parse_json<T>(json: &str) -> Result<T>
-where
-    T: for<'a> Deserialize<'a>,
-{
-    let v = track!(serde_json::from_str(json).map_err(Error::from))?;
-    Ok(v)
-}
 
 #[derive(Debug, StructOpt, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[structopt(rename_all = "kebab-case")]
 pub struct BenchmarkSpec {
-    #[structopt(long, parse(try_from_str = "parse_json"))]
+    #[structopt(long, parse(try_from_str = "crate::json::parse_json"))]
     pub solvers: Vec<KurobakoSolverRecipe>,
 
-    #[structopt(long, parse(try_from_str = "parse_json"))]
+    #[structopt(long, parse(try_from_str = "crate::json::parse_json"))]
     pub problems: Vec<FullKurobakoProblemRecipe>,
 
     #[structopt(long, default_value = "10")]

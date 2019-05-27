@@ -2,6 +2,7 @@
 extern crate trackable;
 
 use kurobako::benchmark::BenchmarkSpec;
+use kurobako::filter::KurobakoFilterRecipe;
 use kurobako::markdown::MarkdownWriter;
 use kurobako::plot::PlotOptions;
 use kurobako::problem::FullKurobakoProblemRecipe;
@@ -20,6 +21,7 @@ enum Opt {
     Solver(KurobakoSolverRecipe),
     Problem(FullKurobakoProblemRecipe),
     ProblemSuite(KurobakoProblemSuite),
+    Filter(KurobakoFilterRecipe),
     Benchmark(BenchmarkSpec),
     Run(RunOpt),
     Stats(StatsOpt),
@@ -68,6 +70,9 @@ fn main() -> trackable::result::MainResult {
             track!(serde_json::to_writer(std::io::stdout().lock(), &s).map_err(Error::from))?
         }
         Opt::Problem(p) => {
+            track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?
+        }
+        Opt::Filter(p) => {
             track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?
         }
         Opt::ProblemSuite(p) => {
