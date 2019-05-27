@@ -15,6 +15,7 @@ pub trait SolverRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> 
     fn create_solver(&self, problem: ProblemSpec) -> Result<Self::Solver>;
 }
 
+// TODO: move to `crate::observations::*`
 pub type UnobservedObs = Obs<Budgeted<Vec<ParamValue>>>;
 pub type ObservedObs = Obs<Budgeted<Vec<ParamValue>>, Vec<FiniteF64>>;
 
