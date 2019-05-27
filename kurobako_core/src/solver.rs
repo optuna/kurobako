@@ -1,10 +1,12 @@
+use crate::json::JsonValue;
 use crate::parameter::ParamValue;
 use crate::problem::ProblemSpec;
-use crate::Result;
-use rand::Rng;
+use crate::{ErrorKind, Result};
+use rand::{Rng, RngCore};
 use rustats::num::FiniteF64;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
+use std::fmt;
 use structopt::StructOpt;
 use yamakan::budget::Budgeted;
 use yamakan::observation::{IdGen, Obs};
@@ -14,6 +16,19 @@ pub trait SolverRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> 
 
     fn create_solver(&self, problem: ProblemSpec) -> Result<Self::Solver>;
 }
+
+// #[derive(Debug)]
+// pub struct BoxSolverRecipe {
+//     create_solver: Box<Fn(ProblemSpec) -> Result<BoxSolver>>,
+// }
+// impl BoxSolverRecipe {
+//     pub fn new<R>(recipe: R) -> Self
+//     where
+//         R: 'static + SolverRecipe,
+//     {
+
+//     }
+// }
 
 // TODO: move to `crate::observations::*`
 pub type UnobservedObs = Obs<Budgeted<Vec<ParamValue>>>;
@@ -25,6 +40,55 @@ pub trait Solver {
     fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<UnobservedObs>;
 
     fn tell(&mut self, obs: ObservedObs) -> Result<()>;
+}
+
+pub struct BoxSolver {
+    spec: SolverSpec,
+    solver: Box<FnMut(SolverArg) -> Result<Option<UnobservedObs>>>,
+}
+impl BoxSolver {
+    pub fn new<S>(mut inner: S) -> Self
+    where
+        S: 'static + Solver,
+    {
+        let spec = inner.specification();
+        let solver = Box::new(move |arg: SolverArg| match arg {
+            SolverArg::Ask(mut rng, mut idg) => track!(inner.ask(&mut rng, &mut idg)).map(Some),
+            SolverArg::Tell(obs) => track!(inner.tell(obs)).map(|_| None),
+        });
+        Self { spec, solver }
+    }
+}
+impl Solver for BoxSolver {
+    fn specification(&self) -> SolverSpec {
+        self.spec.clone()
+    }
+
+    fn ask<R: Rng, G: IdGen>(&mut self, mut rng: &mut R, mut idg: &mut G) -> Result<UnobservedObs> {
+        if let Some(obs) = track!((self.solver)(SolverArg::Ask(&mut rng, &mut idg)))? {
+            Ok(obs)
+        } else {
+            track_panic!(ErrorKind::Bug);
+        }
+    }
+
+    fn tell(&mut self, obs: ObservedObs) -> Result<()> {
+        if let None = track!((self.solver)(SolverArg::Tell(obs)))? {
+            Ok(())
+        } else {
+            track_panic!(ErrorKind::Bug);
+        }
+    }
+}
+impl fmt::Debug for BoxSolver {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "BoxSolver {{ name: {:?}, .. }}", self.spec.name)
+    }
+}
+
+enum SolverArg<'a> {
+    Ask(&'a mut dyn RngCore, &'a mut dyn IdGen),
+    Tell(ObservedObs),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -120,3 +184,28 @@ pub enum SolverCapability {
     LogUniform,
     MultiObjective,
 }
+
+// #[derive(Debug, Serialize, Deserialize)]
+// pub struct SolverRecipePlaceHolder {
+//     #[serde(flatten)]
+//     json: JsonValue,
+
+//     #[serde(skip)]
+//     recipe: Option<BoxSolverRecipe>,
+// }
+// impl SolverRecipePlaceHolder {
+//     // pub fn set_recipe<F>(&mut self, create_solver: F) -> Result<()>
+//     // where
+//     //     F: FnOnce(&JsonValue) -> Result<BoxSolverRecipe>,
+//     // {
+//     //     panic!()
+//     // }
+// }
+// impl Clone for SolverRecipePlaceHolder {
+//     fn clone(&self) -> Self {
+//         Self {
+//             json: self.json.clone(),
+//             recipe: None,
+//         }
+//     }
+// }
