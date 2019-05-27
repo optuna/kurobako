@@ -49,10 +49,10 @@ impl Solver for RandomSolver {
                     ParamValue::Categorical(rng.gen_range(0, p.choices.len()))
                 }
                 ParamDomain::Conditional(_) => {
-                    track_panic!(ErrorKind::Bug);
+                    track_panic!(ErrorKind::Incapable);
                 }
                 ParamDomain::Continuous(p) => {
-                    track_assert_eq!(p.distribution, Distribution::Uniform, ErrorKind::Bug);
+                    track_assert_eq!(p.distribution, Distribution::Uniform, ErrorKind::Incapable);
 
                     let n = rng.gen_range(p.range.low.get(), p.range.high.get());
                     ParamValue::Continuous(unsafe { FiniteF64::new_unchecked(n) })

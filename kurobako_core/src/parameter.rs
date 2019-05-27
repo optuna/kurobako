@@ -1,10 +1,23 @@
 use crate::solver::SolverCapabilities;
 use crate::{Error, ErrorKind, Result};
+use rand::distributions::Distribution as RandDistribution;
+use rand::Rng;
 use rustats::num::FiniteF64;
 use rustats::range::Range;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::fmt::Display;
+
+// TODO:
+// pub struct ParamDomain {
+//    condition: Vec<Condition>,
+//    param: Unconditional
+// }
+// pub enum UnconditionalValue {
+//     Continuous(FiniteF64),
+//     Discrete(i64),
+//     Categorical(usize),
+// }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -48,6 +61,14 @@ impl ParamDomain {
     }
 }
 
+// TODO:
+// pub struct ParamValue(Optiona<UnconditionalValue>);
+// pub enum UnconditionalValue {
+//     Continuous(FiniteF64),
+//     Discrete(i64),
+//     Categorical(usize),
+// }
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ParamValue {
@@ -57,6 +78,19 @@ pub enum ParamValue {
     Conditional(Option<Box<ParamValue>>), // TODO: Conditional(Option<Box<UnconditionalValue>>)
 }
 impl ParamValue {
+    pub fn try_map<F>(self, f: F) -> Result<Self>
+    where
+        F: FnOnce(Self) -> Result<Self>,
+    {
+        match self {
+            ParamValue::Conditional(None) => Ok(ParamValue::Conditional(None)),
+            ParamValue::Conditional(Some(p)) => {
+                track!(f(*p)).map(|p| ParamValue::Conditional(Some(Box::new(p))))
+            }
+            p => track!(f(p)),
+        }
+    }
+
     pub fn as_discrete(&self) -> Option<i64> {
         if let ParamValue::Discrete(v) = self {
             Some(*v)
@@ -115,6 +149,14 @@ impl Unconditional {
         }
         c
     }
+
+    pub fn to_domain(&self) -> ParamDomain {
+        match self {
+            Unconditional::Continuous(p) => ParamDomain::Continuous(p.clone()),
+            Unconditional::Discrete(p) => ParamDomain::Discrete(p.clone()),
+            Unconditional::Categorical(p) => ParamDomain::Categorical(p.clone()),
+        }
+    }
 }
 impl TryFrom<ParamDomain> for Unconditional {
     type Error = Error;
@@ -128,7 +170,29 @@ impl TryFrom<ParamDomain> for Unconditional {
         })
     }
 }
-// TODO: Implement PriorDistribution
+impl RandDistribution<ParamValue> for Unconditional {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> ParamValue {
+        match self {
+            Unconditional::Continuous(p) => {
+                let v = if p.distribution == Distribution::LogUniform {
+                    let low = 1.0;
+                    let high = (p.range.high.get() - p.range.low.get()).exp();
+                    let v = rng.gen_range(low, high);
+                    v.ln() + p.range.low.get()
+                } else {
+                    rng.gen_range(p.range.low.get(), p.range.high.get())
+                };
+                ParamValue::Continuous(FiniteF64::new(v).unwrap_or_else(|e| unreachable!("{}", e)))
+            }
+            Unconditional::Discrete(p) => {
+                ParamValue::Discrete(rng.gen_range(p.range.low, p.range.high))
+            }
+            Unconditional::Categorical(p) => {
+                ParamValue::Categorical(rng.gen_range(0, p.choices.len()))
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Continuous {
