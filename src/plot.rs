@@ -138,7 +138,7 @@ impl ProblemPlot {
         writeln!(f, "# Problem: {}", self.problem)?;
 
         for o in &self.solvers {
-            write!(f, "{:?} {:?}", o.solver, o.solver)?;
+            write!(f, "{:?} {:?} ", o.solver, o.solver)?;
         }
         writeln!(f)?;
 
