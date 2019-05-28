@@ -1,9 +1,18 @@
 use crate::num::FiniteF64;
+use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
+
+pub fn parse_json<T>(json: &str) -> Result<T>
+where
+    T: for<'a> Deserialize<'a>,
+{
+    let v = track!(serde_json::from_str(json).map_err(Error::from))?;
+    Ok(v)
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonValue(serde_json::Value);

@@ -1,12 +1,13 @@
-use crate::json::JsonValue;
+use crate::json::{self, JsonValue};
 use crate::parameter::ParamValue;
 use crate::problem::ProblemSpec;
-use crate::{ErrorKind, Result};
+use crate::{Error, ErrorKind, Result};
 use rand::{Rng, RngCore};
 use rustats::num::FiniteF64;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::fmt;
+use std::str::FromStr;
 use structopt::StructOpt;
 use yamakan::budget::Budgeted;
 use yamakan::observation::{IdGen, Obs};
@@ -17,18 +18,28 @@ pub trait SolverRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> 
     fn create_solver(&self, problem: ProblemSpec) -> Result<Self::Solver>;
 }
 
-// #[derive(Debug)]
-// pub struct BoxSolverRecipe {
-//     create_solver: Box<Fn(ProblemSpec) -> Result<BoxSolver>>,
-// }
-// impl BoxSolverRecipe {
-//     pub fn new<R>(recipe: R) -> Self
-//     where
-//         R: 'static + SolverRecipe,
-//     {
+pub struct BoxSolverRecipe {
+    create_solver: Box<Fn(ProblemSpec) -> Result<BoxSolver>>,
+}
+impl BoxSolverRecipe {
+    pub fn new<R>(recipe: R) -> Self
+    where
+        R: 'static + SolverRecipe,
+    {
+        let create_solver =
+            Box::new(move |problem| track!(recipe.create_solver(problem)).map(BoxSolver::new));
+        Self { create_solver }
+    }
 
-//     }
-// }
+    pub fn create_solver(&self, problem: ProblemSpec) -> Result<BoxSolver> {
+        (self.create_solver)(problem)
+    }
+}
+impl fmt::Debug for BoxSolverRecipe {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "BoxSolverRecipe {{ .. }}")
+    }
+}
 
 // TODO: move to `crate::observations::*`
 pub type UnobservedObs = Obs<Budgeted<Vec<ParamValue>>>;
@@ -185,27 +196,41 @@ pub enum SolverCapability {
     MultiObjective,
 }
 
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct SolverRecipePlaceHolder {
-//     #[serde(flatten)]
-//     json: JsonValue,
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SolverRecipePlaceHolder {
+    #[serde(flatten)]
+    pub json: JsonValue,
 
-//     #[serde(skip)]
-//     recipe: Option<BoxSolverRecipe>,
-// }
-// impl SolverRecipePlaceHolder {
-//     // pub fn set_recipe<F>(&mut self, create_solver: F) -> Result<()>
-//     // where
-//     //     F: FnOnce(&JsonValue) -> Result<BoxSolverRecipe>,
-//     // {
-//     //     panic!()
-//     // }
-// }
-// impl Clone for SolverRecipePlaceHolder {
-//     fn clone(&self) -> Self {
-//         Self {
-//             json: self.json.clone(),
-//             recipe: None,
-//         }
-//     }
-// }
+    #[serde(skip)]
+    pub recipe: Option<BoxSolverRecipe>,
+}
+impl SolverRecipePlaceHolder {
+    pub fn set_recipe<F>(&mut self, create_recipe: F) -> Result<()>
+    where
+        F: FnOnce(&JsonValue) -> Result<BoxSolverRecipe>,
+    {
+        let recipe = track!(create_recipe(&self.json))?;
+        self.recipe = Some(recipe);
+        Ok(())
+    }
+
+    pub fn create_solver(&self, problem: ProblemSpec) -> Result<BoxSolver> {
+        let recipe = track_assert_some!(self.recipe.as_ref(), ErrorKind::InvalidInput);
+        track!(recipe.create_solver(problem))
+    }
+}
+impl Clone for SolverRecipePlaceHolder {
+    fn clone(&self) -> Self {
+        Self {
+            json: self.json.clone(),
+            recipe: None,
+        }
+    }
+}
+impl FromStr for SolverRecipePlaceHolder {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        track!(json::parse_json(s))
+    }
+}
