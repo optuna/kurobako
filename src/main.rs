@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate trackable;
 
-use kurobako::benchmark::BenchmarkSpec;
+use kurobako::benchmark::BenchmarkRecipe;
 use kurobako::exam::ExamRecipe;
 use kurobako::filter::KurobakoFilterRecipe;
 use kurobako::markdown::MarkdownWriter;
@@ -24,7 +24,7 @@ enum Opt {
     ProblemSuite(KurobakoProblemSuite),
     Filter(KurobakoFilterRecipe),
     Exam(ExamRecipe),
-    Benchmark(BenchmarkSpec),
+    Benchmark(BenchmarkRecipe),
     Run(RunOpt),
     Stats(StatsOpt),
     Plot(PlotOpt),
@@ -77,7 +77,10 @@ fn main() -> trackable::result::MainResult {
             }
         }
         Opt::Benchmark(b) => {
-            track!(serde_json::to_writer(std::io::stdout().lock(), &b).map_err(Error::from))?
+            for exam in b.exams() {
+                track!(serde_json::to_writer(std::io::stdout().lock(), &exam).map_err(Error::from))?;
+                println!();
+            }
         }
         Opt::Run(opt) => {
             handle_run_command(opt)?;
@@ -93,13 +96,19 @@ fn main() -> trackable::result::MainResult {
 }
 
 fn handle_run_command(_opt: RunOpt) -> Result<()> {
-    let benchmark_spec: BenchmarkSpec = serde_json::from_reader(std::io::stdin().lock())?;
+    let stdin = std::io::stdin();
+    let mut exams = Vec::new();
+    for exam in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
+        let exam: ExamRecipe = track!(exam.map_err(Error::from))?;
+        exams.push(exam);
+    }
+    let total = exams.len();
 
     let stdout = std::io::stdout();
     let mut stdout = stdout.lock();
-    for (i, spec) in benchmark_spec.studies().enumerate() {
-        eprintln!("# [{}/{}] {:?}", i + 1, benchmark_spec.len(), spec);
-        let runner = track!(StudyRunner::new(spec.solver, spec.problem, spec.runner))?;
+    for (i, exam) in exams.into_iter().enumerate() {
+        eprintln!("# [{}/{}] {:?}", i + 1, total, exam);
+        let runner = track!(StudyRunner::new(&exam.solver, &exam.problem, &exam.runner))?;
         match track!(runner.run()) {
             Ok(record) => {
                 track!(serde_json::to_writer(&mut stdout, &record).map_err(Error::from))?;

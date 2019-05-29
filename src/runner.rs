@@ -12,6 +12,7 @@ use structopt::StructOpt;
 use yamakan::budget::Budget;
 use yamakan::observation::{ObsId, SerialIdGenerator};
 
+// TODO: s/Study/Exam/
 #[derive(Debug, Clone, PartialEq, Eq, Hash, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
 pub struct StudyRunnerOptions {
