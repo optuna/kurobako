@@ -1,6 +1,7 @@
 use crate::filter::KurobakoFilterRecipe;
 use kurobako_core::epi;
 use kurobako_core::filter::{BoxFilter, Filter as _, FilterRecipe as _};
+use kurobako_core::json;
 use kurobako_core::problem::ProblemSpec;
 use kurobako_core::solver::{
     BoxSolver, BoxSolverRecipe, ObservedObs, Solver, SolverRecipe, SolverSpec, UnobservedObs,
@@ -21,7 +22,7 @@ pub struct KurobakoSolverRecipe {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     tag: Option<String>,
 
-    #[structopt(long, parse(try_from_str = "crate::json::parse_json"))]
+    #[structopt(long, parse(try_from_str = "json::parse_json"))]
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     filters: Vec<KurobakoFilterRecipe>,
 

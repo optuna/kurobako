@@ -4,9 +4,9 @@ extern crate log;
 extern crate trackable;
 
 pub mod benchmark;
+pub mod exam;
 pub mod filter;
 pub mod filters;
-pub mod json;
 pub mod markdown;
 pub mod plot;
 pub mod problem;

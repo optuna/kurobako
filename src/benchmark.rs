@@ -1,6 +1,7 @@
 use crate::problem::KurobakoProblemRecipe;
 use crate::runner::StudyRunnerOptions;
 use crate::solver::KurobakoSolverRecipe;
+use kurobako_core::json;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
@@ -8,10 +9,10 @@ use structopt::StructOpt;
 #[serde(rename_all = "kebab-case")]
 #[structopt(rename_all = "kebab-case")]
 pub struct BenchmarkSpec {
-    #[structopt(long, parse(try_from_str = "crate::json::parse_json"))]
+    #[structopt(long, parse(try_from_str = "json::parse_json"))]
     pub solvers: Vec<KurobakoSolverRecipe>,
 
-    #[structopt(long, parse(try_from_str = "crate::json::parse_json"))]
+    #[structopt(long, parse(try_from_str = "json::parse_json"))]
     pub problems: Vec<KurobakoProblemRecipe>,
 
     #[structopt(long, default_value = "10")]

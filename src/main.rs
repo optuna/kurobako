@@ -2,6 +2,7 @@
 extern crate trackable;
 
 use kurobako::benchmark::BenchmarkSpec;
+use kurobako::exam::ExamRecipe;
 use kurobako::filter::KurobakoFilterRecipe;
 use kurobako::markdown::MarkdownWriter;
 use kurobako::plot::PlotOptions;
@@ -22,11 +23,11 @@ enum Opt {
     Problem(KurobakoProblemRecipe),
     ProblemSuite(KurobakoProblemSuite),
     Filter(KurobakoFilterRecipe),
+    Exam(ExamRecipe),
     Benchmark(BenchmarkSpec),
     Run(RunOpt),
     Stats(StatsOpt),
     Plot(PlotOpt),
-    // PlotData(PlotDataOpt),
 }
 
 #[derive(Debug, StructOpt)]
@@ -52,15 +53,6 @@ struct PlotOpt {
     inner: PlotOptions,
 }
 
-// #[derive(Debug, StructOpt)]
-// #[structopt(rename_all = "kebab-case")]
-// enum PlotDataOpt {
-//     Scatter {
-//         #[structopt(long)]
-//         budget: Option<u64>,
-//     },
-// }
-
 fn main() -> trackable::result::MainResult {
     env_logger::init();
 
@@ -73,6 +65,9 @@ fn main() -> trackable::result::MainResult {
             track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?
         }
         Opt::Filter(p) => {
+            track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?
+        }
+        Opt::Exam(p) => {
             track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?
         }
         Opt::ProblemSuite(p) => {
@@ -92,9 +87,7 @@ fn main() -> trackable::result::MainResult {
         }
         Opt::Plot(opt) => {
             handle_plot_command(opt)?;
-        } // Opt::PlotData(opt) => {
-          //     handle_plot_data_command(opt)?;
-          // }
+        }
     }
     Ok(())
 }
@@ -171,54 +164,3 @@ fn handle_plot_command(opt: PlotOpt) -> Result<()> {
     track!(opt.inner.plot_problems(&studies, opt.output_dir))?;
     Ok(())
 }
-
-// fn handle_plot_data_command(opt: PlotDataOpt) -> Result<()> {
-//     let stdin = std::io::stdin();
-//     for study in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
-//         match track!(study.map_err(Error::from)) {
-//             Err(e) => {
-//                 eprintln!("{}", e);
-//             }
-//             Ok(study) => {
-//                 let mut study: StudyRecord = study;
-//                 match opt {
-//                     PlotDataOpt::Scatter { budget } => {
-//                         if let Some(budget) = budget {
-//                             study.limit_budget(budget);
-//                         }
-//                         output_scatter_data(&study);
-//                     }
-//                 }
-//             }
-//         }
-//     }
-//     Ok(())
-// }
-
-// fn output_scatter_data(study: &StudyRecord) {
-//     use std::f64::NAN;
-
-//     println!(
-//         "# {:?}, {:?}, {:?}, {:?}, {:?}",
-//         study.solver,
-//         study.problem,
-//         study.budget,
-//         study.value_range(),
-//         study.start_time
-//     );
-//     println!("# Budget Value Param...");
-//     for (i, trial) in study.trials.iter().enumerate() {
-//         print!("{} {}", i, trial.value().unwrap_or(NAN));
-//         for p in &trial.ask.params {
-//             use kurobako_core::parameter::ParamValue;
-//             if let ParamValue::Continuous(p) = p {
-//                 print!(" {}", p.get());
-//             } else {
-//                 unimplemented!();
-//             }
-//         }
-//         println!();
-//     }
-//     println!();
-//     println!();
-// }
