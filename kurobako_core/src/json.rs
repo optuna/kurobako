@@ -5,6 +5,7 @@ use serde_json;
 use std;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
+use std::str::FromStr;
 
 pub fn parse_json<T>(json: &str) -> Result<T>
 where
@@ -45,6 +46,13 @@ impl Ord for JsonValue {
 impl Hash for JsonValue {
     fn hash<H: Hasher>(&self, h: &mut H) {
         JsonValueRef(&self.0).hash(h);
+    }
+}
+impl FromStr for JsonValue {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        track!(parse_json(s))
     }
 }
 

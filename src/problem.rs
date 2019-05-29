@@ -1,3 +1,4 @@
+use crate::exam::ExamProblemRecipe;
 use kurobako_core::epi::problem::ExternalProgramProblemRecipe;
 use kurobako_core::problem::{BoxProblem, ProblemRecipe};
 use kurobako_core::Result;
@@ -15,6 +16,7 @@ pub enum KurobakoProblemRecipe {
     Ffmpeg(ffmpeg::FfmpegProblemRecipe),
     Lightgbm(lightgbm::LightgbmProblemRecipe),
     Deepobs(deepobs::DeepobsProblemRecipe),
+    Exam(ExamProblemRecipe),
 }
 impl ProblemRecipe for KurobakoProblemRecipe {
     type Problem = BoxProblem;
@@ -27,6 +29,7 @@ impl ProblemRecipe for KurobakoProblemRecipe {
             KurobakoProblemRecipe::Ffmpeg(p) => track!(p.create_problem().map(BoxProblem::new)),
             KurobakoProblemRecipe::Lightgbm(p) => track!(p.create_problem().map(BoxProblem::new)),
             KurobakoProblemRecipe::Deepobs(p) => track!(p.create_problem().map(BoxProblem::new)),
+            KurobakoProblemRecipe::Exam(p) => track!(p.create_problem().map(BoxProblem::new)),
         }
     }
 }
