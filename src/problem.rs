@@ -1,46 +1,9 @@
-use crate::problem_optuna;
 use kurobako_core::epi::problem::ExternalProgramProblemRecipe;
 use kurobako_core::problem::{BoxProblem, ProblemRecipe};
 use kurobako_core::Result;
 use kurobako_problems::{deepobs, ffmpeg, lightgbm, nasbench, sigopt};
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
-
-#[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-#[structopt(rename_all = "kebab-case")]
-pub enum FullKurobakoProblemRecipe {
-    Command(ExternalProgramProblemRecipe),
-    Sigopt(sigopt::SigoptProblemRecipe),
-    Nasbench(nasbench::NasbenchProblemRecipe),
-    Ffmpeg(ffmpeg::FfmpegProblemRecipe),
-    Lightgbm(lightgbm::LightgbmProblemRecipe),
-    Deepobs(deepobs::DeepobsProblemRecipe),
-    Optuna(problem_optuna::OptunaProblemRecipe),
-}
-impl ProblemRecipe for FullKurobakoProblemRecipe {
-    type Problem = BoxProblem;
-
-    fn create_problem(&self) -> Result<Self::Problem> {
-        match self {
-            FullKurobakoProblemRecipe::Command(p) => {
-                track!(p.create_problem().map(BoxProblem::new))
-            }
-            FullKurobakoProblemRecipe::Sigopt(p) => track!(p.create_problem().map(BoxProblem::new)),
-            FullKurobakoProblemRecipe::Nasbench(p) => {
-                track!(p.create_problem().map(BoxProblem::new))
-            }
-            FullKurobakoProblemRecipe::Ffmpeg(p) => track!(p.create_problem().map(BoxProblem::new)),
-            FullKurobakoProblemRecipe::Lightgbm(p) => {
-                track!(p.create_problem().map(BoxProblem::new))
-            }
-            FullKurobakoProblemRecipe::Deepobs(p) => {
-                track!(p.create_problem().map(BoxProblem::new))
-            }
-            FullKurobakoProblemRecipe::Optuna(p) => track!(p.create_problem().map(BoxProblem::new)),
-        }
-    }
-}
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]

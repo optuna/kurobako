@@ -17,5 +17,4 @@ pub mod solver;
 pub mod stats;
 pub mod time;
 
-mod problem_optuna;
 mod rankings;

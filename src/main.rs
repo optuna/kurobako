@@ -5,7 +5,7 @@ use kurobako::benchmark::BenchmarkSpec;
 use kurobako::filter::KurobakoFilterRecipe;
 use kurobako::markdown::MarkdownWriter;
 use kurobako::plot::PlotOptions;
-use kurobako::problem::FullKurobakoProblemRecipe;
+use kurobako::problem::KurobakoProblemRecipe;
 use kurobako::problem_suites::{KurobakoProblemSuite, ProblemSuite};
 use kurobako::record::{BenchmarkRecord, StudyRecord};
 use kurobako::runner::StudyRunner;
@@ -19,7 +19,7 @@ use structopt::StructOpt;
 #[structopt(rename_all = "kebab-case")]
 enum Opt {
     Solver(KurobakoSolverRecipe),
-    Problem(FullKurobakoProblemRecipe),
+    Problem(KurobakoProblemRecipe),
     ProblemSuite(KurobakoProblemSuite),
     Filter(KurobakoFilterRecipe),
     Benchmark(BenchmarkSpec),

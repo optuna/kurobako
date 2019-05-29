@@ -15,7 +15,7 @@ use yamakan::observation::ObsId;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecipeAndSpec<T> {
     pub spec: T,
-    pub recipe: JsonValue, // TODO: FullKurobakoProblemRecipe or KurobakoSolverRecipe
+    pub recipe: JsonValue, // TODO: KurobakoProblemRecipe or KurobakoSolverRecipe
 }
 impl RecipeAndSpec<ProblemSpec> {
     pub fn id(&self) -> Id {

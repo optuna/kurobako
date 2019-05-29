@@ -1,4 +1,4 @@
-use crate::problem::FullKurobakoProblemRecipe;
+use crate::problem::KurobakoProblemRecipe;
 use crate::runner::StudyRunnerOptions;
 use crate::solver::KurobakoSolverRecipe;
 use serde::{Deserialize, Serialize};
@@ -12,7 +12,7 @@ pub struct BenchmarkSpec {
     pub solvers: Vec<KurobakoSolverRecipe>,
 
     #[structopt(long, parse(try_from_str = "crate::json::parse_json"))]
-    pub problems: Vec<FullKurobakoProblemRecipe>,
+    pub problems: Vec<KurobakoProblemRecipe>,
 
     #[structopt(long, default_value = "10")]
     pub iterations: usize,
@@ -42,6 +42,6 @@ impl BenchmarkSpec {
 #[derive(Debug)]
 pub struct StudySpec<'a> {
     pub solver: &'a KurobakoSolverRecipe,
-    pub problem: &'a FullKurobakoProblemRecipe,
+    pub problem: &'a KurobakoProblemRecipe,
     pub runner: &'a StudyRunnerOptions,
 }
