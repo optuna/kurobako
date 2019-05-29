@@ -2,11 +2,14 @@ use crate::filter::KurobakoFilterRecipe;
 use kurobako_core::epi;
 use kurobako_core::filter::{BoxFilter, Filter as _, FilterRecipe as _};
 use kurobako_core::problem::ProblemSpec;
-use kurobako_core::solver::{ObservedObs, Solver, SolverRecipe, SolverSpec, UnobservedObs};
-use kurobako_core::Result;
-use kurobako_solvers::{optuna, random};
+use kurobako_core::solver::{
+    BoxSolver, BoxSolverRecipe, ObservedObs, Solver, SolverRecipe, SolverSpec, UnobservedObs,
+};
+use kurobako_core::{Error, Result};
+use kurobako_solvers::{asha, optuna, random};
 use rand::{self, Rng};
 use serde::{Deserialize, Serialize};
+use serde_json;
 use structopt::StructOpt;
 use yamakan::observation::IdGen;
 
@@ -58,16 +61,26 @@ impl SolverRecipe for KurobakoSolverRecipe {
 enum InnerRecipe {
     Random(random::RandomSolverRecipe),
     Optuna(optuna::OptunaSolverRecipe),
+    Asha(asha::AshaSolverRecipe),
     Command(epi::solver::ExternalProgramSolverRecipe),
 }
 impl SolverRecipe for InnerRecipe {
-    type Solver = InnerSolver;
+    type Solver = BoxSolver;
 
     fn create_solver(&self, problem: ProblemSpec) -> Result<Self::Solver> {
         match self {
-            InnerRecipe::Random(r) => track!(r.create_solver(problem)).map(InnerSolver::Random),
-            InnerRecipe::Optuna(r) => track!(r.create_solver(problem)).map(InnerSolver::Optuna),
-            InnerRecipe::Command(r) => track!(r.create_solver(problem)).map(InnerSolver::Command),
+            InnerRecipe::Random(r) => track!(r.create_solver(problem)).map(BoxSolver::new),
+            InnerRecipe::Optuna(r) => track!(r.create_solver(problem)).map(BoxSolver::new),
+            InnerRecipe::Asha(r) => {
+                let mut r = r.clone();
+                track!(r.base_solver.set_recipe(|json| {
+                    let recipe: KurobakoSolverRecipe =
+                        track!(serde_json::from_value(json.get().clone()).map_err(Error::from))?;
+                    Ok(BoxSolverRecipe::new(recipe))
+                }))?;
+                track!(r.create_solver(problem)).map(BoxSolver::new)
+            }
+            InnerRecipe::Command(r) => track!(r.create_solver(problem)).map(BoxSolver::new),
         }
     }
 }
@@ -76,7 +89,7 @@ impl SolverRecipe for InnerRecipe {
 pub struct KurobakoSolver {
     tag: Option<String>,
     filters: Vec<BoxFilter>,
-    inner: InnerSolver,
+    inner: BoxSolver,
 }
 impl Solver for KurobakoSolver {
     fn specification(&self) -> SolverSpec {
@@ -101,37 +114,5 @@ impl Solver for KurobakoSolver {
             track!(f.filter_tell(&mut rng, &mut obs))?;
         }
         track!(self.inner.tell(obs))
-    }
-}
-
-#[derive(Debug)]
-pub enum InnerSolver {
-    Random(random::RandomSolver),
-    Optuna(optuna::OptunaSolver),
-    Command(epi::solver::ExternalProgramSolver),
-}
-impl Solver for InnerSolver {
-    fn specification(&self) -> SolverSpec {
-        match self {
-            InnerSolver::Random(s) => s.specification(),
-            InnerSolver::Optuna(s) => s.specification(),
-            InnerSolver::Command(s) => s.specification(),
-        }
-    }
-
-    fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<UnobservedObs> {
-        match self {
-            InnerSolver::Random(s) => track!(s.ask(rng, idg)),
-            InnerSolver::Optuna(s) => track!(s.ask(rng, idg)),
-            InnerSolver::Command(s) => track!(s.ask(rng, idg)),
-        }
-    }
-
-    fn tell(&mut self, obs: ObservedObs) -> Result<()> {
-        match self {
-            InnerSolver::Random(s) => track!(s.tell(obs)),
-            InnerSolver::Optuna(s) => track!(s.tell(obs)),
-            InnerSolver::Command(s) => track!(s.tell(obs)),
-        }
     }
 }

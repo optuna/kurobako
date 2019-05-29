@@ -8,6 +8,12 @@ use yamakan;
 /// This crate specific `Error` type.
 #[derive(Debug, Clone, TrackableError)]
 pub struct Error(TrackableError<ErrorKind>);
+impl Into<yamakan::Error> for Error {
+    fn into(self) -> yamakan::Error {
+        // TODO
+        yamakan::ErrorKind::Other.takes_over(self).into()
+    }
+}
 impl From<Failure> for Error {
     fn from(f: Failure) -> Self {
         ErrorKind::Other.takes_over(f).into()

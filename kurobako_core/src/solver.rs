@@ -10,7 +10,8 @@ use std::fmt;
 use std::str::FromStr;
 use structopt::StructOpt;
 use yamakan::budget::Budgeted;
-use yamakan::observation::{IdGen, Obs};
+use yamakan::observation::{IdGen, Obs, ObsId};
+use yamakan::{self, Optimizer};
 
 pub trait SolverRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> {
     type Solver: Solver;
@@ -51,6 +52,46 @@ pub trait Solver {
     fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<UnobservedObs>;
 
     fn tell(&mut self, obs: ObservedObs) -> Result<()>;
+}
+
+#[derive(Debug)]
+pub struct YamakanSolver<T>(T);
+impl<T: Solver> YamakanSolver<T> {
+    pub fn new(inner: T) -> Self {
+        Self(inner)
+    }
+
+    pub fn inner(&self) -> &T {
+        &self.0
+    }
+
+    pub fn inner_mut(&mut self) -> &mut T {
+        &mut self.0
+    }
+
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
+impl<T: Solver> Optimizer for YamakanSolver<T> {
+    type Param = Budgeted<Vec<ParamValue>>;
+    type Value = Vec<FiniteF64>;
+
+    fn ask<R: Rng, G: IdGen>(
+        &mut self,
+        rng: &mut R,
+        idg: &mut G,
+    ) -> yamakan::Result<Obs<Self::Param>> {
+        track!(self.0.ask(rng, idg)).map_err(Error::into)
+    }
+
+    fn tell(&mut self, obs: Obs<Self::Param, Self::Value>) -> yamakan::Result<()> {
+        track!(self.0.tell(obs)).map_err(Error::into)
+    }
+
+    fn forget(&mut self, _id: ObsId) -> yamakan::Result<()> {
+        Ok(())
+    }
 }
 
 pub struct BoxSolver {
@@ -149,6 +190,11 @@ impl SolverCapabilities {
 
     pub fn contains(&self, c: SolverCapability) -> bool {
         self.0.contains(&c)
+    }
+
+    pub fn remove(&mut self, c: SolverCapability) -> &mut Self {
+        self.0.remove(&c);
+        self
     }
 
     pub fn iter<'a>(&'a self) -> impl 'a + Iterator<Item = SolverCapability> {

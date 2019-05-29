@@ -1,16 +1,16 @@
-use kurobako_core::num::FiniteF64;
-use kurobako_core::parameter::{Distribution, ParamDomain, ParamValue};
+use kurobako_core::parameter::ParamValue;
 use kurobako_core::problem::ProblemSpec;
 use kurobako_core::solver::{
-    ObservedObs, Solver, SolverCapabilities, SolverRecipe, SolverRecipePlaceHolder, SolverSpec,
-    UnobservedObs,
+    BoxSolver, ObservedObs, Solver, SolverCapability, SolverRecipe, SolverRecipePlaceHolder,
+    SolverSpec, UnobservedObs, YamakanSolver,
 };
-use kurobako_core::{ErrorKind, Result};
+use kurobako_core::Result;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
-use yamakan::budget::{Budget, Budgeted};
-use yamakan::observation::{IdGen, Obs};
+use yamakan::observation::IdGen;
+use yamakan::optimizers::asha::{AshaBuilder, AshaOptimizer};
+use yamakan::Optimizer as _;
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
@@ -28,27 +28,48 @@ impl SolverRecipe for AshaSolverRecipe {
     type Solver = AshaSolver;
 
     fn create_solver(&self, problem: ProblemSpec) -> Result<Self::Solver> {
+        let max_budget = problem.evaluation_expense.get();
+        let mut min_budget = max_budget;
+        while min_budget > 1 {
+            min_budget = ((min_budget as f64) / (self.reduction_factor as f64)).ceil() as u64;
+            if (min_budget as f64) / (max_budget as f64) < self.finish_rate {
+                break;
+            }
+        }
+        debug!(
+            "ASHA options: min_budget={}, max_budget={}, reduction_factor={}",
+            min_budget, max_budget, self.reduction_factor
+        );
+
         let base = track!(self.base_solver.create_solver(problem))?;
-        Ok(AshaSolver {})
+
+        let mut builder = AshaBuilder::new();
+        track!(builder.reduction_factor(self.reduction_factor))?;
+        let optimizer = track!(builder.finish(YamakanSolver::new(base), min_budget, max_budget))?;
+
+        Ok(AshaSolver { optimizer })
     }
 }
 
 #[derive(Debug)]
-pub struct AshaSolver {}
+pub struct AshaSolver {
+    optimizer: AshaOptimizer<YamakanSolver<BoxSolver>, Vec<ParamValue>>,
+}
 impl Solver for AshaSolver {
     fn specification(&self) -> SolverSpec {
-        // let mut spec = self.base.specification();
-        // spec.name = format!("ASHA/{}", spec.name);
-        // spec
-        // TODO: remove multi-objective
-        panic!()
+        let mut spec = self.optimizer.inner().inner().specification();
+        spec.name = format!("ASHA/{}", spec.name);
+        spec.capabilities.remove(SolverCapability::MultiObjective);
+        spec
     }
 
     fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<UnobservedObs> {
-        panic!()
+        let obs = track!(self.optimizer.ask(rng, idg))?;
+        Ok(obs)
     }
 
-    fn tell(&mut self, _obs: ObservedObs) -> Result<()> {
-        panic!()
+    fn tell(&mut self, obs: ObservedObs) -> Result<()> {
+        track!(self.optimizer.tell(obs))?;
+        Ok(())
     }
 }
