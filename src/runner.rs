@@ -3,7 +3,6 @@ use crate::time::ElapsedSeconds;
 use kurobako_core::problem::{Evaluate, Problem, ProblemRecipe};
 use kurobako_core::solver::{Solver, SolverRecipe, UnobservedObs};
 use kurobako_core::{ErrorKind, Result};
-use kurobako_solvers::fallback::FallbackSolver;
 use rand;
 use rand::rngs::ThreadRng;
 use serde::{Deserialize, Serialize};
@@ -36,7 +35,7 @@ where
 {
     rng: ThreadRng,
     idgen: SerialIdGenerator,
-    solver: FallbackSolver<S>,
+    solver: S,
     problem: P,
     study_record: StudyRecord,
     study_budget: Budget,
@@ -59,11 +58,8 @@ where
         let problem = track!(problem_recipe.create_problem())?;
         let problem_spec = problem.specification();
 
-        let solver = track!(FallbackSolver::new(
-            solver_recipe.clone(),
-            problem_spec.clone()
-        ))?;
-        let solver_spec = solver.inner().specification();
+        let solver = track!(solver_recipe.create_solver(problem_spec.clone()))?;
+        let solver_spec = solver.specification();
 
         let study_budget =
             Budget::new(options.budget as u64 * problem_spec.evaluation_expense.get());

@@ -9,7 +9,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 use yamakan::observation::IdGen;
-use yamakan::optimizers::asha::{AshaBuilder, AshaOptimizer};
+use yamakan::optimizers::asha::{AshaOptimizer, AshaOptimizerBuilder};
 use yamakan::Optimizer as _;
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
@@ -43,7 +43,7 @@ impl SolverRecipe for AshaSolverRecipe {
 
         let base = track!(self.base_solver.create_solver(problem))?;
 
-        let mut builder = AshaBuilder::new();
+        let mut builder = AshaOptimizerBuilder::new();
         track!(builder.reduction_factor(self.reduction_factor))?;
         let optimizer = track!(builder.finish(YamakanSolver::new(base), min_budget, max_budget))?;
 
