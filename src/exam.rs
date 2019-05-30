@@ -3,8 +3,9 @@ use crate::runner::StudyRunnerOptions;
 use crate::solver::KurobakoSolverRecipe;
 use kurobako_core::parameter::ParamValue;
 use kurobako_core::problem::{Evaluate, Problem, ProblemRecipe, ProblemSpec, Values};
-use kurobako_core::{json, Result};
+use kurobako_core::{json, Error, Result};
 use serde::{Deserialize, Serialize};
+use serde_json;
 use structopt::StructOpt;
 use yamakan::budget::Budget;
 use yamakan::observation::ObsId;
@@ -30,12 +31,16 @@ impl ProblemRecipe for ExamProblemRecipe {
     type Problem = ExamProblem;
 
     fn create_problem(&self) -> Result<Self::Problem> {
-        panic!()
+        let exam: ExamRecipe =
+            track!(serde_json::from_value(self.recipe.get().clone()).map_err(Error::from))?;
+        Ok(ExamProblem { exam })
     }
 }
 
 #[derive(Debug)]
-pub struct ExamProblem {}
+pub struct ExamProblem {
+    exam: ExamRecipe,
+}
 impl Problem for ExamProblem {
     type Evaluator = ExamEvaluator;
 

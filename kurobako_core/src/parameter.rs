@@ -114,6 +114,10 @@ impl ParamValue {
             None
         }
     }
+
+    pub fn try_to_string(&self) -> Option<String> {
+        unimplemented!()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

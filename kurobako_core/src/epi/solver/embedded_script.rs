@@ -1,5 +1,8 @@
 use crate::epi::solver::{ExternalProgramSolver, ExternalProgramSolverRecipe};
+use crate::json;
+use crate::parameter::{ParamDomain, ParamValue};
 use crate::problem::ProblemSpec;
+use crate::recipe::Recipe;
 use crate::solver::{ObservedObs, Solver, SolverRecipe, SolverSpec, UnobservedObs};
 use crate::{Error, ErrorKind, Result};
 use rand::Rng;
@@ -18,10 +21,28 @@ pub struct EmbeddedScriptSolverRecipe {
 
     pub args: Vec<String>,
 
+    #[structopt(long, parse(try_from_str = "json::parse_json"))]
+    pub params_domain: Vec<ParamDomain>,
+
     #[structopt(long)]
     pub interpreter: Option<PathBuf>,
 
     pub interpreter_args: Vec<String>,
+}
+impl Recipe for EmbeddedScriptSolverRecipe {
+    fn get_free_params(&self) -> Result<Vec<ParamDomain>> {
+        Ok(self.params_domain.clone())
+    }
+
+    fn bind_params(&mut self, params: Vec<(String, ParamValue)>) -> Result<()> {
+        for (name, value) in params {
+            if let Some(value) = value.try_to_string() {
+                self.args.push(format!("--{}", name));
+                self.args.push(value);
+            }
+        }
+        Ok(())
+    }
 }
 impl SolverRecipe for EmbeddedScriptSolverRecipe {
     type Solver = EmbeddedScriptSolver;
@@ -51,7 +72,11 @@ impl SolverRecipe for EmbeddedScriptSolverRecipe {
         };
         args.extend(self.args.clone());
 
-        let eppr = ExternalProgramSolverRecipe { path, args };
+        let eppr = ExternalProgramSolverRecipe {
+            path,
+            args,
+            params_domain: Vec::new(),
+        };
         let inner = track!(eppr.create_solver(problem))?;
         Ok(EmbeddedScriptSolver { inner, temp })
     }

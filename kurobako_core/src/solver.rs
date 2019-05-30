@@ -1,6 +1,7 @@
 use crate::json::{self, JsonValue};
 use crate::parameter::ParamValue;
 use crate::problem::ProblemSpec;
+use crate::recipe::Recipe;
 use crate::{Error, ErrorKind, Result};
 use rand::{Rng, RngCore};
 use rustats::num::FiniteF64;
@@ -8,12 +9,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::fmt;
 use std::str::FromStr;
-use structopt::StructOpt;
 use yamakan::budget::Budgeted;
 use yamakan::observation::{IdGen, Obs, ObsId};
 use yamakan::{self, Optimizer};
 
-pub trait SolverRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> {
+pub trait SolverRecipe: Recipe {
     type Solver: Solver;
 
     fn create_solver(&self, problem: ProblemSpec) -> Result<Self::Solver>;
