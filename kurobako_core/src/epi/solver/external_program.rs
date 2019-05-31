@@ -2,7 +2,6 @@ use crate::epi::channel::{JsonMessageReceiver, JsonMessageSender};
 use crate::json;
 use crate::parameter::{ParamDomain, ParamValue};
 use crate::problem::ProblemSpec;
-use crate::recipe::Recipe;
 use crate::solver::{ObservedObs, Solver, SolverRecipe, SolverSpec, UnobservedObs};
 use crate::{Error, ErrorKind, Result};
 use rand::Rng;
@@ -24,21 +23,6 @@ pub struct ExternalProgramSolverRecipe {
 
     #[structopt(long, parse(try_from_str = "json::parse_json"))]
     pub params_domain: Vec<ParamDomain>,
-}
-impl Recipe for ExternalProgramSolverRecipe {
-    fn get_free_params(&self) -> Result<Vec<ParamDomain>> {
-        Ok(self.params_domain.clone())
-    }
-
-    fn bind_params(&mut self, params: Vec<(String, ParamValue)>) -> Result<()> {
-        for (name, value) in params {
-            if let Some(value) = value.try_to_string() {
-                self.args.push(format!("--{}", name));
-                self.args.push(value);
-            }
-        }
-        Ok(())
-    }
 }
 impl SolverRecipe for ExternalProgramSolverRecipe {
     type Solver = ExternalProgramSolver;

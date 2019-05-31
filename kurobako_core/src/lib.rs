@@ -12,7 +12,6 @@ pub mod json;
 pub mod num;
 pub mod parameter;
 pub mod problem;
-pub mod recipe;
 pub mod solver;
 
 mod error;
