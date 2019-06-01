@@ -99,6 +99,33 @@ where
         Ok(self.study_record)
     }
 
+    // TODO
+    pub fn run_once(&mut self, budget: &mut Budget) -> Result<()> {
+        track_assert!(!self.study_budget.is_consumed(), ErrorKind::Bug);
+
+        while !self.study_budget.is_consumed() && !budget.is_consumed() {
+            while let Some(mut thread) = self.scheduler.pop_idle_thread() {
+                let trial = track!(self.ask_trial())?;
+                thread.trial = Some(trial);
+                self.scheduler.threads.push(thread);
+            }
+
+            let before = self.study_budget.consumption;
+            track!(self.evaluate_trial())?;
+            let after = self.study_budget.consumption;
+            budget.consumption += after - before;
+        }
+
+        if self.study_budget.is_consumed() {
+            self.study_record.finish();
+        }
+        Ok(())
+    }
+
+    pub fn study(&self) -> &StudyRecord {
+        &self.study_record
+    }
+
     fn ask_trial(&mut self) -> Result<TrialState<P::Evaluator>> {
         loop {
             let (result, elapsed) =

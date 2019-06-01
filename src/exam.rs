@@ -1,19 +1,20 @@
 use crate::problem::KurobakoProblemRecipe;
-use crate::runner::StudyRunnerOptions;
-use crate::solver::KurobakoSolverRecipe;
-use crate::variable::Variable;
+use crate::runner::{StudyRunner, StudyRunnerOptions};
+use crate::solver::{KurobakoSolver, KurobakoSolverRecipe};
+use crate::variable::{VarPath, Variable};
 use kurobako_core::parameter::{ParamDomain, ParamValue};
-use kurobako_core::problem::{Evaluate, Problem, ProblemRecipe, ProblemSpec, Values};
+use kurobako_core::problem::{
+    BoxProblem, Evaluate, EvaluatorCapability, Problem, ProblemRecipe, ProblemSpec, Values,
+};
 use kurobako_core::solver::{Solver, SolverRecipe, SolverSpec};
-use kurobako_core::{json, Error, ErrorKind, Result};
-use kurobako_solvers::random::RandomSolver;
-use rand;
+use kurobako_core::{json, Error, Result};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
+use std::num::NonZeroU64;
 use structopt::StructOpt;
 use yamakan::budget::Budget;
-use yamakan::observation::{ObsId, SerialIdGenerator};
+use yamakan::observation::ObsId;
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 pub struct ExamRecipe {
@@ -28,111 +29,66 @@ pub struct ExamRecipe {
     pub runner: StudyRunnerOptions,
     // TODO: Metric (best or auc, ...)
 }
-
-type Vars = Vec<ParamDomain>;
-type Vals = HashMap<String, ParamValue>;
-
-#[derive(Debug, Clone)]
-struct ExamRecipeTemplate(json::JsonValue);
-impl ExamRecipeTemplate {
-    fn render(&self, vals: Vals) -> Result<ExamRecipe> {
-        let mut recipe = self.0.get().clone();
-        track!(Self::bind_vars(&mut recipe, &vals))?;
-        debug!("Recipe: {}", recipe);
-        let exam: ExamRecipe = track!(serde_json::from_value(recipe).map_err(Error::from))?;
-        Ok(exam)
+impl ExamRecipe {
+    fn bind(&self, vals: &Vals) -> Result<Self> {
+        let mut recipe = track!(serde_json::to_value(self.clone()).map_err(Error::from))?;
+        track!(Self::bind_recur(&mut recipe, vals, &mut VarPath::new()))?;
+        track!(serde_json::from_value(recipe).map_err(Error::from))
     }
 
-    fn bind_vars(recipe: &mut serde_json::Value, vals: &Vals) -> Result<()> {
-        match recipe {
-            serde_json::Value::Array(a) => {
-                for v in a {
-                    track!(Self::bind_vars(v, vals))?;
-                }
-            }
-            serde_json::Value::Object(o) => {
-                for (k, v) in o {
-                    if k.starts_with('$') {
-                        let name = k.split_at(1).1;
-                        let val = track_assert_some!(
-                            vals.get(name),
-                            ErrorKind::InvalidInput,
-                            "Not Found: {:?}",
-                            name
-                        );
-                        *v = track!(val.to_json_value())?;
-                    } else {
-                        track!(Self::bind_vars(v, vals))?;
+    fn bind_recur(recipe: &mut serde_json::Value, vals: &Vals, path: &mut VarPath) -> Result<()> {
+        if let Some(val) = vals.get(path) {
+            *recipe = track!(val.to_json_value())?;
+        } else {
+            match recipe {
+                serde_json::Value::Array(a) => {
+                    for (i, v) in a.iter_mut().enumerate() {
+                        path.push(i.to_string());
+                        track!(Self::bind_recur(v, vals, path))?;
+                        path.pop();
                     }
                 }
+                serde_json::Value::Object(o) => {
+                    for (k, v) in o {
+                        path.push(k.to_owned());
+                        track!(Self::bind_recur(v, vals, path))?;
+                        path.pop();
+                    }
+                }
+                _ => {}
             }
-            _ => {}
         }
         Ok(())
     }
 }
 
+type Vars = Vec<ParamDomain>;
+type Vals = HashMap<VarPath, ParamValue>;
+
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 pub struct ExamProblemRecipe {
-    // TODO: flatten
+    #[structopt(long)]
     pub recipe: json::JsonValue,
-}
-impl ExamProblemRecipe {
-    fn collect_vars(&self) -> Result<Vars> {
-        let mut vars = Vec::new();
-        track!(Self::collect_vars_recur(self.recipe.get(), &mut vars))?;
-        Ok(vars)
-    }
 
-    fn collect_vars_recur(v: &serde_json::Value, vars: &mut Vars) -> Result<()> {
-        match v {
-            serde_json::Value::Array(a) => {
-                for v in a {
-                    track!(Self::collect_vars_recur(v, vars))?;
-                }
-                Ok(())
-            }
-            serde_json::Value::Object(o) => {
-                for (k, v) in o {
-                    if k.starts_with('$') {
-                        let var: Variable =
-                            track!(serde_json::from_value(v.clone()).map_err(Error::from))?;
-                        let name = k.split_at(1).1;
-                        vars.push(track!(var.to_param_domain(name))?);
-                    } else {
-                        track!(Self::collect_vars_recur(v, vars))?;
-                    }
-                }
-                Ok(())
-            }
-            _ => Ok(()),
-        }
-    }
+    #[structopt(long, parse(try_from_str = "json::parse_json"))]
+    pub vars: Vec<Variable>,
 }
 impl ProblemRecipe for ExamProblemRecipe {
     type Problem = ExamProblem;
 
     fn create_problem(&self) -> Result<Self::Problem> {
-        let vars = track!(self.collect_vars())?;
-        let template = ExamRecipeTemplate(self.recipe.clone());
-
-        let mut random = RandomSolver::new(vars.clone());
-        let mut rng = rand::thread_rng(); // TODO
-        let mut idg = SerialIdGenerator::new();
-        let values = track!(random.ask(&mut rng, &mut idg))?;
-        let vals = vars
-            .iter()
-            .zip(values.param.get().iter().cloned())
-            .map(|(var, val)| (var.name().to_owned(), val))
-            .collect();
-        let exam = track!(template.render(vals))?;
-
+        let exam: ExamRecipe =
+            track!(serde_json::from_value(self.recipe.get().clone()).map_err(Error::from))?;
         let problem = track!(exam.problem.create_problem())?.specification();
         let solver = track!(exam.solver.create_solver(problem.clone()))?.specification();
+
         Ok(ExamProblem {
-            template,
-            vars,
             exam,
+            vars: self
+                .vars
+                .iter()
+                .map(|v| track!(v.to_param_domain()))
+                .collect::<Result<_>>()?,
             problem,
             solver,
         })
@@ -141,9 +97,8 @@ impl ProblemRecipe for ExamProblemRecipe {
 
 #[derive(Debug)]
 pub struct ExamProblem {
-    template: ExamRecipeTemplate,
-    vars: Vars,
     exam: ExamRecipe,
+    vars: Vars,
     problem: ProblemSpec,
     solver: SolverSpec,
 }
@@ -151,29 +106,79 @@ impl Problem for ExamProblem {
     type Evaluator = ExamEvaluator;
 
     fn specification(&self) -> ProblemSpec {
-        //        ProblemSpec{
-        //  name: "exam".to_owned(), // TODO
-        //  version: None,
-        // params_domain: self.vars.values().cloned().collect(),
-        // values_domain: Vec<MinMax<FiniteF64>>,
-        // evaluation_expense: NonZeroU64,
-        //  capabilities: EvaluatorCapabilities,
-        //}
-        panic!()
+        let evaluation_expense =
+            NonZeroU64::new(self.exam.runner.budget as u64 * self.problem.evaluation_expense.get())
+                .unwrap_or_else(|| unimplemented!());
+        ProblemSpec {
+            name: format!("exam/{}/{}", self.solver.name, self.problem.name),
+            version: None, // TODO
+            params_domain: self.vars.clone(),
+            values_domain: self.problem.values_domain.clone(), // TODO
+            evaluation_expense,
+            capabilities: vec![EvaluatorCapability::Concurrent].into_iter().collect(),
+        }
     }
 
-    fn create_evaluator(&mut self, id: ObsId) -> Result<Self::Evaluator> {
-        // let exam: ExamRecipe =
-        //     track!(serde_json::from_value(self.recipe.get().clone()).map_err(Error::from))?;
-
-        panic!()
+    fn create_evaluator(&mut self, _id: ObsId) -> Result<Self::Evaluator> {
+        Ok(ExamEvaluator::NotStarted {
+            exam: self.exam.clone(),
+            vars: self.vars.clone(),
+        })
     }
 }
 
 #[derive(Debug)]
-pub struct ExamEvaluator {}
+pub enum ExamEvaluator {
+    NotStarted {
+        exam: ExamRecipe,
+        vars: Vars,
+    },
+    Running {
+        runner: StudyRunner<KurobakoSolver, BoxProblem>,
+    },
+}
 impl Evaluate for ExamEvaluator {
     fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values> {
-        panic!()
+        loop {
+            let next = match self {
+                ExamEvaluator::NotStarted { exam, vars } => {
+                    let vals = vars
+                        .iter()
+                        .zip(params.iter())
+                        .map(|(var, param)| {
+                            let path = track!(var.name().parse())
+                                .unwrap_or_else(|e| unreachable!("{}", e));
+                            (path, param.clone())
+                        })
+                        .collect();
+                    debug!("Before bind: {:?}", exam);
+                    let exam = track!(exam.bind(&vals))?;
+                    debug!("After bind: {:?}", exam);
+
+                    let runner =
+                        track!(StudyRunner::new(&exam.solver, &exam.problem, &exam.runner))?;
+                    ExamEvaluator::Running { runner }
+                }
+                ExamEvaluator::Running { runner } => {
+                    track!(runner.run_once(budget))?;
+                    loop {
+                        trace!("Study: {:?}", runner.study());
+                        if let Some(v) = runner.study().best_value() {
+                            debug!(
+                                "Evaluated: budget={:?}, params={:?}, value={:?}",
+                                budget,
+                                params,
+                                v.get()
+                            );
+                            return Ok(vec![v]);
+                        }
+
+                        budget.amount = budget.consumption + 1;
+                        track!(runner.run_once(budget))?;
+                    }
+                }
+            };
+            *self = next;
+        }
     }
 }

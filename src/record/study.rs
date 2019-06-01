@@ -150,7 +150,7 @@ impl Scorer {
             .take_while(|t| t.0 <= budget)
             .map(|t| t.1)
             .last()
-            .unwrap()
+            .unwrap_or_else(|| unimplemented!("budget: {:?}", budget))
     }
 
     pub fn auc(&self, budget: u64) -> Option<FiniteF64> {
