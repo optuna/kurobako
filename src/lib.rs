@@ -8,6 +8,7 @@ pub mod exam;
 pub mod filter;
 pub mod filters;
 pub mod markdown;
+pub mod multi_exam;
 pub mod plot;
 pub mod problem;
 pub mod problem_suites;
