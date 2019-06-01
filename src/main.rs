@@ -12,6 +12,7 @@ use kurobako::record::{BenchmarkRecord, StudyRecord};
 use kurobako::runner::StudyRunner;
 use kurobako::solver::KurobakoSolverRecipe;
 use kurobako::stats::ranking::{SolverRanking, SolverRankingOptions};
+use kurobako::variable::Variable;
 use kurobako_core::{Error, Result};
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -28,6 +29,7 @@ enum Opt {
     Run(RunOpt),
     Stats(StatsOpt),
     Plot(PlotOpt),
+    Var(Variable),
 }
 
 #[derive(Debug, StructOpt)]
@@ -68,6 +70,9 @@ fn main() -> trackable::result::MainResult {
             track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?
         }
         Opt::Exam(p) => {
+            track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?
+        }
+        Opt::Var(p) => {
             track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?
         }
         Opt::ProblemSuite(p) => {

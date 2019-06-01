@@ -5,8 +5,10 @@ use rand::Rng;
 use rustats::num::FiniteF64;
 use rustats::range::Range;
 use serde::{Deserialize, Serialize};
+use serde_json;
 use std::convert::TryFrom;
 use std::fmt::Display;
+use std::str::FromStr;
 
 // TODO:
 // pub struct ParamDomain {
@@ -74,10 +76,23 @@ impl ParamDomain {
 pub enum ParamValue {
     Continuous(FiniteF64),
     Discrete(i64),
-    Categorical(usize),
+    Categorical(usize),                   // TODO: String(?)
     Conditional(Option<Box<ParamValue>>), // TODO: Conditional(Option<Box<UnconditionalValue>>)
 }
 impl ParamValue {
+    pub fn to_json_value(&self) -> Result<serde_json::Value> {
+        match self {
+            ParamValue::Continuous(v) => Ok(serde_json::Value::Number(track_assert_some!(
+                serde_json::Number::from_f64(v.get()),
+                ErrorKind::InvalidInput
+            ))),
+            ParamValue::Discrete(v) => Ok(serde_json::Value::Number(serde_json::Number::from(*v))),
+            ParamValue::Categorical(index) => unimplemented!("index:{}", index),
+            ParamValue::Conditional(None) => Ok(serde_json::Value::Null),
+            ParamValue::Conditional(Some(v)) => track!(v.to_json_value()),
+        }
+    }
+
     pub fn try_map<F>(self, f: F) -> Result<Self>
     where
         F: FnOnce(Self) -> Result<Self>,
@@ -238,9 +253,26 @@ pub enum Distribution {
     Uniform,
     LogUniform,
 }
+impl Distribution {
+    pub fn is_uniform(&self) -> bool {
+        *self == Distribution::Uniform
+    }
+    // TODO: possible-values
+}
 impl Default for Distribution {
     fn default() -> Self {
         Distribution::Uniform
+    }
+}
+impl FromStr for Distribution {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "uniform" => Ok(Distribution::Uniform),
+            "loguniform" => Ok(Distribution::LogUniform),
+            _ => track_panic!(ErrorKind::InvalidInput, "Unknown distribution: {:?}", s),
+        }
     }
 }
 

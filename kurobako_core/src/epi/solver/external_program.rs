@@ -1,6 +1,5 @@
 use crate::epi::channel::{JsonMessageReceiver, JsonMessageSender};
-use crate::json;
-use crate::parameter::{ParamDomain, ParamValue};
+use crate::parameter::ParamValue;
 use crate::problem::ProblemSpec;
 use crate::solver::{ObservedObs, Solver, SolverRecipe, SolverSpec, UnobservedObs};
 use crate::{Error, ErrorKind, Result};
@@ -20,9 +19,6 @@ use yamakan::observation::{IdGen, Obs, ObsId};
 pub struct ExternalProgramSolverRecipe {
     pub path: PathBuf,
     pub args: Vec<String>,
-
-    #[structopt(long, parse(try_from_str = "json::parse_json"))]
-    pub params_domain: Vec<ParamDomain>,
 }
 impl SolverRecipe for ExternalProgramSolverRecipe {
     type Solver = ExternalProgramSolver;

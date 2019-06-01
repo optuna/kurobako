@@ -29,6 +29,15 @@ pub struct RandomSolver {
     params_domain: Vec<ParamDomain>,
     budget: Budget,
 }
+impl RandomSolver {
+    // TODO: delete
+    pub fn new(params_domain: Vec<ParamDomain>) -> Self {
+        Self {
+            params_domain,
+            budget: Budget::new(1),
+        }
+    }
+}
 impl Solver for RandomSolver {
     fn specification(&self) -> SolverSpec {
         SolverSpec {

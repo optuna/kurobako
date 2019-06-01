@@ -1,6 +1,4 @@
 use crate::epi::solver::{ExternalProgramSolver, ExternalProgramSolverRecipe};
-use crate::json;
-use crate::parameter::ParamDomain;
 use crate::problem::ProblemSpec;
 use crate::solver::{ObservedObs, Solver, SolverRecipe, SolverSpec, UnobservedObs};
 use crate::{Error, ErrorKind, Result};
@@ -19,9 +17,6 @@ pub struct EmbeddedScriptSolverRecipe {
     pub script: String,
 
     pub args: Vec<String>,
-
-    #[structopt(long, parse(try_from_str = "json::parse_json"))]
-    pub params_domain: Vec<ParamDomain>,
 
     #[structopt(long)]
     pub interpreter: Option<PathBuf>,
@@ -56,11 +51,7 @@ impl SolverRecipe for EmbeddedScriptSolverRecipe {
         };
         args.extend(self.args.clone());
 
-        let eppr = ExternalProgramSolverRecipe {
-            path,
-            args,
-            params_domain: Vec::new(),
-        };
+        let eppr = ExternalProgramSolverRecipe { path, args };
         let inner = track!(eppr.create_solver(problem))?;
         Ok(EmbeddedScriptSolver { inner, temp })
     }

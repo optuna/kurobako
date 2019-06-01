@@ -16,5 +16,6 @@ pub mod runner;
 pub mod solver;
 pub mod stats;
 pub mod time;
+pub mod variable;
 
 mod rankings;
