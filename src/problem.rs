@@ -6,6 +6,8 @@ use kurobako_problems::{deepobs, ffmpeg, lightgbm, nasbench, sigopt};
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
+mod concat;
+
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[structopt(rename_all = "kebab-case")]
