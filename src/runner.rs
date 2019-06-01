@@ -39,7 +39,7 @@ where
     solver: S,
     problem: P,
     study_record: StudyRecord,
-    study_budget: Budget,
+    pub study_budget: Budget, // TODO
     scheduler: TrialThreadScheduler<P::Evaluator>,
 }
 impl<S, P> StudyRunner<S, P>

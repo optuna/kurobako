@@ -1,4 +1,5 @@
 use crate::exam::ExamProblemRecipe;
+use crate::multi_exam::MultiExamProblemRecipe;
 use kurobako_core::epi::problem::ExternalProgramProblemRecipe;
 use kurobako_core::problem::{BoxProblem, ProblemRecipe};
 use kurobako_core::Result;
@@ -17,6 +18,7 @@ pub enum KurobakoProblemRecipe {
     Lightgbm(lightgbm::LightgbmProblemRecipe),
     Deepobs(deepobs::DeepobsProblemRecipe),
     Exam(ExamProblemRecipe),
+    MultiExam(MultiExamProblemRecipe),
 }
 impl ProblemRecipe for KurobakoProblemRecipe {
     type Problem = BoxProblem;
@@ -30,6 +32,7 @@ impl ProblemRecipe for KurobakoProblemRecipe {
             KurobakoProblemRecipe::Lightgbm(p) => track!(p.create_problem().map(BoxProblem::new)),
             KurobakoProblemRecipe::Deepobs(p) => track!(p.create_problem().map(BoxProblem::new)),
             KurobakoProblemRecipe::Exam(p) => track!(p.create_problem().map(BoxProblem::new)),
+            KurobakoProblemRecipe::MultiExam(p) => track!(p.create_problem().map(BoxProblem::new)),
         }
     }
 }

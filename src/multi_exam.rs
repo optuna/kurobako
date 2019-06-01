@@ -10,6 +10,8 @@ use kurobako_core::solver::{Solver, SolverRecipe, SolverSpec};
 use kurobako_core::{json, Error, Result};
 use serde::{Deserialize, Serialize};
 use serde_json;
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 use std::collections::HashMap;
 use std::num::NonZeroU64;
 use structopt::StructOpt;
@@ -27,7 +29,7 @@ pub struct MultiExamRecipe {
     #[serde(flatten)]
     #[structopt(flatten)]
     pub runner: StudyRunnerOptions,
-    // TODO: Metric (best or auc, ...)
+    // TODO: Metric (raw or dominate-count, ...)
 }
 impl MultiExamRecipe {
     fn bind(&self, vals: &Vals) -> Result<Self> {
@@ -79,9 +81,16 @@ impl ProblemRecipe for MultiExamProblemRecipe {
     fn create_problem(&self) -> Result<Self::Problem> {
         let exam: MultiExamRecipe =
             track!(serde_json::from_value(self.recipe.get().clone()).map_err(Error::from))?;
-        let problem = track!(exam.problems[0].create_problem())?.specification(); // TODO
-        let solver = track!(exam.solver.create_solver(problem.clone()))?.specification();
+        let problems = exam
+            .problems
+            .iter()
+            .map(|p| track!(p.create_problem()).map(|p| p.specification()))
+            .collect::<Result<Vec<_>>>()?;
 
+        // TODO
+        let solver = track!(exam.solver.create_solver(problems[0].clone()))?.specification();
+
+        let lcm = lcm(problems.iter().map(|p| p.evaluation_expense.get()));
         Ok(MultiExamProblem {
             exam,
             vars: self
@@ -89,31 +98,47 @@ impl ProblemRecipe for MultiExamProblemRecipe {
                 .iter()
                 .map(|v| track!(v.to_param_domain()))
                 .collect::<Result<_>>()?,
-            problem,
+            problems,
             solver,
+            lcm,
         })
     }
+}
+
+// TODO
+fn lcm<I>(ns: I) -> u64
+where
+    I: Iterator<Item = u64>,
+{
+    use std::collections::BTreeSet;
+
+    ns.collect::<BTreeSet<_>>().into_iter().product()
 }
 
 #[derive(Debug)]
 pub struct MultiExamProblem {
     exam: MultiExamRecipe,
     vars: Vars,
-    problem: ProblemSpec,
+    problems: Vec<ProblemSpec>,
     solver: SolverSpec,
+    lcm: u64,
 }
 impl Problem for MultiExamProblem {
     type Evaluator = MultiExamEvaluator;
 
     fn specification(&self) -> ProblemSpec {
         let evaluation_expense =
-            NonZeroU64::new(self.exam.runner.budget as u64 * self.problem.evaluation_expense.get())
+            NonZeroU64::new(self.exam.runner.budget as u64 * self.problems.len() as u64 * self.lcm)
                 .unwrap_or_else(|| unimplemented!());
         ProblemSpec {
-            name: format!("exam/{}/{}", self.solver.name, self.problem.name),
-            version: None, // TODO
+            name: format!("exam/{}/{}", self.solver.name, self.problems.len()), // TODO
+            version: None,                                                      // TODO
             params_domain: self.vars.clone(),
-            values_domain: self.problem.values_domain.clone(), // TODO
+            values_domain: self
+                .problems
+                .iter()
+                .flat_map(|p| p.values_domain.clone().into_iter())
+                .collect(),
             evaluation_expense,
             capabilities: vec![EvaluatorCapability::Concurrent].into_iter().collect(),
         }
@@ -123,25 +148,63 @@ impl Problem for MultiExamProblem {
         Ok(MultiExamEvaluator::NotStarted {
             exam: self.exam.clone(),
             vars: self.vars.clone(),
+            lcm: self.lcm,
         })
     }
 }
+
+#[derive(Debug)]
+pub struct Runner {
+    scale: u64,
+    index: usize,
+    inner: StudyRunner<KurobakoSolver, BoxProblem>,
+}
+impl Runner {
+    fn new(index: usize, scale: u64, inner: StudyRunner<KurobakoSolver, BoxProblem>) -> Self {
+        Self {
+            index,
+            scale,
+            inner,
+        }
+    }
+
+    fn consumption(&self) -> u64 {
+        self.inner.study_budget.consumption * self.scale
+    }
+}
+impl PartialOrd for Runner {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        other.consumption().partial_cmp(&self.consumption())
+    }
+}
+impl Ord for Runner {
+    fn cmp(&self, other: &Self) -> Ordering {
+        other.consumption().cmp(&self.consumption())
+    }
+}
+impl PartialEq for Runner {
+    fn eq(&self, other: &Self) -> bool {
+        self.index == other.index
+    }
+}
+impl Eq for Runner {}
 
 #[derive(Debug)]
 pub enum MultiExamEvaluator {
     NotStarted {
         exam: MultiExamRecipe,
         vars: Vars,
+        lcm: u64,
     },
     Running {
-        runner: StudyRunner<KurobakoSolver, BoxProblem>,
+        runners: BinaryHeap<Runner>,
     },
 }
 impl Evaluate for MultiExamEvaluator {
     fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values> {
         loop {
             let next = match self {
-                MultiExamEvaluator::NotStarted { exam, vars } => {
+                MultiExamEvaluator::NotStarted { exam, vars, lcm } => {
                     let vals = vars
                         .iter()
                         .zip(params.iter())
@@ -155,30 +218,60 @@ impl Evaluate for MultiExamEvaluator {
                     let exam = track!(exam.bind(&vals))?;
                     debug!("After bind: {:?}", exam);
 
-                    let runner = track!(StudyRunner::new(
-                        &exam.solver,
-                        &exam.problems[0],
-                        &exam.runner
-                    ))?;
-                    MultiExamEvaluator::Running { runner }
+                    let runners = exam
+                        .problems
+                        .iter()
+                        .enumerate()
+                        .map(|(i, p)| {
+                            let inner = track!(StudyRunner::new(&exam.solver, p, &exam.runner))?;
+                            let scale = *lcm / inner.study().problem.spec.evaluation_expense.get();
+                            Ok(Runner::new(i, scale, inner))
+                        })
+                        .collect::<Result<_>>()?;
+                    MultiExamEvaluator::Running { runners }
                 }
-                MultiExamEvaluator::Running { runner } => {
-                    track!(runner.run_once(budget))?;
-                    loop {
-                        trace!("Study: {:?}", runner.study());
-                        if let Some(v) = runner.study().best_value() {
-                            debug!(
-                                "Evaluated: budget={:?}, params={:?}, value={:?}",
-                                budget,
-                                params,
-                                v.get()
-                            );
-                            return Ok(vec![v]);
-                        }
+                MultiExamEvaluator::Running { runners } => {
+                    while !budget.is_consumed() {
+                        let mut runner = runners.pop().unwrap_or_else(|| unreachable!());
 
-                        budget.amount = budget.consumption + 1;
-                        track!(runner.run_once(budget))?;
+                        let mut runner_budget = runner.inner.study_budget.clone();
+                        let old_consumption = runner_budget.consumption;
+
+                        runner_budget.amount = runner_budget.consumption + 1;
+                        track!(runner.inner.run_once(&mut runner_budget))?;
+                        loop {
+                            trace!("Study: {:?}", runner.inner.study());
+                            if runner.inner.study().best_value().is_some() {
+                                budget.consumption +=
+                                    (runner_budget.consumption - old_consumption) * runner.scale;
+                                runners.push(runner);
+                                break;
+                            }
+
+                            runner_budget.amount = runner_budget.consumption + 1;
+                            track!(runner.inner.run_once(&mut runner_budget))?;
+                        }
                     }
+
+                    let mut vs = runners
+                        .iter()
+                        .map(|r| {
+                            (
+                                r.index,
+                                r.inner
+                                    .study()
+                                    .best_value()
+                                    .unwrap_or_else(|| unreachable!()),
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    vs.sort_by_key(|v| v.0);
+                    let vs = vs.into_iter().map(|v| v.1).collect::<Vec<_>>();
+                    debug!(
+                        "Evaluated: budget={:?}, params={:?}, value={:?}",
+                        budget, params, vs,
+                    );
+                    return Ok(vs);
                 }
             };
             *self = next;
