@@ -345,7 +345,7 @@ impl Evaluate for MultiExamEvaluator {
                         }
                     }
 
-                    let mut vs = runners
+                    let mut temp_vs = runners
                         .iter()
                         .map(|r| {
                             (
@@ -354,11 +354,12 @@ impl Evaluate for MultiExamEvaluator {
                                     .study()
                                     .best_value()
                                     .unwrap_or_else(|| unreachable!()),
+                                r.inner.study_budget.consumption,
                             )
                         })
                         .collect::<Vec<_>>();
-                    vs.sort_by_key(|v| v.0);
-                    let vs = vs.into_iter().map(|v| v.1).collect::<Vec<_>>();
+                    temp_vs.sort_by_key(|v| v.0);
+                    let vs = temp_vs.iter().map(|v| v.1).collect::<Vec<_>>();
                     debug!(
                         "Evaluated: budget={:?}, params={:?}, value={:?}",
                         budget, params, vs,
@@ -366,15 +367,15 @@ impl Evaluate for MultiExamEvaluator {
                     if metric.is_raw() {
                         return Ok(vs);
                     } else {
-                        let ranking_sum = vs
+                        let ranking_sum = temp_vs
                             .into_iter()
                             .zip(baselines.iter())
-                            .map(|(v, studies)| {
+                            .map(|((_, v, budget), studies)| {
                                 // TODO: optimize
                                 studies
                                     .iter()
-                                    .filter_map(|s| s.best_value())
-                                    .filter(|s| v > *s)
+                                    .filter_map(|s| s.scorer().best_value(budget))
+                                    .filter(|s| v.get() > *s)
                                     .count()
                             })
                             .sum::<usize>(); // TODO: remove duplicated baseline studies
