@@ -197,12 +197,7 @@ impl Problem for MultiExamProblem {
             use rustats::range::MinMax;
 
             vec![unsafe {
-                MinMax::new_unchecked(
-                    FiniteF64::new_unchecked(0.0),
-                    FiniteF64::new_unchecked(
-                        self.baselines.iter().map(|b| b.len()).sum::<usize>() as f64
-                    ),
-                )
+                MinMax::new_unchecked(FiniteF64::new_unchecked(0.0), FiniteF64::new_unchecked(1.0))
             }]
         };
         ProblemSpec {
@@ -368,19 +363,21 @@ impl Evaluate for MultiExamEvaluator {
                         return Ok(vs);
                     } else {
                         let ranking_sum = temp_vs
-                            .into_iter()
+                            .iter()
                             .zip(baselines.iter())
-                            .map(|((_, v, budget), studies)| {
+                            .map(|(&(_, v, budget), studies)| {
                                 // TODO: optimize
-                                studies
+                                let count = studies
                                     .iter()
                                     .filter_map(|s| s.scorer().best_value(budget))
                                     .filter(|s| v.get() > *s)
-                                    .count()
+                                    .count() as f64;
+                                count / studies.len() as f64
                             })
-                            .sum::<usize>(); // TODO: remove duplicated baseline studies
-                        debug!("Ranking: {}", ranking_sum);
-                        return Ok(vec![FiniteF64::new(ranking_sum as f64)?]);
+                            .sum::<f64>(); // TODO: remove duplicated baseline studies
+                        let score = ranking_sum / temp_vs.len() as f64;
+                        debug!("Ranking: {} ({})", ranking_sum, score);
+                        return Ok(vec![track!(FiniteF64::new(score))?]);
                     }
                 }
             };
