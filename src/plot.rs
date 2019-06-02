@@ -169,7 +169,9 @@ impl SolverPlot {
         let mut scores = Vec::new();
         let scorers = studies.iter().map(|s| s.scorer()).collect::<Vec<_>>();
         for i in 0..studies[0].study_budget() {
-            let best_values = scorers.iter().map(|s| s.best_value(i));
+            let best_values = scorers
+                .iter()
+                .map(|s| s.best_value(i).unwrap_or_else(|| unimplemented!()));
             let avg = average(best_values.clone());
             let sd = stddev(best_values);
             scores.push(Score { avg, sd });

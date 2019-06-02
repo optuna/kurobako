@@ -162,7 +162,7 @@ where
         let mut trial = track_assert_some!(thread.trial.take(), ErrorKind::Bug);
         let mut trial_budget = trial.obs.param.budget();
 
-        debug!("Thread[{}]: budget={:?}", thread.id, trial_budget);
+        trace!("Thread[{}]: budget={:?}", thread.id, trial_budget);
 
         let (result, elapsed) = ElapsedSeconds::time(|| {
             track!(trial

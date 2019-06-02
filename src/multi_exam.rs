@@ -1,22 +1,42 @@
 use crate::problem::KurobakoProblemRecipe;
+use crate::record::StudyRecord;
 use crate::runner::{StudyRunner, StudyRunnerOptions};
 use crate::solver::{KurobakoSolver, KurobakoSolverRecipe};
 use crate::variable::{VarPath, Variable};
+use kurobako_core::num::FiniteF64;
 use kurobako_core::parameter::{ParamDomain, ParamValue};
 use kurobako_core::problem::{
     BoxProblem, Evaluate, EvaluatorCapability, Problem, ProblemRecipe, ProblemSpec, Values,
 };
 use kurobako_core::solver::{Solver, SolverRecipe, SolverSpec};
-use kurobako_core::{json, Error, Result};
+use kurobako_core::{json, Error, ErrorKind, Result};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
 use std::num::NonZeroU64;
+use std::path::PathBuf;
 use structopt::StructOpt;
 use yamakan::budget::Budget;
 use yamakan::observation::ObsId;
+
+#[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
+#[structopt(rename_all = "kebab-case")]
+#[serde(rename_all = "snake_case")]
+pub enum MetricRecipe {
+    Raw,
+    Ranking { baselines: PathBuf },
+}
+impl MetricRecipe {
+    fn is_raw(&self) -> bool {
+        if let MetricRecipe::Raw = self {
+            true
+        } else {
+            false
+        }
+    }
+}
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 pub struct MultiExamRecipe {
@@ -29,7 +49,9 @@ pub struct MultiExamRecipe {
     #[serde(flatten)]
     #[structopt(flatten)]
     pub runner: StudyRunnerOptions,
-    // TODO: Metric (raw or dominate-count, ...)
+
+    #[structopt(subcommand)]
+    pub metric: MetricRecipe,
 }
 impl MultiExamRecipe {
     fn bind(&self, vals: &Vals) -> Result<Self> {
@@ -91,6 +113,39 @@ impl ProblemRecipe for MultiExamProblemRecipe {
         let solver = track!(exam.solver.create_solver(problems[0].clone()))?.specification();
 
         let lcm = lcm(problems.iter().map(|p| p.evaluation_expense.get()));
+
+        let baselines = if let MetricRecipe::Ranking { baselines } = &exam.metric {
+            use crate::record::load_studies;
+
+            let studies = track!(load_studies(baselines))?;
+            debug!("Studies: {}", studies.len());
+
+            // TODO
+            let mut recipe_to_studies = HashMap::<_, Vec<_>>::new();
+            for study in studies {
+                recipe_to_studies
+                    .entry(study.problem.recipe.clone())
+                    .or_default()
+                    .push(study);
+            }
+
+            let mut baselines = Vec::new();
+            for p in &exam.problems {
+                let p = json::JsonValue::new(track!(
+                    serde_json::to_value(p.clone()).map_err(Error::from)
+                )?); // TODO
+                if let Some(s) = recipe_to_studies.get(&p).cloned() {
+                    debug!("Baseline: n={}, recipe={}", s.len(), p.get());
+                    baselines.push(s);
+                } else {
+                    track_panic!(ErrorKind::InvalidInput, "No baseline studies");
+                }
+            }
+            baselines
+        } else {
+            vec![Vec::new(); exam.problems.len()]
+        };
+
         Ok(MultiExamProblem {
             exam,
             vars: self
@@ -101,6 +156,7 @@ impl ProblemRecipe for MultiExamProblemRecipe {
             problems,
             solver,
             lcm,
+            baselines,
         })
     }
 }
@@ -122,6 +178,7 @@ pub struct MultiExamProblem {
     problems: Vec<ProblemSpec>,
     solver: SolverSpec,
     lcm: u64,
+    baselines: Vec<Vec<StudyRecord>>,
 }
 impl Problem for MultiExamProblem {
     type Evaluator = MultiExamEvaluator;
@@ -130,15 +187,29 @@ impl Problem for MultiExamProblem {
         let evaluation_expense =
             NonZeroU64::new(self.exam.runner.budget as u64 * self.problems.len() as u64 * self.lcm)
                 .unwrap_or_else(|| unimplemented!());
+
+        let values_domain = if self.exam.metric.is_raw() {
+            self.problems
+                .iter()
+                .flat_map(|p| p.values_domain.clone().into_iter())
+                .collect()
+        } else {
+            use rustats::range::MinMax;
+
+            vec![unsafe {
+                MinMax::new_unchecked(
+                    FiniteF64::new_unchecked(0.0),
+                    FiniteF64::new_unchecked(
+                        self.baselines.iter().map(|b| b.len()).sum::<usize>() as f64
+                    ),
+                )
+            }]
+        };
         ProblemSpec {
             name: format!("exam/{}/{}", self.solver.name, self.problems.len()), // TODO
             version: None,                                                      // TODO
             params_domain: self.vars.clone(),
-            values_domain: self
-                .problems
-                .iter()
-                .flat_map(|p| p.values_domain.clone().into_iter())
-                .collect(),
+            values_domain,
             evaluation_expense,
             capabilities: vec![EvaluatorCapability::Concurrent].into_iter().collect(),
         }
@@ -149,6 +220,7 @@ impl Problem for MultiExamProblem {
             exam: self.exam.clone(),
             vars: self.vars.clone(),
             lcm: self.lcm,
+            baselines: self.baselines.clone(),
         })
     }
 }
@@ -195,16 +267,24 @@ pub enum MultiExamEvaluator {
         exam: MultiExamRecipe,
         vars: Vars,
         lcm: u64,
+        baselines: Vec<Vec<StudyRecord>>,
     },
     Running {
         runners: BinaryHeap<Runner>,
+        metric: MetricRecipe,
+        baselines: Vec<Vec<StudyRecord>>,
     },
 }
 impl Evaluate for MultiExamEvaluator {
     fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values> {
         loop {
             let next = match self {
-                MultiExamEvaluator::NotStarted { exam, vars, lcm } => {
+                MultiExamEvaluator::NotStarted {
+                    exam,
+                    vars,
+                    lcm,
+                    baselines,
+                } => {
                     let vals = vars
                         .iter()
                         .zip(params.iter())
@@ -228,10 +308,22 @@ impl Evaluate for MultiExamEvaluator {
                             Ok(Runner::new(i, scale, inner))
                         })
                         .collect::<Result<_>>()?;
-                    MultiExamEvaluator::Running { runners }
+                    MultiExamEvaluator::Running {
+                        runners,
+                        metric: exam.metric.clone(),
+                        baselines: baselines.clone(),
+                    }
                 }
-                MultiExamEvaluator::Running { runners } => {
-                    while !budget.is_consumed() {
+                MultiExamEvaluator::Running {
+                    runners,
+                    metric,
+                    baselines,
+                } => {
+                    while !budget.is_consumed()
+                        || runners
+                            .peek()
+                            .map_or(false, |r| r.inner.study().best_value().is_none())
+                    {
                         let mut runner = runners.pop().unwrap_or_else(|| unreachable!());
 
                         let mut runner_budget = runner.inner.study_budget.clone();
@@ -271,7 +363,24 @@ impl Evaluate for MultiExamEvaluator {
                         "Evaluated: budget={:?}, params={:?}, value={:?}",
                         budget, params, vs,
                     );
-                    return Ok(vs);
+                    if metric.is_raw() {
+                        return Ok(vs);
+                    } else {
+                        let ranking_sum = vs
+                            .into_iter()
+                            .zip(baselines.iter())
+                            .map(|(v, studies)| {
+                                // TODO: optimize
+                                studies
+                                    .iter()
+                                    .filter_map(|s| s.best_value())
+                                    .filter(|s| v > *s)
+                                    .count()
+                            })
+                            .sum::<usize>(); // TODO: remove duplicated baseline studies
+                        debug!("Ranking: {}", ranking_sum);
+                        return Ok(vec![FiniteF64::new(ranking_sum as f64)?]);
+                    }
                 }
             };
             *self = next;

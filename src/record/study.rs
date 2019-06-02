@@ -105,8 +105,9 @@ impl StudyRecord {
     }
 
     pub fn best_value(&self) -> Option<FiniteF64> {
-        let v = self.scorer().best_value(self.study_budget());
-        Some(FiniteF64::new(v).unwrap_or_else(|e| panic!("{}", e)))
+        self.scorer()
+            .best_value(self.study_budget())
+            .map(|v| FiniteF64::new(v).unwrap_or_else(|e| panic!("{}", e)))
     }
 
     pub fn auc(&self) -> Option<FiniteF64> {
@@ -143,19 +144,20 @@ impl Scorer {
         }
     }
 
-    // TODO: return Option<f64>
-    pub fn best_value(&self, budget: u64) -> f64 {
+    pub fn best_value(&self, budget: u64) -> Option<f64> {
         self.bests
             .iter()
             .take_while(|t| t.0 <= budget)
             .map(|t| t.1)
             .last()
-            .unwrap_or_else(|| unimplemented!("budget: {:?}", budget))
     }
 
     pub fn auc(&self, budget: u64) -> Option<FiniteF64> {
         // TODO: change starting point (for trials that support pruning)
-        let auc = average((0..budget).map(|i| self.best_value(i) - self.lower_bound));
+        let auc =
+            average((0..budget).map(|i| {
+                self.best_value(i).unwrap_or_else(|| unimplemented!()) - self.lower_bound
+            }));
         Some(FiniteF64::new(auc).unwrap_or_else(|e| panic!("{}", e)))
     }
 }
