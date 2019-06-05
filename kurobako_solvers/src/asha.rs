@@ -26,6 +26,9 @@ pub struct AshaSolverRecipe {
     #[structopt(long, default_value = "2")]
     pub reduction_factor: usize,
 
+    #[structopt(long)]
+    pub without_checkpoint: bool,
+
     pub base_solver: SolverRecipePlaceHolder,
 }
 impl SolverRecipe for AshaSolverRecipe {
@@ -52,6 +55,9 @@ impl SolverRecipe for AshaSolverRecipe {
 
         let mut builder = AshaOptimizerBuilder::new();
         track!(builder.reduction_factor(self.reduction_factor))?;
+        if self.without_checkpoint {
+            builder.without_checkpoint();
+        }
         let optimizer = track!(builder.finish(YamakanSolver::new(base), min_budget, max_budget))?;
 
         Ok(AshaSolver { optimizer })
