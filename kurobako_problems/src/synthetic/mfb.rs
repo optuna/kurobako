@@ -64,7 +64,7 @@ impl Problem for MfbProblem {
 
     fn specification(&self) -> ProblemSpec {
         ProblemSpec {
-            name: format!("MFB{}", self.mfb.no),
+            name: format!("MFB{:02}", self.mfb.no),
             version: None,
             params_domain: (0..self.mfb.f.dimensions.get())
                 .map(|i| {
