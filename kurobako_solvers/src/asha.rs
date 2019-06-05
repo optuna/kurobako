@@ -19,6 +19,10 @@ pub struct AshaSolverRecipe {
     #[structopt(long, default_value = "0.01")]
     pub finish_rate: f64,
 
+    // TODO: integratio with finish_rate
+    #[structopt(long)]
+    pub min_resource: Option<u64>,
+
     #[structopt(long, default_value = "2")]
     pub reduction_factor: usize,
 
@@ -35,6 +39,9 @@ impl SolverRecipe for AshaSolverRecipe {
             if (min_budget as f64) / (max_budget as f64) < self.finish_rate {
                 break;
             }
+        }
+        if let Some(min) = self.min_resource {
+            min_budget = min;
         }
         debug!(
             "ASHA options: min_budget={}, max_budget={}, reduction_factor={}",
