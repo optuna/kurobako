@@ -7,6 +7,8 @@ use kurobako_core::problem::{
     Evaluate, EvaluatorCapability, Problem, ProblemRecipe, ProblemSpec, Values,
 };
 use kurobako_core::{ErrorKind, Result};
+use rand::distributions::{Distribution as _, Normal};
+use rand::{self, Rng as _};
 use rustats::range::MinMax;
 use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;
@@ -101,7 +103,8 @@ impl Evaluate for MfbEvaluator {
             .phis()
             .take_while(|&phi| self.mfb.c.cost(phi) <= max_cost)
             .last();
-        let phi = track_assert_some!(phi, ErrorKind::InvalidInput) as f64;
+        let phi =
+            phi.unwrap_or_else(|| self.mfb.phis().nth(0).unwrap_or_else(|| unreachable!())) as f64;
 
         let xs = params
             .iter()
@@ -159,6 +162,8 @@ impl Mfb {
     }
 }
 
+const GLOBAL_OPTIMUM_X: f64 = 0.0;
+
 #[derive(Debug, Clone)]
 struct ModifiedRastrigin {
     dimensions: NonZeroUsize,
@@ -200,6 +205,114 @@ enum FidelityError {
 }
 impl FidelityError {
     fn error(&self, xs: &[f64], phi: f64) -> f64 {
-        panic!()
+        match self {
+            FidelityError::Resolution1 => {
+                let theta = 1.0 - 0.0001 * phi;
+                resolution_error(xs, theta, |_| 1.0)
+            }
+            FidelityError::Resolution2 => {
+                let theta = (-0.00025 * phi).exp();
+                resolution_error(xs, theta, |_| 1.0)
+            }
+            FidelityError::Resolution3 => {
+                let theta = {
+                    assert!(0.0 <= phi);
+                    assert!(phi <= 10_000.0, "phi={}", phi);
+
+                    if phi < 1_000.0 {
+                        1.0 - 0.0002 * phi
+                    } else if phi < 2_000.0 {
+                        0.8
+                    } else if phi < 3_000.0 {
+                        1.2 - 0.0002 * phi
+                    } else if phi < 4_000.0 {
+                        0.6
+                    } else if phi < 5_000.0 {
+                        1.4 - 0.0002 * phi
+                    } else if phi < 6_000.0 {
+                        0.4
+                    } else if phi < 7_000.0 {
+                        1.6 - 0.0002 * phi
+                    } else if phi < 8_000.0 {
+                        0.2
+                    } else if phi < 9_000.0 {
+                        1.8 - 0.0002 * phi
+                    } else {
+                        0.0
+                    }
+                };
+                resolution_error(xs, theta, |_| 1.0)
+            }
+            FidelityError::Resolution4 => {
+                let theta = 1.0 - 0.0001 * phi;
+                resolution_error(xs, theta, |x| 1.0 - (x - GLOBAL_OPTIMUM_X).abs())
+            }
+            FidelityError::Stochastic1 => {
+                let theta = 1.0 - 0.0001 * phi;
+                let mu = 0.0;
+                let sigma = 0.1 * theta;
+                stochastic_error(mu, sigma)
+            }
+            FidelityError::Stochastic2 => {
+                let theta = (-0.0005 * phi).exp();
+                let mu = 0.0;
+                let sigma = 0.1 * theta;
+                stochastic_error(mu, sigma)
+            }
+            FidelityError::Stochastic3 => {
+                let theta = 1.0 - 0.0001 * phi;
+                let gamma: f64 = xs.iter().map(|&x| 1.0 - (x - GLOBAL_OPTIMUM_X).abs()).sum();
+                let mu = (0.1 * theta / xs.len() as f64) * gamma;
+                let sigma = 0.1 * theta;
+                stochastic_error(mu, sigma)
+            }
+            FidelityError::Stochastic4 => {
+                let theta = (-0.0005 * phi).exp();
+                let gamma: f64 = xs.iter().map(|&x| 1.0 - (x - GLOBAL_OPTIMUM_X).abs()).sum();
+                let mu = (0.1 * theta / xs.len() as f64) * gamma;
+                let sigma = 0.1 * theta;
+                stochastic_error(mu, sigma)
+            }
+            FidelityError::Instability1 => {
+                let p = 0.1 * (1.0 - 0.0001 * phi);
+                let l = (10 * xs.len()) as f64;
+                instability_error(p, l)
+            }
+            FidelityError::Instability2 => {
+                let p = (-0.001 * phi - 0.1).exp();
+                let l = (10 * xs.len()) as f64;
+                instability_error(p, l)
+            }
+        }
+    }
+}
+
+fn resolution_error<Psi>(xs: &[f64], theta: f64, psi: Psi) -> f64
+where
+    Psi: Fn(f64) -> f64,
+{
+    xs.iter()
+        .map(|&x| {
+            let a = theta * psi(x);
+            let w = 10.0 * PI * theta;
+            let b = 0.5 * PI * theta;
+            a * (w * x + b + PI).cos()
+        })
+        .sum()
+}
+
+fn stochastic_error(mu: f64, sigma: f64) -> f64 {
+    let mut rng = rand::thread_rng(); // TODO:
+    let distribution = Normal::new(mu, sigma);
+    distribution.sample(&mut rng)
+}
+
+fn instability_error(p: f64, l: f64) -> f64 {
+    let mut rng = rand::thread_rng(); // TODO
+    let r = rng.gen_range(0.0, 1.0);
+    if r <= p {
+        l
+    } else {
+        0.0
     }
 }
