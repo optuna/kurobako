@@ -19,6 +19,9 @@ pub struct PlotOptions {
     #[structopt(long)]
     pub ymax: Option<f64>,
 
+    #[structopt(long)]
+    pub xmax: Option<f64>,
+
     #[structopt(long, default_value = "")]
     pub prefix: String,
 
@@ -80,7 +83,8 @@ impl PlotOptions {
             s += "set style fill noborder;";
         }
         s += &format!(
-            "plot [] [{}:{}]",
+            "plot [:{}] [{}:{}]",
+            self.xmax.map(|v| v.to_string()).unwrap_or("".to_string()),
             self.ymin.map(|v| v.to_string()).unwrap_or("".to_string()),
             self.ymax.map(|v| v.to_string()).unwrap_or("".to_string()),
         );
