@@ -3,7 +3,7 @@ use crate::multi_exam::MultiExamProblemRecipe;
 use kurobako_core::epi::problem::ExternalProgramProblemRecipe;
 use kurobako_core::problem::{BoxProblem, ProblemRecipe};
 use kurobako_core::Result;
-use kurobako_problems::{deepobs, ffmpeg, lightgbm, nasbench, sigopt, synthetic};
+use kurobako_problems::{deepobs, fc_net, ffmpeg, lightgbm, nasbench, sigopt, synthetic};
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
@@ -14,6 +14,7 @@ pub enum KurobakoProblemRecipe {
     Command(ExternalProgramProblemRecipe),
     Sigopt(sigopt::SigoptProblemRecipe),
     Nasbench(nasbench::NasbenchProblemRecipe),
+    FcNet(fc_net::FcNetProblemRecipe),
     Ffmpeg(ffmpeg::FfmpegProblemRecipe),
     Lightgbm(lightgbm::LightgbmProblemRecipe),
     Deepobs(deepobs::DeepobsProblemRecipe),
@@ -29,6 +30,7 @@ impl ProblemRecipe for KurobakoProblemRecipe {
             KurobakoProblemRecipe::Command(p) => track!(p.create_problem().map(BoxProblem::new)),
             KurobakoProblemRecipe::Sigopt(p) => track!(p.create_problem().map(BoxProblem::new)),
             KurobakoProblemRecipe::Nasbench(p) => track!(p.create_problem().map(BoxProblem::new)),
+            KurobakoProblemRecipe::FcNet(p) => track!(p.create_problem().map(BoxProblem::new)),
             KurobakoProblemRecipe::Ffmpeg(p) => track!(p.create_problem().map(BoxProblem::new)),
             KurobakoProblemRecipe::Lightgbm(p) => track!(p.create_problem().map(BoxProblem::new)),
             KurobakoProblemRecipe::Deepobs(p) => track!(p.create_problem().map(BoxProblem::new)),

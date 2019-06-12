@@ -14,6 +14,7 @@ travis-ci = {repository = "sile/kurobako"}
 codecov = {repository = "sile/kurobako"}
 
 [dependencies]
+hdf5file = "0.0"
 kurobako_core = { path = "../kurobako_core/", version = "0.0" }
 nasbench = "0.1"
 rand = "0.6"
