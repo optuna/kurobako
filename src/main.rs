@@ -11,6 +11,7 @@ use kurobako::problem::KurobakoProblemRecipe;
 use kurobako::problem_suites::{KurobakoProblemSuite, ProblemSuite};
 use kurobako::record::{BenchmarkRecord, StudyRecord};
 use kurobako::runner::StudyRunner;
+use kurobako::select::SelectOpt;
 use kurobako::solver::KurobakoSolverRecipe;
 use kurobako::stats::ranking::{SolverRanking, SolverRankingOptions};
 use kurobako::variable::Variable;
@@ -29,6 +30,7 @@ enum Opt {
     MultiExam(MultiExamRecipe),
     Benchmark(BenchmarkRecipe),
     Run(RunOpt),
+    Select(SelectOpt),
     Stats(StatsOpt),
     Plot(PlotOpt),
     Var(Variable),
@@ -95,11 +97,37 @@ fn main() -> trackable::result::MainResult {
         Opt::Run(opt) => {
             handle_run_command(opt)?;
         }
+        Opt::Select(opt) => {
+            handle_select_command(opt)?;
+        }
         Opt::Stats(opt) => {
             handle_stats_command(opt)?;
         }
         Opt::Plot(opt) => {
             handle_plot_command(opt)?;
+        }
+    }
+    Ok(())
+}
+
+fn handle_select_command(opt: SelectOpt) -> Result<()> {
+    let selector = opt.build();
+    let stdin = std::io::stdin();
+
+    let stdout = std::io::stdout();
+    let mut stdout = stdout.lock();
+    for study in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
+        match track!(study.map_err(Error::from)) {
+            Err(e) => {
+                eprintln!("{}", e);
+            }
+            Ok(study) => {
+                let study: StudyRecord = study;
+                if selector.is_selected(&study) {
+                    track!(serde_json::to_writer(&mut stdout, &study).map_err(Error::from))?;
+                    println!();
+                }
+            }
         }
     }
     Ok(())

@@ -14,6 +14,7 @@ pub mod problem;
 pub mod problem_suites;
 pub mod record;
 pub mod runner;
+pub mod select;
 pub mod solver;
 pub mod stats;
 pub mod time;

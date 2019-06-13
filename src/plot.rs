@@ -69,7 +69,7 @@ impl PlotOptions {
         output: P,
     ) -> String {
         let mut s = format!(
-            "set title {:?}; set ylabel \"Objective Value\"; set xlabel \"Budget\"; set grid;",
+            "set title {:?} noenhanced; set ylabel \"Objective Value\"; set xlabel \"Budget\"; set grid;",
             problem
         );
         s += &format!(
