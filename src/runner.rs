@@ -243,6 +243,8 @@ where
     }
 
     fn next_evaluation_point(&self, candidate: u64) -> u64 {
+        use std::cmp;
+
         if self.study_record.runner.evaluation_points.is_empty() {
             candidate
         } else {
@@ -254,6 +256,7 @@ where
                 .rev()
                 .take_while(|p| candidate <= *p)
                 .last()
+                .map(|n| cmp::min(n, self.trial_max_budget()))
                 .unwrap_or_else(|| self.trial_max_budget())
         }
     }
