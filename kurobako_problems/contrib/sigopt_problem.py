@@ -30,7 +30,7 @@ for low, high in test_function.bounds:
 
 message = {
     'type': 'PROBLEM_SPEC_CAST',
-    'name': 'sigopt/evalset/{}'.format(args.name),
+    'name': 'sigopt/evalset/{}/{}'.format(args.name, args.dim),
     'version': get_distribution('evalset').version,
     'params-domain': params_domain,
     'values-domain': [{"min": float(test_function.fmin), "max": float(test_function.fmax)}],
