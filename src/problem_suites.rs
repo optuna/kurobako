@@ -1,7 +1,10 @@
 use crate::problem::KurobakoProblemRecipe;
 use kurobako_core::problem::ProblemRecipe;
 use kurobako_problems::sigopt::{Name, SigoptProblemRecipe};
+use kurobako_problems::synthetic::{self, mfb};
+use kurobako_problems::{fc_net, nasbench};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use structopt::StructOpt;
 
 pub trait ProblemSuite {
@@ -15,6 +18,9 @@ pub trait ProblemSuite {
 #[structopt(rename_all = "kebab-case")]
 pub enum KurobakoProblemSuite {
     Sigopt(SigoptProblemSuite),
+    Nasbench { dataset_path: PathBuf },
+    FcNet { dataset_dir: PathBuf },
+    Mfb,
 }
 impl ProblemSuite for KurobakoProblemSuite {
     type ProblemRecipe = KurobakoProblemRecipe;
@@ -24,6 +30,39 @@ impl ProblemSuite for KurobakoProblemSuite {
             KurobakoProblemSuite::Sigopt(p) => {
                 Box::new(p.problem_specs().map(KurobakoProblemRecipe::Sigopt))
             }
+            KurobakoProblemSuite::Nasbench { dataset_path } => {
+                let recipe = |encoding| nasbench::NasbenchProblemRecipe {
+                    dataset_path: dataset_path.clone(),
+                    encoding,
+                };
+                let recipes = vec![
+                    recipe(nasbench::Encoding::A),
+                    recipe(nasbench::Encoding::B),
+                    recipe(nasbench::Encoding::C),
+                ];
+                Box::new(recipes.into_iter().map(KurobakoProblemRecipe::Nasbench))
+            }
+            KurobakoProblemSuite::FcNet { dataset_dir } => {
+                let recipe = |name| fc_net::FcNetProblemRecipe {
+                    dataset_path: dataset_dir.join(name),
+                };
+                let recipes = vec![
+                    recipe("fcnet_naval_propulsion_data.hdf5"),
+                    recipe("fcnet_parkinsons_telemonitoring_data.hdf5"),
+                    recipe("fcnet_protein_structure_data.hdf5"),
+                    recipe("fcnet_slice_localization_data.hdf5"),
+                ];
+                Box::new(recipes.into_iter().map(KurobakoProblemRecipe::FcNet))
+            }
+            KurobakoProblemSuite::Mfb => Box::new((1..=13).map(|n| {
+                KurobakoProblemRecipe::Synthetic(synthetic::SyntheticProblemRecipe::Mfb(
+                    mfb::MfbProblemRecipe {
+                        problem_number: n,
+                        dimensions: 8,
+                        fidelity_levels: 100,
+                    },
+                ))
+            })),
         }
     }
 }
