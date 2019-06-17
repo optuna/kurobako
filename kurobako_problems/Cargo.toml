@@ -16,6 +16,8 @@ codecov = {repository = "sile/kurobako"}
 [dependencies]
 hdf5file = "0.0"
 kurobako_core = { path = "../kurobako_core/", version = "0.0" }
+lazy_static = "1"
+log = "0.4"
 nasbench = "0.1"
 rand = "0.6"
 regex = "1"

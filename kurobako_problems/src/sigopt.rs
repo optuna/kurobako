@@ -3,11 +3,21 @@ use kurobako_core::epi::problem::{
 };
 use kurobako_core::parameter::ParamValue;
 use kurobako_core::problem::{Evaluate, Problem, ProblemRecipe, ProblemSpec, Values};
-use kurobako_core::Result;
+use kurobako_core::{Error, Result};
+use lazy_static::lazy_static;
+use log::debug;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
+use std::sync::{Arc, Mutex, Weak};
 use structopt::StructOpt;
 use yamakan::budget::Budget;
 use yamakan::observation::ObsId;
+
+lazy_static! {
+    static ref PROBLEM_CACHE: Mutex<HashMap<Vec<String>, Weak<Mutex<SendableEmbeddedScriptProblem>>>> =
+        Default::default();
+}
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -36,41 +46,78 @@ impl ProblemRecipe for SigoptProblemRecipe {
         if let Some(res) = self.res {
             args.extend_from_slice(&["--res".to_owned(), res.to_string()]);
         }
-        let recipe = EmbeddedScriptProblemRecipe {
-            script: script.to_owned(),
-            args,
-            interpreter: None, // TODO: env!("KUROBAKO_PYTHON")
-            interpreter_args: Vec::new(),
-            skip_lines: None,
-        };
-        let inner = track!(recipe.create_problem())?;
-        Ok(SigoptProblem(inner))
+
+        let mut cache = track!(PROBLEM_CACHE.lock().map_err(Error::from))?;
+        if let Some(inner) = cache.get(&args).and_then(|v| v.upgrade()) {
+            debug!("Use cache: args={:?}", args.join(" "));
+            Ok(SigoptProblem(inner))
+        } else {
+            let recipe = EmbeddedScriptProblemRecipe {
+                script: script.to_owned(),
+                args: args.clone(),
+                interpreter: None, // TODO: env!("KUROBAKO_PYTHON")
+                interpreter_args: Vec::new(),
+                skip_lines: None,
+            };
+
+            let inner = track!(recipe.create_problem())?;
+            let inner = Arc::new(Mutex::new(SendableEmbeddedScriptProblem(inner)));
+            cache.insert(args, Arc::downgrade(&inner));
+            Ok(SigoptProblem(inner))
+        }
     }
 }
 
 #[derive(Debug)]
-pub struct SigoptProblem(EmbeddedScriptProblem);
+struct SendableEmbeddedScriptProblem(EmbeddedScriptProblem);
+unsafe impl Send for SendableEmbeddedScriptProblem {}
+impl Deref for SendableEmbeddedScriptProblem {
+    type Target = EmbeddedScriptProblem;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for SendableEmbeddedScriptProblem {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SigoptProblem(Arc<Mutex<SendableEmbeddedScriptProblem>>);
 impl Problem for SigoptProblem {
     type Evaluator = SigoptEvaluator;
 
     fn specification(&self) -> ProblemSpec {
-        self.0.specification()
+        let inner = self.0.lock().unwrap_or_else(|e| panic!("{}", e));
+        inner.specification()
     }
 
     fn create_evaluator(&mut self, id: ObsId) -> Result<Self::Evaluator> {
-        track!(self.0.create_evaluator(id)).map(SigoptEvaluator)
+        let mut inner = track!(self.0.lock().map_err(Error::from))?;
+        track!(inner.create_evaluator(id)).map(|inner| SigoptEvaluator {
+            lock: Arc::clone(&self.0),
+            inner,
+        })
     }
 }
 
 #[derive(Debug)]
-pub struct SigoptEvaluator(EmbeddedScriptEvaluator);
+pub struct SigoptEvaluator {
+    lock: Arc<Mutex<SendableEmbeddedScriptProblem>>,
+    inner: EmbeddedScriptEvaluator,
+}
 impl Evaluate for SigoptEvaluator {
     fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values> {
-        track!(self.0.evaluate(params, budget))
+        let _lock = track!(self.lock.lock().map_err(Error::from))?;
+        track!(self.inner.evaluate(params, budget))
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, StructOpt, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, StructOpt, Serialize, Deserialize,
+)]
 #[structopt(rename_all = "kebab-case")]
 #[serde(rename_all = "kebab-case")]
 pub enum Name {

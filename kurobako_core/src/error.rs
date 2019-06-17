@@ -24,6 +24,11 @@ impl From<std::io::Error> for Error {
         ErrorKind::IoError.cause(f).into()
     }
 }
+impl<T> From<std::sync::PoisonError<T>> for Error {
+    fn from(f: std::sync::PoisonError<T>) -> Self {
+        ErrorKind::Other.cause(f.to_string()).into()
+    }
+}
 impl From<serde_json::error::Error> for Error {
     fn from(f: serde_json::error::Error) -> Self {
         if let serde_json::error::Category::Io = f.classify() {
