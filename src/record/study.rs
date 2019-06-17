@@ -104,6 +104,27 @@ impl StudyRecord {
         Scorer::new(self)
     }
 
+    pub fn complete_trials(&self) -> impl Iterator<Item = (u64, TrialRecord)> {
+        let mut trials = HashMap::<ObsId, TrialRecord>::new();
+        let mut completed = Vec::new();
+        let mut consumption = 0;
+        for trial in &self.trials {
+            consumption += trial.evaluate.expense;
+            if let Some(t) = trials.get_mut(&trial.obs_id) {
+                t.evaluate.expense += trial.evaluate.expense;
+            // TODO: adjust other fields
+            } else {
+                trials.insert(trial.obs_id, trial.clone());
+            }
+
+            if trials[&trial.obs_id].evaluate.expense >= self.trial_budget() {
+                completed.push((consumption, trials[&trial.obs_id].clone()));
+            }
+        }
+
+        completed.into_iter()
+    }
+
     pub fn best_value(&self) -> Option<FiniteF64> {
         self.scorer()
             .best_value(self.study_budget())

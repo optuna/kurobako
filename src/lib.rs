@@ -10,6 +10,7 @@ pub mod filters;
 pub mod markdown;
 pub mod multi_exam;
 pub mod plot;
+pub mod plot_scatter; // TODO: merge with plot
 pub mod problem;
 pub mod problem_suites;
 pub mod record;

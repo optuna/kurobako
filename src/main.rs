@@ -7,6 +7,7 @@ use kurobako::filter::KurobakoFilterRecipe;
 use kurobako::markdown::MarkdownWriter;
 use kurobako::multi_exam::MultiExamRecipe;
 use kurobako::plot::PlotOptions;
+use kurobako::plot_scatter::PlotScatterOptions;
 use kurobako::problem::KurobakoProblemRecipe;
 use kurobako::problem_suites::{KurobakoProblemSuite, ProblemSuite};
 use kurobako::record::{BenchmarkRecord, StudyRecord};
@@ -33,6 +34,7 @@ enum Opt {
     Select(SelectOpt),
     Stats(StatsOpt),
     Plot(PlotOpt),
+    PlotScatter(PlotScatterOpt),
     Var(Variable),
 }
 
@@ -52,11 +54,24 @@ struct PlotOpt {
     #[structopt(long)]
     budget: Option<u64>,
 
-    #[structopt(long, default_value = "plot-result/")]
+    #[structopt(long, short = "o", default_value = "plot-result/")]
     output_dir: PathBuf,
 
     #[structopt(flatten)]
     inner: PlotOptions,
+}
+
+#[derive(Debug, StructOpt)]
+#[structopt(rename_all = "kebab-case")]
+struct PlotScatterOpt {
+    #[structopt(long)]
+    budget: Option<u64>,
+
+    #[structopt(long, short = "o", default_value = "plot-result/")]
+    output_dir: PathBuf,
+
+    #[structopt(flatten)]
+    inner: PlotScatterOptions,
 }
 
 fn main() -> trackable::result::MainResult {
@@ -105,6 +120,9 @@ fn main() -> trackable::result::MainResult {
         }
         Opt::Plot(opt) => {
             handle_plot_command(opt)?;
+        }
+        Opt::PlotScatter(opt) => {
+            handle_plot_scatter_command(opt)?;
         }
     }
     Ok(())
@@ -186,6 +204,33 @@ fn handle_stats_command(opt: StatsOpt) -> Result<()> {
 }
 
 fn handle_plot_command(opt: PlotOpt) -> Result<()> {
+    use std::fs;
+
+    track!(fs::create_dir_all(&opt.output_dir).map_err(Error::from); opt.output_dir)?;
+
+    let stdin = std::io::stdin();
+    let mut studies = Vec::new();
+    for study in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
+        match track!(study.map_err(Error::from)) {
+            Err(e) => {
+                eprintln!("{}", e);
+            }
+            Ok(study) => {
+                let study: StudyRecord = study;
+                // TODO
+                // if let Some(budget) = opt.budget {
+                //     study.limit_budget(budget);
+                // }
+                studies.push(study);
+            }
+        }
+    }
+
+    track!(opt.inner.plot_problems(&studies, opt.output_dir))?;
+    Ok(())
+}
+
+fn handle_plot_scatter_command(opt: PlotScatterOpt) -> Result<()> {
     use std::fs;
 
     track!(fs::create_dir_all(&opt.output_dir).map_err(Error::from); opt.output_dir)?;
