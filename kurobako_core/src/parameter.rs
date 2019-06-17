@@ -39,6 +39,20 @@ impl ParamDomain {
         }
     }
 
+    // TODO:
+    pub fn range(&self) -> Range<f64> {
+        match self {
+            ParamDomain::Continuous(p) => {
+                Range::new(p.range.low.get(), p.range.high.get()).unwrap()
+            }
+            ParamDomain::Discrete(p) => {
+                Range::new(p.range.low as f64, p.range.high as f64 - 1.0).unwrap()
+            }
+            ParamDomain::Categorical(p) => Range::new(0.0, p.choices.len() as f64 - 1.0).unwrap(),
+            ParamDomain::Conditional(p) => unimplemented!("{:?}", p),
+        }
+    }
+
     pub fn required_solver_capabilities(&self) -> SolverCapabilities {
         let mut c = SolverCapabilities::empty();
         match self {
@@ -90,6 +104,18 @@ impl ParamValue {
             ParamValue::Categorical(index) => unimplemented!("index:{}", index),
             ParamValue::Conditional(None) => Ok(serde_json::Value::Null),
             ParamValue::Conditional(Some(v)) => track!(v.to_json_value()),
+        }
+    }
+
+    pub fn to_f64(&self) -> f64 {
+        use std::f64::NAN;
+
+        match self {
+            ParamValue::Continuous(v) => v.get(),
+            ParamValue::Discrete(v) => *v as f64,
+            ParamValue::Categorical(index) => *index as f64,
+            ParamValue::Conditional(None) => NAN,
+            ParamValue::Conditional(Some(v)) => v.to_f64(),
         }
     }
 
