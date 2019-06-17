@@ -1,6 +1,6 @@
 [package]
 name = "kurobako"
-version = "0.0.12"
+version = "0.0.13"
 authors = ["Takeru Ohta <phjgt308@gmail.com>"]
 edition = "2018"
 description = "A black-box optimization benchmarking framework"
