@@ -8,9 +8,27 @@ use rand::rngs::ThreadRng;
 use serde::{Deserialize, Serialize};
 use std;
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use structopt::StructOpt;
+use yamakan;
 use yamakan::budget::Budget;
-use yamakan::observation::{ObsId, SerialIdGenerator};
+use yamakan::observation::{IdGen, ObsId};
+
+static mut ID_GEN: GlobalIdGenerator = GlobalIdGenerator::new();
+
+#[derive(Debug)]
+struct GlobalIdGenerator(AtomicUsize);
+impl GlobalIdGenerator {
+    const fn new() -> Self {
+        Self(AtomicUsize::new(0))
+    }
+}
+impl IdGen for GlobalIdGenerator {
+    fn generate(&mut self) -> yamakan::Result<ObsId> {
+        let id = self.0.fetch_add(1, Ordering::SeqCst);
+        Ok(ObsId::new(id as u64))
+    }
+}
 
 // TODO: s/Study/Exam/
 #[derive(Debug, Clone, PartialEq, Eq, Hash, StructOpt, Serialize, Deserialize)]
@@ -35,7 +53,6 @@ where
     P: Problem,
 {
     rng: ThreadRng,
-    idgen: SerialIdGenerator,
     solver: S,
     problem: P,
     study_record: StudyRecord,
@@ -75,7 +92,6 @@ where
 
         Ok(Self {
             rng: rand::thread_rng(),
-            idgen: SerialIdGenerator::new(),
             solver,
             problem,
             study_record,
@@ -128,8 +144,9 @@ where
 
     fn ask_trial(&mut self) -> Result<TrialState<P::Evaluator>> {
         loop {
-            let (result, elapsed) =
-                ElapsedSeconds::time(|| track!(self.solver.ask(&mut self.rng, &mut self.idgen)));
+            let (result, elapsed) = ElapsedSeconds::time(|| {
+                track!(self.solver.ask(&mut self.rng, unsafe { &mut ID_GEN }))
+            });
             let mut obs = result?;
             obs.param.budget_mut().amount = self.next_evaluation_point(obs.param.budget().amount);
 
