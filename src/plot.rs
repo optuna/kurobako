@@ -1,9 +1,35 @@
 use crate::record::StudyRecord;
-use kurobako_core::{Error, Result};
+use kurobako_core::{Error, ErrorKind, Result};
 use rustats::fundamental::{average, stddev};
 use std::collections::BTreeMap;
 use std::path::Path;
+use std::str::FromStr;
 use structopt::StructOpt;
+
+#[derive(Debug, StructOpt)]
+pub enum Metric {
+    BestValue,
+    AskWallclock,
+}
+impl Metric {
+    pub fn label(&self) -> &str {
+        match self {
+            Metric::BestValue => "Objective Value",
+            Metric::AskWallclock => "Ask Elapsed Seconds",
+        }
+    }
+}
+impl FromStr for Metric {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "best-value" => Ok(Metric::BestValue),
+            "ask-wallclock" => Ok(Metric::AskWallclock),
+            _ => track_panic!(ErrorKind::InvalidInput, "Unknown metric name: {:?}", s),
+        }
+    }
+}
 
 #[derive(Debug, StructOpt)]
 pub struct PlotOptions {
@@ -27,6 +53,9 @@ pub struct PlotOptions {
 
     #[structopt(long)]
     pub errorbar: bool,
+
+    #[structopt(long, default_value = "best-value")]
+    pub metric: Metric,
 }
 impl PlotOptions {
     pub fn plot_problems<P: AsRef<Path>>(&self, studies: &[StudyRecord], dir: P) -> Result<()> {
@@ -39,7 +68,7 @@ impl PlotOptions {
         }
         let problems = problems
             .into_iter()
-            .map(|(problem, studies)| ProblemPlot::new(problem.name, &studies));
+            .map(|(problem, studies)| ProblemPlot::new(problem.name, &studies, &self.metric));
         for (i, problem) in problems.enumerate() {
             track!(problem.plot(dir.as_ref().join(format!("{}{}.dat", self.prefix, i))))?;
 
@@ -69,8 +98,9 @@ impl PlotOptions {
         output: P,
     ) -> String {
         let mut s = format!(
-            "set title {:?} noenhanced; set ylabel \"Objective Value\"; set xlabel \"Budget\"; set grid;",
-            problem
+            "set title {:?} noenhanced; set ylabel \"{}\"; set xlabel \"Budget\"; set grid;",
+            problem,
+            self.metric.label()
         );
         s += &format!(
             "set key bmargin; set terminal pngcairo size {},{}; set output {:?};",
@@ -116,7 +146,7 @@ pub struct ProblemPlot {
     solvers: Vec<SolverPlot>,
 }
 impl ProblemPlot {
-    fn new(name: &str, studies: &[&StudyRecord]) -> Self {
+    fn new(name: &str, studies: &[&StudyRecord], metric: &Metric) -> Self {
         let mut solvers = BTreeMap::new();
         for s in studies {
             solvers
@@ -126,7 +156,7 @@ impl ProblemPlot {
         }
         let solvers = solvers
             .into_iter()
-            .map(|(solver, studies)| SolverPlot::new(solver.name, &studies))
+            .map(|(solver, studies)| SolverPlot::new(solver.name, &studies, metric))
             .collect();
         Self {
             problem: name.to_owned(),
@@ -169,15 +199,16 @@ struct SolverPlot {
     scores: Vec<Score>,
 }
 impl SolverPlot {
-    fn new(name: &str, studies: &[&StudyRecord]) -> Self {
+    fn new(name: &str, studies: &[&StudyRecord], metric: &Metric) -> Self {
         let mut scores = Vec::new();
         let scorers = studies.iter().map(|s| s.scorer()).collect::<Vec<_>>();
         for i in 0..studies[0].study_budget() {
-            let best_values = scorers
-                .iter()
-                .map(|s| s.best_value(i).unwrap_or_else(|| unimplemented!()));
-            let avg = average(best_values.clone());
-            let sd = stddev(best_values);
+            let values = scorers.iter().map(|s| match metric {
+                Metric::BestValue => s.best_value(i).unwrap_or_else(|| unimplemented!()),
+                Metric::AskWallclock => s.ask_wallclock(i),
+            });
+            let avg = average(values.clone());
+            let sd = stddev(values);
             scores.push(Score { avg, sd });
         }
         Self {

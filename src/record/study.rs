@@ -140,16 +140,20 @@ impl StudyRecord {
 pub struct Scorer {
     lower_bound: f64,
     bests: Vec<(u64, f64)>,
+    // TODO:
+    ask_wallclocks: Vec<(u64, f64)>,
 }
 impl Scorer {
     fn new(study: &StudyRecord) -> Self {
         let mut trials = HashMap::<ObsId, u64>::new();
         let mut consumption = 0;
         let mut bests: Vec<(u64, f64)> = Vec::new();
+        let mut ask_wallclocks: Vec<(u64, f64)> = Vec::new();
         for trial in &study.trials {
             *trials.entry(trial.obs_id).or_default() += trial.evaluate.expense;
             consumption += trial.evaluate.expense;
 
+            ask_wallclocks.push((consumption, trial.ask.elapsed.get()));
             if trials[&trial.obs_id] >= study.trial_budget() {
                 let value = trial.evaluate.values[0].get();
                 if bests.is_empty() || Some(value) <= bests.last().map(|t| t.1) {
@@ -162,6 +166,7 @@ impl Scorer {
         Self {
             bests,
             lower_bound: study.problem.spec.values_domain[0].min().get(),
+            ask_wallclocks,
         }
     }
 
@@ -171,6 +176,14 @@ impl Scorer {
             .take_while(|t| t.0 <= budget)
             .map(|t| t.1)
             .last()
+    }
+
+    pub fn ask_wallclock(&self, budget: u64) -> f64 {
+        self.ask_wallclocks
+            .iter()
+            .take_while(|t| t.0 <= budget)
+            .map(|t| t.1)
+            .sum::<f64>()
     }
 
     pub fn auc(&self, budget: u64) -> Option<FiniteF64> {
