@@ -1,4 +1,5 @@
 use crate::exam::ExamProblemRecipe;
+use crate::homonym::HomonymProblemRecipe;
 use crate::multi_exam::MultiExamProblemRecipe;
 use kurobako_core::epi::problem::ExternalProgramProblemRecipe;
 use kurobako_core::problem::{BoxProblem, ProblemRecipe};
@@ -21,6 +22,7 @@ pub enum KurobakoProblemRecipe {
     Synthetic(synthetic::SyntheticProblemRecipe),
     Exam(ExamProblemRecipe),
     MultiExam(MultiExamProblemRecipe),
+    Homonym(HomonymProblemRecipe),
 }
 impl ProblemRecipe for KurobakoProblemRecipe {
     type Problem = BoxProblem;
@@ -37,6 +39,7 @@ impl ProblemRecipe for KurobakoProblemRecipe {
             KurobakoProblemRecipe::Synthetic(p) => track!(p.create_problem().map(BoxProblem::new)),
             KurobakoProblemRecipe::Exam(p) => track!(p.create_problem().map(BoxProblem::new)),
             KurobakoProblemRecipe::MultiExam(p) => track!(p.create_problem().map(BoxProblem::new)),
+            KurobakoProblemRecipe::Homonym(p) => track!(p.create_problem().map(BoxProblem::new)),
         }
     }
 }
