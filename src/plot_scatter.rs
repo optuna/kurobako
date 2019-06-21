@@ -70,7 +70,7 @@ impl PlotScatterOptions {
         let param_name = dataset.studies[0].problem.spec.params_domain[param_index].name();
 
         let mut s = format!(
-            "set title {:?} noenhanced; set ylabel \"Objective Value\"; set xlabel \"Parameter: {}\"; set grid;",
+            "set title {:?} noenhanced; set ylabel \"Objective Value\"; set xlabel \"Parameter: {}\" noenhanced; set grid;",
             problem.name, param_name
         );
         s += &format!(

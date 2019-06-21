@@ -98,7 +98,7 @@ impl PlotOptions {
         output: P,
     ) -> String {
         let mut s = format!(
-            "set title {:?} noenhanced; set ylabel \"{}\"; set xlabel \"Budget\"; set grid;",
+            "set title {:?} noenhanced; set ylabel \"{}\" noenhanced; set xlabel \"Budget\"; set grid;",
             problem,
             self.metric.label()
         );
