@@ -162,7 +162,7 @@ impl ProblemRecipe for MultiExamProblemRecipe {
 }
 
 // TODO
-fn lcm<I>(ns: I) -> u64
+pub fn lcm<I>(ns: I) -> u64
 where
     I: Iterator<Item = u64>,
 {

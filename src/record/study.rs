@@ -100,6 +100,10 @@ impl StudyRecord {
         self.problem.spec.evaluation_expense.get()
     }
 
+    pub fn value(&self, budget: u64) -> Option<f64> {
+        unimplemented!()
+    }
+
     pub fn scorer(&self) -> Scorer {
         Scorer::new(self)
     }
