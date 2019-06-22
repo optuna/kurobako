@@ -69,14 +69,14 @@ impl ProblemRecipe for HomonymProblemRecipe {
         }
 
         let mut baselines = Vec::new();
-        for p in &specs {
+        for p in &recipes {
             let p =
                 json::JsonValue::new(track!(serde_json::to_value(p.clone()).map_err(Error::from))?); // TODO
             if let Some(s) = recipe_to_studies.get(&p).cloned() {
                 debug!("Baseline: n={}, recipe={}", s.len(), p.get());
                 baselines.push(s);
             } else {
-                track_panic!(ErrorKind::InvalidInput, "No baseline studies");
+                track_panic!(ErrorKind::InvalidInput, "No baseline studies: {:?}", p);
             }
         }
 
@@ -171,12 +171,17 @@ impl Evaluate for HomonymEvaluator {
             .zip(self.consumptions.iter())
             .zip(self.baselines.iter())
             .map(|((&v, &budget), studies)| {
-                let count = studies
-                    .iter()
-                    .map(|s| s.value(budget).unwrap_or_else(|| unimplemented!()))
-                    .filter(|&s| v > s)
-                    .count() as f64;
-                count / studies.len() as f64
+                let mut total = 0;
+                let mut smalers = 0;
+                for study in studies {
+                    for trial in study.intermediate_trials(budget) {
+                        total += 1;
+                        if v > trial.evaluate.values[0].get() {
+                            smalers += 1;
+                        }
+                    }
+                }
+                smalers as f64 / total as f64
             })
             .sum::<f64>(); // TODO: remove duplicated baseline studies
         let score = ranking_sum / values.len() as f64;

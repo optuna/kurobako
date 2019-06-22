@@ -100,8 +100,22 @@ impl StudyRecord {
         self.problem.spec.evaluation_expense.get()
     }
 
-    pub fn value(&self, budget: u64) -> Option<f64> {
-        unimplemented!()
+    pub fn intermediate_trials(&self, budget: u64) -> impl Iterator<Item = TrialRecord> {
+        let mut trials = HashMap::<ObsId, TrialRecord>::new();
+        let mut target_trials = Vec::new();
+        for trial in &self.trials {
+            if let Some(t) = trials.get_mut(&trial.obs_id) {
+                t.evaluate.expense += trial.evaluate.expense;
+            } else {
+                trials.insert(trial.obs_id, trial.clone());
+            }
+
+            if trials[&trial.obs_id].evaluate.expense == budget {
+                target_trials.push(trials[&trial.obs_id].clone());
+            }
+        }
+
+        target_trials.into_iter()
     }
 
     pub fn scorer(&self) -> Scorer {
