@@ -12,6 +12,10 @@ fn add_arg(args: &mut Vec<String>, key: &str, val: &str) {
     args.push(val.to_owned());
 }
 
+fn is_false(b: &bool) -> bool {
+    *b == false
+}
+
 mod defaults {
     macro_rules! define {
         ($val_fn:ident, $pred_fn:ident, $type:ty, $val:expr) => {
@@ -108,6 +112,10 @@ pub struct OptunaSolverRecipe {
     #[serde(skip_serializing_if = "defaults::is_asha_reduction_factor")]
     #[serde(default = "defaults::asha_reduction_factor")]
     pub asha_reduction_factor: usize,
+
+    #[structopt(long)]
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub maximize: bool,
 }
 impl OptunaSolverRecipe {
     fn build_args(&self) -> Vec<String> {
@@ -155,6 +163,10 @@ impl OptunaSolverRecipe {
             "--asha-reduction-factor",
             &self.asha_reduction_factor.to_string(),
         );
+        if self.maximize {
+            args.push("--direction".to_owned());
+            args.push("maximize".to_owned());
+        }
         args
     }
 }

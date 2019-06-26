@@ -24,6 +24,7 @@ parser.add_argument('--asha-min-resource', type=int, default=1)
 parser.add_argument('--asha-reduction-factor', type=int, default=4)
 parser.add_argument('--loglevel',
                     choices=['debug', 'info', 'warning', 'error'])
+parser.add_argument('--direction', choices=['minimize', 'maximize'], default='minimize')
 args = parser.parse_args()
 
 if args.loglevel == 'debug':
@@ -78,6 +79,6 @@ problem = kurobako.problem.ProblemSpec.from_message(input())
 ##
 ## (4) Solve
 ##
-solver = kurobako.solvers.OptunaSolver(problem, sampler=sampler, pruner=pruner)
+solver = kurobako.solvers.OptunaSolver(problem, sampler=sampler, pruner=pruner, direction=args.direction)
 runner = kurobako.solver.SolverRunner(solver)
 runner.run()
