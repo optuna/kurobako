@@ -35,6 +35,12 @@ mod defaults {
     define!(tpe_ei_candidates, is_tpe_ei_candidates, usize, 24);
     define!(tpe_prior_weight, is_tpe_prior_weight, f64, 1.0);
     define!(tpe_gamma_factor, is_tpe_gamma_factor, f64, 0.25);
+    define!(
+        skopt_base_estimator,
+        is_skopt_base_estimator,
+        String,
+        "GP".to_owned()
+    );
     define!(pruner, is_pruner, String, "median".to_owned());
     define!(median_startup_trials, is_median_startup_trials, usize, 5);
     define!(median_warmup_steps, is_median_warmup_steps, usize, 0);
@@ -58,7 +64,7 @@ pub struct OptunaSolverRecipe {
     #[structopt(
         long,
         default_value = "tpe",
-        raw(possible_values = "&[\"tpe\", \"random\"]")
+        raw(possible_values = "&[\"tpe\", \"random\", \"skopt\"]")
     )]
     #[serde(skip_serializing_if = "defaults::is_sampler")]
     #[serde(default = "defaults::sampler")]
@@ -83,6 +89,15 @@ pub struct OptunaSolverRecipe {
     #[serde(skip_serializing_if = "defaults::is_tpe_gamma_factor")]
     #[serde(default = "defaults::tpe_gamma_factor")]
     pub tpe_gamma_factor: f64,
+
+    #[structopt(
+        long,
+        default_value = "GP",
+        raw(possible_values = "&[\"GP\", \"RF\", \"ET\", \"GBRT\"]")
+    )]
+    #[serde(skip_serializing_if = "defaults::is_skopt_base_estimator")]
+    #[serde(default = "defaults::skopt_base_estimator")]
+    pub skopt_base_estimator: String,
 
     #[structopt(
         long,
