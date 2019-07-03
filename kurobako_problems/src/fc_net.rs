@@ -1,6 +1,5 @@
 // https://github.com/automl/nas_benchmarks/blob/master/tabular_benchmarks/fcnet_benchmark.py
-use hdf5file::level2::DataObject;
-use hdf5file::{self, Hdf5File};
+use hdf5file::{self, DataObject, Hdf5File};
 use kurobako_core::parameter::{choices, int, ParamValue};
 use kurobako_core::problem::{
     Evaluate, EvaluatorCapability, Problem, ProblemRecipe, ProblemSpec, Values,
@@ -10,7 +9,6 @@ use rustats::num::FiniteF64;
 use rustats::range::MinMax;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
-use std::fs::File;
 use std::num::NonZeroU64;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -34,8 +32,7 @@ impl ProblemRecipe for FcNetProblemRecipe {
     type Problem = FcNetProblem;
 
     fn create_problem(&self) -> Result<Self::Problem> {
-        let file = track!(File::open(&self.dataset_path).map_err(Error::from); self.dataset_path)?;
-        let file = track!(Hdf5File::new(file).map_err(into_error))?;
+        let file = track!(Hdf5File::open_file(&self.dataset_path).map_err(into_error))?;
         Ok(FcNetProblem {
             file: Rc::new(RefCell::new(file)),
             name: track_assert_some!(
@@ -49,7 +46,7 @@ impl ProblemRecipe for FcNetProblemRecipe {
 
 #[derive(Debug)]
 pub struct FcNetProblem {
-    file: Rc<RefCell<Hdf5File<File>>>,
+    file: Rc<RefCell<Hdf5File>>,
     name: String,
 }
 impl Problem for FcNetProblem {
@@ -93,7 +90,7 @@ impl Problem for FcNetProblem {
 
 #[derive(Debug)]
 pub struct FcNetEvaluator {
-    file: Rc<RefCell<Hdf5File<File>>>,
+    file: Rc<RefCell<Hdf5File>>,
     sample_index: usize,
 }
 impl Evaluate for FcNetEvaluator {
