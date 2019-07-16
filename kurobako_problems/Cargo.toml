@@ -1,6 +1,6 @@
 [package]
 name = "kurobako_problems"
-version = "0.0.8"
+version = "0.0.9"
 authors = ["Takeru Ohta <phjgt308@gmail.com>"]
 edition = "2018"
 description = "A collection of black-box optimization problems"
