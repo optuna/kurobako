@@ -20,7 +20,7 @@ pub trait SolverRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> 
 }
 
 pub struct BoxSolverRecipe {
-    create_solver: Box<Fn(ProblemSpec) -> Result<BoxSolver>>,
+    create_solver: Box<dyn Fn(ProblemSpec) -> Result<BoxSolver>>,
 }
 impl BoxSolverRecipe {
     pub fn new<R>(recipe: R) -> Self
@@ -96,7 +96,7 @@ impl<T: Solver> Optimizer for YamakanSolver<T> {
 
 pub struct BoxSolver {
     spec: SolverSpec,
-    solver: Box<FnMut(SolverArg) -> Result<Option<UnobservedObs>>>,
+    solver: Box<dyn FnMut(SolverArg) -> Result<Option<UnobservedObs>>>,
 }
 impl BoxSolver {
     pub fn new<S>(mut inner: S) -> Self

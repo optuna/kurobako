@@ -74,7 +74,7 @@ pub type EvaluatorCapabilities = BTreeSet<EvaluatorCapability>;
 
 pub struct BoxProblem {
     spec: ProblemSpec,
-    create: Box<FnMut(ObsId) -> Result<BoxEvaluator>>,
+    create: Box<dyn FnMut(ObsId) -> Result<BoxEvaluator>>,
 }
 impl BoxProblem {
     pub fn new<T>(mut problem: T) -> Self

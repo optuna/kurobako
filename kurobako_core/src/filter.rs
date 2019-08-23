@@ -22,8 +22,8 @@ pub trait Filter {
 
 enum Arg<'a> {
     Spec(&'a mut ProblemSpec),
-    Ask(&'a mut RngCore, &'a mut UnobservedObs),
-    Tell(&'a mut RngCore, &'a mut ObservedObs),
+    Ask(&'a mut dyn RngCore, &'a mut UnobservedObs),
+    Tell(&'a mut dyn RngCore, &'a mut ObservedObs),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,7 +34,7 @@ pub struct FilterSpec {
 
 pub struct BoxFilter {
     spec: FilterSpec,
-    filter: Box<FnMut(Arg) -> Result<()>>,
+    filter: Box<dyn FnMut(Arg) -> Result<()>>,
 }
 impl BoxFilter {
     pub fn new<T>(mut inner: T) -> Self
