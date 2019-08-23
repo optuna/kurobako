@@ -19,7 +19,8 @@ kurobako_core = { path = "../kurobako_core/", version = "0.0" }
 lazy_static = "1"
 log = "0.4"
 nasbench = "0.1"
-rand = "0.6"
+rand = "0.7"
+rand_distr = "0.2"
 regex = "1"
 rustats = "0.0"
 serde = { version = "1", features = ["derive"] }

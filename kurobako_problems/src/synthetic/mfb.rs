@@ -7,8 +7,9 @@ use kurobako_core::problem::{
     Evaluate, EvaluatorCapability, Problem, ProblemRecipe, ProblemSpec, Values,
 };
 use kurobako_core::{ErrorKind, Result};
-use rand::distributions::{Distribution as _, Normal};
+use rand::distributions::Distribution as _;
 use rand::{self, Rng as _};
+use rand_distr::Normal;
 use rustats::range::MinMax;
 use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;
@@ -303,7 +304,7 @@ where
 
 fn stochastic_error(mu: f64, sigma: f64) -> f64 {
     let mut rng = rand::thread_rng(); // TODO:
-    let distribution = Normal::new(mu, sigma);
+    let distribution = Normal::new(mu, sigma).unwrap_or_else(|e| panic!("{:?}", e));
     distribution.sample(&mut rng)
 }
 

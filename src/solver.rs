@@ -7,7 +7,7 @@ use kurobako_core::solver::{
     BoxSolver, BoxSolverRecipe, ObservedObs, Solver, SolverRecipe, SolverSpec, UnobservedObs,
 };
 use kurobako_core::{Error, Result};
-use kurobako_solvers::{asha, optuna, random};
+use kurobako_solvers::{asha, nelder_mead, optuna, random};
 use rand::{self, Rng};
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -63,6 +63,7 @@ enum InnerRecipe {
     Random(random::RandomSolverRecipe),
     Optuna(optuna::OptunaSolverRecipe),
     Asha(asha::AshaSolverRecipe),
+    NelderMead(nelder_mead::NelderMeadSolverRecipe),
     Command(epi::solver::ExternalProgramSolverRecipe),
 }
 impl SolverRecipe for InnerRecipe {
@@ -81,6 +82,7 @@ impl SolverRecipe for InnerRecipe {
                 }))?;
                 track!(r.create_solver(problem)).map(BoxSolver::new)
             }
+            InnerRecipe::NelderMead(r) => track!(r.create_solver(problem)).map(BoxSolver::new),
             InnerRecipe::Command(r) => track!(r.create_solver(problem)).map(BoxSolver::new),
         }
     }

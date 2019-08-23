@@ -4,8 +4,9 @@ use kurobako_core::num::FiniteF64;
 use kurobako_core::problem::ProblemSpec;
 use kurobako_core::solver::{ObservedObs, UnobservedObs};
 use kurobako_core::{Error, Result};
-use rand::distributions::{Distribution as _, Normal};
+use rand::distributions::Distribution as _;
 use rand::Rng;
+use rand_distr::Normal;
 use rustats::range::MinMax;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
@@ -70,7 +71,8 @@ impl Filter for GaussianNoiseFilter {
             }
 
             let sd = domain.width().get() * self.level;
-            let noised_value = track!(FiniteF64::new(Normal::new(value.get(), sd).sample(rng)))?;
+            let normal = Normal::new(value.get(), sd).unwrap_or_else(|e| panic!("TODO: {:?}", e));
+            let noised_value = track!(FiniteF64::new(normal.sample(rng)))?;
             trace!(
                 "Noised value: {} (original={})",
                 noised_value.get(),
