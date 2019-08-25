@@ -210,7 +210,7 @@ version = "0.0.14"
 dependencies = [
  "chrono 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "kurobako_core 0.0.8",
+ "kurobako_core 0.0.9",
  "kurobako_problems 0.0.8",
  "kurobako_solvers 0.0.5",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -227,7 +227,7 @@ dependencies = [
 
 [[package]]
 name = "kurobako_core"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -245,7 +245,7 @@ name = "kurobako_problems"
 version = "0.0.8"
 dependencies = [
  "hdf5file 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "kurobako_core 0.0.8",
+ "kurobako_core 0.0.9",
  "lazy_static 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "nasbench 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -265,7 +265,7 @@ dependencies = [
 name = "kurobako_solvers"
 version = "0.0.5"
 dependencies = [
- "kurobako_core 0.0.8",
+ "kurobako_core 0.0.9",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustats 0.0.8 (registry+https://github.com/rust-lang/crates.io-index)",

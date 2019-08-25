@@ -36,13 +36,14 @@ impl SolverRecipe for ExternalProgramSolverRecipe {
 
         let mut tx = JsonMessageSender::new(stdin);
         let mut rx = JsonMessageReceiver::new(stdout);
+
+        // TODO: check capabilities
+        track!(tx.send(&SolverMessage::ProblemSpecCast(problem.clone())))?;
+
         let spec = match track!(rx.recv())? {
             SolverMessage::SolverSpecCast(m) => m,
             m => track_panic!(ErrorKind::InvalidInput, "Unexpected message: {:?}", m),
         };
-
-        // TODO: check capabilities
-        track!(tx.send(&SolverMessage::ProblemSpecCast(problem.clone())))?;
 
         Ok(ExternalProgramSolver {
             spec,

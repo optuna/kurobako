@@ -69,18 +69,15 @@ elif args.pruner == 'asha':
 else:
     raise ValueError("Unknown pruner: {}".format(args.pruner))
 
-
 ##
-## (2) Send solver specification
-##
-print(kurobako.solvers.OptunaSolver.specification().to_message())
-
-
-##
-## (3) Receive problem specification
+## (2) Receive problem specification
 ##
 problem = kurobako.problem.ProblemSpec.from_message(input())
 
+##
+## (3) Send solver specification
+##
+print(kurobako.solvers.OptunaSolver.specification().to_message())
 
 ##
 ## (4) Solve
