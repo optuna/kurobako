@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate trackable;
 
+pub mod coco;
 pub mod deepobs;
 pub mod fc_net;
 pub mod ffmpeg;
