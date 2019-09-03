@@ -9,6 +9,7 @@ use structopt::StructOpt;
 #[structopt(rename_all = "kebab-case")]
 pub enum KurobakoFilterRecipe {
     GaussianNoise(filters::GaussianNoiseFilterRecipe),
+    DiscreteToContinuous(filters::DiscreteToContinuousFilterRecipe),
 }
 impl FilterRecipe for KurobakoFilterRecipe {
     type Filter = BoxFilter;
@@ -16,6 +17,9 @@ impl FilterRecipe for KurobakoFilterRecipe {
     fn create_filter(&self) -> Result<Self::Filter> {
         match self {
             KurobakoFilterRecipe::GaussianNoise(r) => track!(r.create_filter()).map(BoxFilter::new),
+            KurobakoFilterRecipe::DiscreteToContinuous(r) => {
+                track!(r.create_filter()).map(BoxFilter::new)
+            }
         }
     }
 }
