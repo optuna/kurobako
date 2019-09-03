@@ -10,7 +10,7 @@ import optuna
 ## (1) Handle command-line arguments
 ##
 parser = argparse.ArgumentParser()
-parser.add_argument('--sampler', choices=['tpe', 'random', 'skopt'], default='tpe')
+parser.add_argument('--sampler', choices=['tpe', 'random', 'skopt', 'cma-es'], default='tpe')
 parser.add_argument('--tpe-startup-trials', type=int, default=10)
 parser.add_argument('--tpe-ei-candidates', type=int, default=24)
 parser.add_argument('--tpe-prior-weight', type=float, default=1.0)
@@ -55,6 +55,8 @@ elif args.sampler == 'skopt':
         'base_estimator': args.skopt_base_estimator
     }
     sampler = optuna.integration.SkoptSampler(skopt_kwargs=skopt_kwargs)
+elif args.sampler == 'cma-es':
+    sampler = optuna.integration.CmaEsSampler()
 else:
     sampler = None
 

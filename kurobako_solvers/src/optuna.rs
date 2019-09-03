@@ -64,7 +64,7 @@ pub struct OptunaSolverRecipe {
     #[structopt(
         long,
         default_value = "tpe",
-        raw(possible_values = "&[\"tpe\", \"random\", \"skopt\"]")
+        raw(possible_values = "&[\"tpe\", \"random\", \"skopt\", \"cma-es\"]")
     )]
     #[serde(skip_serializing_if = "defaults::is_sampler")]
     #[serde(default = "defaults::sampler")]
