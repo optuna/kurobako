@@ -105,7 +105,7 @@ impl Solver for KurobakoSolver {
 
     fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<UnobservedObs> {
         let mut obs = track!(self.inner.ask(rng, idg))?;
-        for f in &mut self.filters {
+        for f in self.filters.iter_mut().rev() {
             track!(f.filter_ask(rng, &mut obs))?;
         }
         Ok(obs)
@@ -113,7 +113,7 @@ impl Solver for KurobakoSolver {
 
     fn tell(&mut self, mut obs: ObservedObs) -> Result<()> {
         let mut rng = rand::thread_rng(); // TODO
-        for f in &mut self.filters {
+        for f in self.filters.iter_mut() {
             track!(f.filter_tell(&mut rng, &mut obs))?;
         }
         track!(self.inner.tell(obs))

@@ -104,13 +104,13 @@ impl Evaluate for FcNetEvaluator {
 
         let key = format!(
             r#"{{"activation_fn_1": {:?}, "activation_fn_2": {:?}, "batch_size": {}, "dropout_1": {}, "dropout_2": {}, "init_lr": {}, "lr_schedule": {:?}, "n_units_1": {}, "n_units_2": {}}}"#,
-            (["tanh", "relu"])[params[0].as_categorical().unwrap()],
-            (["tanh", "relu"])[params[1].as_categorical().unwrap()],
+            (["tanh", "relu"])[params[0].as_categorical().unwrap_or_else(|| unreachable!())],
+            (["tanh", "relu"])[params[1].as_categorical().unwrap_or_else(|| unreachable!())],
             ([8, 16, 32, 64])[index(&params[2])],
             DROPOUTS[index(&params[3])],
             DROPOUTS[index(&params[4])],
             ([5.0 * 1e-4, 1e-3, 5.0 * 1e-3, 1e-2, 5.0 * 1e-2, 1e-1])[index(&params[5])],
-            (["cosine", "const"])[params[6].as_categorical().unwrap()],
+            (["cosine", "const"])[params[6].as_categorical().unwrap_or_else(|| unreachable!())],
             UNITS[index(&params[7])],
             UNITS[index(&params[8])]
         );

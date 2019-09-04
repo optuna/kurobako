@@ -10,6 +10,7 @@ use structopt::StructOpt;
 pub enum KurobakoFilterRecipe {
     GaussianNoise(filters::GaussianNoiseFilterRecipe),
     DiscreteToContinuous(filters::DiscreteToContinuousFilterRecipe),
+    OneHotEncoding(filters::OneHotEncodingFilterRecipe),
 }
 impl FilterRecipe for KurobakoFilterRecipe {
     type Filter = BoxFilter;
@@ -18,6 +19,9 @@ impl FilterRecipe for KurobakoFilterRecipe {
         match self {
             KurobakoFilterRecipe::GaussianNoise(r) => track!(r.create_filter()).map(BoxFilter::new),
             KurobakoFilterRecipe::DiscreteToContinuous(r) => {
+                track!(r.create_filter()).map(BoxFilter::new)
+            }
+            KurobakoFilterRecipe::OneHotEncoding(r) => {
                 track!(r.create_filter()).map(BoxFilter::new)
             }
         }
