@@ -101,7 +101,9 @@ impl ParamValue {
                 ErrorKind::InvalidInput
             ))),
             ParamValue::Discrete(v) => Ok(serde_json::Value::Number(serde_json::Number::from(*v))),
-            ParamValue::Categorical(index) => unimplemented!("index:{}", index),
+            ParamValue::Categorical(index) => {
+                Ok(serde_json::Value::Number(serde_json::Number::from(*index)))
+            }
             ParamValue::Conditional(None) => Ok(serde_json::Value::Null),
             ParamValue::Conditional(Some(v)) => track!(v.to_json_value()),
         }
