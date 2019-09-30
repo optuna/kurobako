@@ -55,7 +55,7 @@ pub struct OptunaSolverRecipe {
     #[structopt(
         long,
         default_value = "warning",
-        raw(possible_values = "&[\"debug\", \"info\", \"warning\", \"error\"]")
+        possible_values = &["debug", "info", "warning", "error"]
     )]
     #[serde(skip_serializing_if = "defaults::is_loglevel")]
     #[serde(default = "defaults::loglevel")]
@@ -64,7 +64,7 @@ pub struct OptunaSolverRecipe {
     #[structopt(
         long,
         default_value = "tpe",
-        raw(possible_values = "&[\"tpe\", \"random\", \"skopt\", \"cma-es\"]")
+        possible_values = &["tpe", "random", "skopt", "cma-es"]
     )]
     #[serde(skip_serializing_if = "defaults::is_sampler")]
     #[serde(default = "defaults::sampler")]
@@ -93,7 +93,7 @@ pub struct OptunaSolverRecipe {
     #[structopt(
         long,
         default_value = "GP",
-        raw(possible_values = "&[\"GP\", \"RF\", \"ET\", \"GBRT\"]")
+        possible_values = &["GP", "RF", "ET", "GBRT"]
     )]
     #[serde(skip_serializing_if = "defaults::is_skopt_base_estimator")]
     #[serde(default = "defaults::skopt_base_estimator")]
@@ -102,7 +102,7 @@ pub struct OptunaSolverRecipe {
     #[structopt(
         long,
         default_value = "median",
-        raw(possible_values = "&[\"median\", \"asha\", \"none\"]")
+        possible_values = &["median", "asha", "none"]
     )]
     #[serde(skip_serializing_if = "defaults::is_pruner")]
     #[serde(default = "defaults::pruner")]
