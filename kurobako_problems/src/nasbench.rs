@@ -172,7 +172,7 @@ pub struct NasbenchProblemRecipe {
     #[structopt(
         long,
         default_value = "C",
-        raw(possible_values = "&Encoding::POSSIBLE_VALUES")
+        possible_values = &Encoding::POSSIBLE_VALUES
     )]
     pub encoding: Encoding,
 }
