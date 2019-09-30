@@ -19,6 +19,6 @@ log = "0.4"
 rand = "0.7"
 rustats = "0.0"
 serde = { version = "1", features = ["derive"] }
-structopt = "0.2"
+structopt = "0.3"
 trackable = "0.2"
 yamakan = "0.0"
