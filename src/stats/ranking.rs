@@ -46,7 +46,7 @@ pub struct SolverRankingOptions {
     #[structopt(
         long,
         default_value = "best",
-        raw(possible_values = "Metric::POSSIBLE_VALUES")
+        possible_values = Metric::POSSIBLE_VALUES
     )]
     pub metrics: Vec<Metric>,
 }

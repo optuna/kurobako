@@ -22,7 +22,7 @@ pub struct KurobakoSolverRecipe {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     tag: Option<String>,
 
-    #[structopt(long, parse(try_from_str = "json::parse_json"))]
+    #[structopt(long, parse(try_from_str = json::parse_json))]
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     filters: Vec<KurobakoFilterRecipe>,
 

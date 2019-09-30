@@ -18,10 +18,10 @@ use yamakan::observation::ObsId;
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 pub struct ExamRecipe {
-    #[structopt(long, parse(try_from_str = "json::parse_json"))]
+    #[structopt(long, parse(try_from_str = json::parse_json))]
     pub solver: KurobakoSolverRecipe,
 
-    #[structopt(long, parse(try_from_str = "json::parse_json"))]
+    #[structopt(long, parse(try_from_str = json::parse_json))]
     pub problem: KurobakoProblemRecipe,
 
     #[serde(flatten)]
@@ -70,7 +70,7 @@ pub struct ExamProblemRecipe {
     #[structopt(long)]
     pub recipe: json::JsonValue,
 
-    #[structopt(long, parse(try_from_str = "json::parse_json"))]
+    #[structopt(long, parse(try_from_str = json::parse_json))]
     pub vars: Vec<Variable>,
 }
 impl ProblemRecipe for ExamProblemRecipe {

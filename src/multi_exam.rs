@@ -40,10 +40,10 @@ impl MetricRecipe {
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 pub struct MultiExamRecipe {
-    #[structopt(long, parse(try_from_str = "json::parse_json"))]
+    #[structopt(long, parse(try_from_str = json::parse_json))]
     pub solver: KurobakoSolverRecipe,
 
-    #[structopt(long, parse(try_from_str = "json::parse_json"))]
+    #[structopt(long, parse(try_from_str = json::parse_json))]
     pub problems: Vec<KurobakoProblemRecipe>,
 
     #[serde(flatten)]
@@ -94,7 +94,7 @@ pub struct MultiExamProblemRecipe {
     #[structopt(long)]
     pub recipe: json::JsonValue,
 
-    #[structopt(long, parse(try_from_str = "json::parse_json"))]
+    #[structopt(long, parse(try_from_str = json::parse_json))]
     pub vars: Vec<Variable>,
 }
 impl ProblemRecipe for MultiExamProblemRecipe {
