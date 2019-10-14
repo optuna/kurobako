@@ -67,7 +67,7 @@ impl Solver for EmbeddedScriptSolver {
         self.inner.specification()
     }
 
-    fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<UnobservedObs> {
+    fn ask<R: Rng, G: IdGen>(&mut self, rng: R, idg: G) -> Result<UnobservedObs> {
         track!(self.inner.ask(rng, idg))
     }
 

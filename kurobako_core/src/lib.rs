@@ -9,7 +9,7 @@ pub use error::{Error, ErrorKind};
 pub mod epi;
 pub mod filter;
 pub mod json;
-pub mod num;
+pub mod num; // TODO: delete
 pub mod parameter;
 pub mod problem;
 pub mod solver;

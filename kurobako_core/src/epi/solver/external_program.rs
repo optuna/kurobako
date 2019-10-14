@@ -66,7 +66,7 @@ impl Solver for ExternalProgramSolver {
         self.spec.clone()
     }
 
-    fn ask<R: Rng, G: IdGen>(&mut self, _rng: &mut R, idg: &mut G) -> Result<UnobservedObs> {
+    fn ask<R: Rng, G: IdGen>(&mut self, _rng: R, mut idg: G) -> Result<UnobservedObs> {
         let id_hint = track!(idg.generate())?;
         let message = SolverMessage::AskCall { id_hint };
         track!(self.tx.send(&message))?;

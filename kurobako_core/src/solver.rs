@@ -9,9 +9,9 @@ use std::collections::BTreeSet;
 use std::fmt;
 use std::str::FromStr;
 use structopt::StructOpt;
+use yamakan;
 use yamakan::budget::Budgeted;
-use yamakan::observation::{IdGen, Obs, ObsId};
-use yamakan::{self, Optimizer};
+use yamakan::observation::{IdGen, Obs};
 
 pub trait SolverRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> {
     type Solver: Solver;
@@ -49,49 +49,9 @@ pub type ObservedObs = Obs<Budgeted<Vec<ParamValue>>, Vec<FiniteF64>>;
 pub trait Solver {
     fn specification(&self) -> SolverSpec;
 
-    fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<UnobservedObs>;
+    fn ask<R: Rng, G: IdGen>(&mut self, rng: R, idg: G) -> Result<UnobservedObs>;
 
     fn tell(&mut self, obs: ObservedObs) -> Result<()>;
-}
-
-#[derive(Debug)]
-pub struct YamakanSolver<T>(T);
-impl<T: Solver> YamakanSolver<T> {
-    pub fn new(inner: T) -> Self {
-        Self(inner)
-    }
-
-    pub fn inner(&self) -> &T {
-        &self.0
-    }
-
-    pub fn inner_mut(&mut self) -> &mut T {
-        &mut self.0
-    }
-
-    pub fn into_inner(self) -> T {
-        self.0
-    }
-}
-impl<T: Solver> Optimizer for YamakanSolver<T> {
-    type Param = Budgeted<Vec<ParamValue>>;
-    type Value = Vec<FiniteF64>;
-
-    fn ask<R: Rng, G: IdGen>(
-        &mut self,
-        rng: &mut R,
-        idg: &mut G,
-    ) -> yamakan::Result<Obs<Self::Param>> {
-        track!(self.0.ask(rng, idg)).map_err(Error::into)
-    }
-
-    fn tell(&mut self, obs: Obs<Self::Param, Self::Value>) -> yamakan::Result<()> {
-        track!(self.0.tell(obs)).map_err(Error::into)
-    }
-
-    fn forget(&mut self, _id: ObsId) -> yamakan::Result<()> {
-        Ok(())
-    }
 }
 
 pub struct BoxSolver {
@@ -116,7 +76,7 @@ impl Solver for BoxSolver {
         self.spec.clone()
     }
 
-    fn ask<R: Rng, G: IdGen>(&mut self, mut rng: &mut R, mut idg: &mut G) -> Result<UnobservedObs> {
+    fn ask<R: Rng, G: IdGen>(&mut self, mut rng: R, mut idg: G) -> Result<UnobservedObs> {
         if let Some(obs) = track!((self.solver)(SolverArg::Ask(&mut rng, &mut idg)))? {
             Ok(obs)
         } else {
