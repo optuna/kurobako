@@ -13,6 +13,7 @@ pub mod num; // TODO: delete
 pub mod parameter;
 pub mod problem;
 pub mod solver;
+pub mod trial;
 
 mod error;
 
