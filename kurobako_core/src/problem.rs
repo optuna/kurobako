@@ -1,8 +1,6 @@
 use crate::parameter::{ParamDomain, ParamValue};
 use crate::solver::SolverCapabilities;
 use crate::Result;
-use rustats::num::FiniteF64;
-use rustats::range::MinMax;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::fmt;
@@ -15,7 +13,7 @@ pub trait Evaluate {
     fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values>;
 }
 impl<T: Evaluate + ?Sized> Evaluate for Box<T> {
-    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values> {
+    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Vec<f64>> {
         (**self).evaluate(params, budget)
     }
 }
@@ -33,8 +31,6 @@ pub trait ProblemRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a>
     fn create_problem(&self) -> Result<Self::Problem>;
 }
 
-pub type Values = Vec<FiniteF64>;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct ProblemSpec {
@@ -44,8 +40,7 @@ pub struct ProblemSpec {
     pub version: Option<String>,
 
     pub params_domain: Vec<ParamDomain>,
-    pub values_domain: Vec<MinMax<FiniteF64>>,
-    pub evaluation_expense: NonZeroU64,
+    pub evaluation_expense: NonZeroU64, // TODO: rename
 
     #[serde(default)]
     pub capabilities: EvaluatorCapabilities,

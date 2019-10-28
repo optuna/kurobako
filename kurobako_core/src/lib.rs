@@ -6,13 +6,15 @@ extern crate trackable;
 
 pub use error::{Error, ErrorKind};
 
-pub mod epi;
-pub mod filter;
-pub mod json;
+// pub mod epi; // TODO
+//pub mod filter;
+//pub mod json;
 pub mod num; // TODO: delete
-pub mod parameter;
-pub mod problem;
-pub mod solver;
+
+//pub mod parameter;
+//pub mod problem;
+//pub mod solver;
+
 pub mod trial;
 
 mod error;
