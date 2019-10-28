@@ -3,7 +3,6 @@ use crate::Result;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std;
-use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 
@@ -107,6 +106,9 @@ impl<T: IdGen + ?Sized> IdGen for Box<T> {
 }
 
 /// Parameter values.
+///
+/// Note that if a parameter is conditional and the condition didn't hold,
+/// the value of the parameter is set to NaN.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Params(Vec<f64>);
 impl Params {
@@ -130,16 +132,6 @@ impl PartialEq for Params {
     }
 }
 impl Eq for Params {}
-impl PartialOrd for Params {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.ordered_floats().cmp(other.ordered_floats()))
-    }
-}
-impl Ord for Params {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.ordered_floats().cmp(other.ordered_floats())
-    }
-}
 impl Hash for Params {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         for x in self.ordered_floats() {
@@ -155,7 +147,7 @@ impl Deref for Params {
     }
 }
 
-/// Evaluated values.
+/// Evaluated values (a.k.a. objective values).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Values(Vec<f64>);
 impl Values {
@@ -179,16 +171,6 @@ impl PartialEq for Values {
     }
 }
 impl Eq for Values {}
-impl PartialOrd for Values {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.ordered_floats().cmp(other.ordered_floats()))
-    }
-}
-impl Ord for Values {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.ordered_floats().cmp(other.ordered_floats())
-    }
-}
 impl Hash for Values {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         for x in self.ordered_floats() {

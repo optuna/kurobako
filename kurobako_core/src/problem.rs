@@ -41,6 +41,7 @@ pub struct ProblemSpec {
 
     pub params_domain: Vec<ParamDomain>,
     pub evaluation_expense: NonZeroU64, // TODO: rename
+    pub values_domain: Vec<String>,
 
     #[serde(default)]
     pub capabilities: EvaluatorCapabilities,
