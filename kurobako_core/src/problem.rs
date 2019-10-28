@@ -1,29 +1,103 @@
-use crate::parameter::{ParamDomain, ParamValue};
-use crate::solver::SolverCapabilities;
-use crate::Result;
+//! Problem interface for black-box optimization.
+use crate::domain::{Domain, VariableBuilder};
+use crate::trial::{Params, TrialId, Values};
+use crate::{ErrorKind, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 use std::fmt;
 use std::num::NonZeroU64;
 use structopt::StructOpt;
-use yamakan::budget::Budget;
-use yamakan::observation::ObsId;
 
-pub trait Evaluate {
-    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values>;
+/// `ProblemSpec` builder.
+#[derive(Debug)]
+pub struct ProblemSpecBuilder {
+    name: String,
+    attrs: BTreeMap<String, String>,
+    params: Vec<VariableBuilder>,
+    values: Vec<VariableBuilder>,
+    evaluation_steps: u64,
 }
-impl<T: Evaluate + ?Sized> Evaluate for Box<T> {
-    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Vec<f64>> {
-        (**self).evaluate(params, budget)
+impl ProblemSpecBuilder {
+    pub fn new(name: &str) -> Self {
+        Self {
+            name: name.to_owned(),
+            attrs: BTreeMap::new(),
+            params: Vec::new(),
+            values: Vec::new(),
+            evaluation_steps: 1,
+        }
+    }
+
+    pub fn attr(mut self, key: &str, value: &str) -> Self {
+        self.attrs.insert(key.to_owned(), value.to_owned());
+        self
+    }
+
+    pub fn param(mut self, var: VariableBuilder) -> Self {
+        self.params.push(var);
+        self
+    }
+
+    pub fn value(mut self, var: VariableBuilder) -> Self {
+        self.values.push(var);
+        self
+    }
+
+    pub fn evaluation_steps(mut self, steps: u64) -> Self {
+        self.evaluation_steps = steps;
+        self
+    }
+
+    pub fn finish(self) -> Result<ProblemSpec> {
+        let params_domain = track!(Domain::new(self.params))?;
+        let values_domain = track!(Domain::new(self.values))?;
+        let evaluation_steps = track_assert_some!(
+            NonZeroU64::new(self.evaluation_steps),
+            ErrorKind::InvalidInput
+        );
+
+        Ok(ProblemSpec {
+            name: self.name,
+            attrs: self.attrs,
+            params_domain,
+            values_domain,
+            evaluation_steps,
+        })
     }
 }
 
-pub trait Problem {
-    type Evaluator: Evaluate;
+/// Problem specification.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProblemSpec {
+    /// Problem name.
+    pub name: String,
 
-    fn specification(&self) -> ProblemSpec;
-    fn create_evaluator(&mut self, id: ObsId) -> Result<Self::Evaluator>;
+    /// Problem attributes.
+    #[serde(default)]
+    pub attrs: BTreeMap<String, String>,
+
+    /// Domain of the parameters.
+    pub params_domain: Domain,
+
+    /// Domain of the objective values.
+    pub values_domain: Domain,
+
+    /// Number of steps to complete evaluating a parameter set.
+    pub evaluation_steps: NonZeroU64,
 }
+// TODO
+// impl ProblemSpec {
+//     pub fn required_solver_capabilities(&self) -> SolverCapabilities {
+//         let mut c = SolverCapabilities::empty();
+//         if self.values_domain.len() > 1 {
+//             c = c.multi_objective();
+//         }
+//         for p in &self.params_domain {
+//             c = c.union(p.required_solver_capabilities());
+//         }
+//         c
+//     }
+// }
 
 pub trait ProblemRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> {
     type Problem: Problem;
@@ -31,76 +105,74 @@ pub trait ProblemRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a>
     fn create_problem(&self) -> Result<Self::Problem>;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct ProblemSpec {
-    pub name: String,
+pub trait Problem {
+    type Evaluator: Evaluate;
 
-    #[serde(default)]
-    pub version: Option<String>,
-
-    pub params_domain: Vec<ParamDomain>,
-    pub evaluation_expense: NonZeroU64, // TODO: rename
-    pub values_domain: Vec<String>,
-
-    #[serde(default)]
-    pub capabilities: EvaluatorCapabilities,
-}
-impl ProblemSpec {
-    pub fn required_solver_capabilities(&self) -> SolverCapabilities {
-        let mut c = SolverCapabilities::empty();
-        if self.values_domain.len() > 1 {
-            c = c.multi_objective();
-        }
-        for p in &self.params_domain {
-            c = c.union(p.required_solver_capabilities());
-        }
-        c
-    }
+    fn specification(&self) -> Result<ProblemSpec>;
+    fn create_evaluator(&self, id: TrialId, params: Params) -> Result<Self::Evaluator>;
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum EvaluatorCapability {
-    Concurrent,
-    DynamicParamChange,
+enum BoxProblemCall {
+    Specification,
+    CreateEvaluator { id: TrialId, params: Params },
 }
 
-pub type EvaluatorCapabilities = BTreeSet<EvaluatorCapability>;
-
-pub struct BoxProblem {
-    spec: ProblemSpec,
-    create: Box<dyn FnMut(ObsId) -> Result<BoxEvaluator>>,
+enum BoxProblemReturn {
+    Specification(ProblemSpec),
+    CreateEvaluator(BoxEvaluator),
 }
+
+pub struct BoxProblem(Box<dyn Fn(BoxProblemCall) -> Result<BoxProblemReturn>>);
 impl BoxProblem {
-    pub fn new<T>(mut problem: T) -> Self
+    pub fn new<T>(problem: T) -> Self
     where
         T: Problem + 'static,
         T::Evaluator: 'static,
     {
-        Self {
-            spec: problem.specification(),
-            create: Box::new(move |id| {
-                let evaluator = track!(problem.create_evaluator(id))?;
-                Ok(BoxEvaluator::new(evaluator))
-            }),
-        }
+        Self(Box::new(move |call| match call {
+            BoxProblemCall::Specification => {
+                problem.specification().map(BoxProblemReturn::Specification)
+            }
+            BoxProblemCall::CreateEvaluator { id, params } => problem
+                .create_evaluator(id, params)
+                .map(BoxEvaluator::new)
+                .map(BoxProblemReturn::CreateEvaluator),
+        }))
     }
 }
 impl Problem for BoxProblem {
     type Evaluator = BoxEvaluator;
 
-    fn specification(&self) -> ProblemSpec {
-        self.spec.clone()
+    fn specification(&self) -> Result<ProblemSpec> {
+        let v = track!((self.0)(BoxProblemCall::Specification))?;
+        if let BoxProblemReturn::Specification(v) = v {
+            Ok(v)
+        } else {
+            unreachable!()
+        }
     }
 
-    fn create_evaluator(&mut self, id: ObsId) -> Result<Self::Evaluator> {
-        track!((self.create)(id))
+    fn create_evaluator(&self, id: TrialId, params: Params) -> Result<Self::Evaluator> {
+        let v = track!((self.0)(BoxProblemCall::CreateEvaluator { id, params }))?;
+        if let BoxProblemReturn::CreateEvaluator(v) = v {
+            Ok(v)
+        } else {
+            unreachable!()
+        }
     }
 }
 impl fmt::Debug for BoxProblem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "BoxProblem {{ .. }}")
+    }
+}
+
+pub trait Evaluate {
+    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)>;
+}
+impl<T: Evaluate + ?Sized> Evaluate for Box<T> {
+    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
+        (**self).evaluate(next_step)
     }
 }
 
@@ -114,8 +186,8 @@ impl BoxEvaluator {
     }
 }
 impl Evaluate for BoxEvaluator {
-    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values> {
-        self.0.evaluate(params, budget)
+    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
+        self.0.evaluate(next_step)
     }
 }
 impl fmt::Debug for BoxEvaluator {

@@ -35,6 +35,10 @@ impl Domain {
     }
 }
 
+pub fn var(name: &str) -> VariableBuilder {
+    VariableBuilder::new(name)
+}
+
 /// `Variable` builder.
 #[derive(Debug)]
 pub struct VariableBuilder {
@@ -144,7 +148,7 @@ impl Variable {
 
 /// Distribution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Distribution {
     Uniform,
     LogUniform,

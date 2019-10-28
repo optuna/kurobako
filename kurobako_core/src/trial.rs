@@ -1,4 +1,4 @@
-//! A trial represents one ask-evaluate-tell cycle.
+//! A trial that represents one ask-evaluate-tell cycle.
 use crate::Result;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
