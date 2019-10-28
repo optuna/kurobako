@@ -9,9 +9,9 @@ pub use error::{Error, ErrorKind};
 // pub mod epi; // TODO
 //pub mod filter;
 //pub mod json;
-pub mod problem;
-//pub mod solver;
 pub mod domain;
+pub mod problem;
+pub mod solver;
 pub mod trial;
 
 mod error;

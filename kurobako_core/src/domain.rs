@@ -107,6 +107,14 @@ impl VariableBuilder {
             Range::Categorical { choices } => track_assert!(choices.len() > 0, ErrorKind::InvalidInput; self),
         }
 
+        if self.distribution == Distribution::LogUniform {
+            match self.range {
+                Range::Continuous { low, .. } if 0.0 < low => {}
+                Range::Discrete { low, .. } if 0 < low => {}
+                _ => track_panic!(ErrorKind::InvalidInput; self),
+            }
+        }
+
         Ok(Variable {
             name: self.name,
             range: self.range,
