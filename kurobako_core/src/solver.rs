@@ -1,10 +1,13 @@
 //! Solver interface for black-box optimization.
 use crate::problem::ProblemSpec;
 use crate::trial::{IdGen, Trial};
-use crate::Result;
-use rand::Rng;
+use crate::{Error, Result};
+use rand::{Rng, RngCore};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
+use std::sync::{Arc, Mutex};
 use structopt::StructOpt;
 
 #[derive(Debug)]
@@ -156,126 +159,193 @@ pub enum Capability {
 pub trait SolverRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> {
     type Solver: Solver;
 
-    fn create_solver(&self, problem: ProblemSpec) -> Result<Self::Solver>;
+    fn create_solver(&self, problem: &ProblemSpec) -> Result<Self::Solver>;
 }
 
-// pub struct BoxSolverRecipe {
-//     create_solver: Box<dyn Fn(ProblemSpec) -> Result<BoxSolver>>,
-// }
-// impl BoxSolverRecipe {
-//     pub fn new<R>(recipe: R) -> Self
-//     where
-//         R: 'static + SolverRecipe,
-//     {
-//         let create_solver =
-//             Box::new(move |problem| track!(recipe.create_solver(problem)).map(BoxSolver::new));
-//         Self { create_solver }
-//     }
+pub struct BoxSolverRecipe {
+    create_solver: Box<dyn Fn(&ProblemSpec) -> Result<BoxSolver>>,
+}
+impl BoxSolverRecipe {
+    pub fn new<R>(recipe: R) -> Self
+    where
+        R: 'static + SolverRecipe,
+    {
+        let create_solver = Box::new(move |problem: &ProblemSpec| {
+            track!(recipe.create_solver(problem)).map(BoxSolver::new)
+        });
+        Self { create_solver }
+    }
 
-//     pub fn create_solver(&self, problem: ProblemSpec) -> Result<BoxSolver> {
-//         (self.create_solver)(problem)
-//     }
-// }
-// impl fmt::Debug for BoxSolverRecipe {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "BoxSolverRecipe {{ .. }}")
-//     }
-// }
+    pub fn create_solver(&self, problem: &ProblemSpec) -> Result<BoxSolver> {
+        (self.create_solver)(problem)
+    }
+}
+impl fmt::Debug for BoxSolverRecipe {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "BoxSolverRecipe {{ .. }}")
+    }
+}
 
 pub trait Solver {
-    fn specification(&self) -> SolverSpec;
+    type Optimizer: Optimizer;
 
+    fn specification(&self) -> Result<SolverSpec>;
+    fn create_optimizer(&self) -> Result<Self::Optimizer>;
+}
+
+enum BoxSolverCall {
+    Specification,
+    CreateOptimizer,
+}
+
+enum BoxSolverReturn {
+    Specification(SolverSpec),
+    CreateOptimizer(BoxOptimizer),
+}
+
+pub struct BoxSolver(Box<dyn Fn(BoxSolverCall) -> Result<BoxSolverReturn>>);
+impl BoxSolver {
+    pub fn new<S>(inner: S) -> Self
+    where
+        S: 'static + Solver,
+    {
+        let solver = Box::new(move |call| match call {
+            BoxSolverCall::Specification => {
+                inner.specification().map(BoxSolverReturn::Specification)
+            }
+            BoxSolverCall::CreateOptimizer => inner
+                .create_optimizer()
+                .map(BoxOptimizer::new)
+                .map(BoxSolverReturn::CreateOptimizer),
+        });
+        Self(solver)
+    }
+}
+impl Solver for BoxSolver {
+    type Optimizer = BoxOptimizer;
+
+    fn specification(&self) -> Result<SolverSpec> {
+        let v = track!((self.0)(BoxSolverCall::Specification))?;
+        if let BoxSolverReturn::Specification(v) = v {
+            Ok(v)
+        } else {
+            unreachable!()
+        }
+    }
+
+    fn create_optimizer(&self) -> Result<Self::Optimizer> {
+        let v = track!((self.0)(BoxSolverCall::CreateOptimizer))?;
+        if let BoxSolverReturn::CreateOptimizer(v) = v {
+            Ok(v)
+        } else {
+            unreachable!()
+        }
+    }
+}
+impl fmt::Debug for BoxSolver {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "BoxSolver {{ .. }}")
+    }
+}
+
+pub trait Optimizer {
     fn ask<R: Rng, G: IdGen>(&mut self, rng: R, idg: G) -> Result<Trial>;
-
     fn tell(&mut self, trial: Trial) -> Result<()>;
 }
 
-// TODO: SolverInstance
+enum BoxOptimizerCall<'a> {
+    Ask {
+        rng: &'a mut dyn RngCore,
+        idg: &'a mut dyn IdGen,
+    },
+    Tell {
+        trial: Trial,
+    },
+}
 
-// pub struct BoxSolver {
-//     spec: SolverSpec,
-//     solver: Box<dyn FnMut(SolverArg) -> Result<Option<UnobservedObs>>>,
-// }
-// impl BoxSolver {
-//     pub fn new<S>(mut inner: S) -> Self
-//     where
-//         S: 'static + Solver,
-//     {
-//         let spec = inner.specification();
-//         let solver = Box::new(move |arg: SolverArg| match arg {
-//             SolverArg::Ask(mut rng, mut idg) => track!(inner.ask(&mut rng, &mut idg)).map(Some),
-//             SolverArg::Tell(obs) => track!(inner.tell(obs)).map(|_| None),
-//         });
-//         Self { spec, solver }
-//     }
-// }
-// impl Solver for BoxSolver {
-//     fn specification(&self) -> SolverSpec {
-//         self.spec.clone()
-//     }
+enum BoxOptimizerReturn {
+    Ask(Trial),
+    Tell(()),
+}
 
-//     fn ask<R: Rng, G: IdGen>(&mut self, mut rng: R, mut idg: G) -> Result<UnobservedObs> {
-//         if let Some(obs) = track!((self.solver)(SolverArg::Ask(&mut rng, &mut idg)))? {
-//             Ok(obs)
-//         } else {
-//             track_panic!(ErrorKind::Bug);
-//         }
-//     }
+pub struct BoxOptimizer(Box<dyn FnMut(BoxOptimizerCall) -> Result<BoxOptimizerReturn>>);
+impl BoxOptimizer {
+    pub fn new<O>(mut inner: O) -> Self
+    where
+        O: 'static + Optimizer,
+    {
+        let optimizer = Box::new(move |call: BoxOptimizerCall| match call {
+            BoxOptimizerCall::Ask { rng, idg } => inner.ask(rng, idg).map(BoxOptimizerReturn::Ask),
+            BoxOptimizerCall::Tell { trial } => inner.tell(trial).map(BoxOptimizerReturn::Tell),
+        });
+        Self(optimizer)
+    }
+}
+impl Optimizer for BoxOptimizer {
+    fn ask<R: Rng, G: IdGen>(&mut self, mut rng: R, mut idg: G) -> Result<Trial> {
+        let v = track!((self.0)(BoxOptimizerCall::Ask {
+            rng: &mut rng,
+            idg: &mut idg
+        }))?;
+        if let BoxOptimizerReturn::Ask(v) = v {
+            Ok(v)
+        } else {
+            unreachable!()
+        }
+    }
 
-//     fn tell(&mut self, obs: ObservedObs) -> Result<()> {
-//         if let None = track!((self.solver)(SolverArg::Tell(obs)))? {
-//             Ok(())
-//         } else {
-//             track_panic!(ErrorKind::Bug);
-//         }
-//     }
-// }
-// impl fmt::Debug for BoxSolver {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "BoxSolver {{ name: {:?}, .. }}", self.spec.name)
-//     }
-// }
+    fn tell(&mut self, trial: Trial) -> Result<()> {
+        let v = track!((self.0)(BoxOptimizerCall::Tell { trial }))?;
+        if let BoxOptimizerReturn::Tell(v) = v {
+            Ok(v)
+        } else {
+            unreachable!()
+        }
+    }
+}
+impl fmt::Debug for BoxOptimizer {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "BoxOptimizer {{ .. }}")
+    }
+}
 
-// enum SolverArg<'a> {
-//     Ask(&'a mut dyn RngCore, &'a mut dyn IdGen),
-//     Tell(ObservedObs),
-// }
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct SolverRecipeJson {}
 
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct SolverRecipePlaceHolder {
-//     #[serde(flatten)]
-//     pub json: JsonValue,
+#[derive(Clone)]
+pub struct SolverRepository {
+    json_to_recipe: Arc<Mutex<Box<dyn Fn(&SolverRecipeJson) -> Result<BoxSolverRecipe>>>>,
+    solvers: Arc<Mutex<HashMap<SolverRecipeJson, Arc<Mutex<BoxSolver>>>>>,
+}
+impl SolverRepository {
+    pub fn set_recipe_deserializer<F>(&self, f: F) -> Result<()>
+    where
+        F: 'static + Fn(&SolverRecipeJson) -> Result<BoxSolverRecipe>,
+    {
+        let mut json_to_recipe = track!(self.json_to_recipe.lock().map_err(Error::from))?;
+        *json_to_recipe = Box::new(f);
+        Ok(())
+    }
 
-//     #[serde(skip)]
-//     pub recipe: Option<BoxSolverRecipe>,
-// }
-// impl SolverRecipePlaceHolder {
-//     pub fn set_recipe<F>(&mut self, create_recipe: F) -> Result<()>
-//     where
-//         F: FnOnce(&JsonValue) -> Result<BoxSolverRecipe>,
-//     {
-//         let recipe = track!(create_recipe(&self.json))?;
-//         self.recipe = Some(recipe);
-//         Ok(())
-//     }
-
-//     pub fn create_solver(&self, problem: ProblemSpec) -> Result<BoxSolver> {
-//         let recipe = track_assert_some!(self.recipe.as_ref(), ErrorKind::InvalidInput);
-//         track!(recipe.create_solver(problem))
-//     }
-// }
-// impl Clone for SolverRecipePlaceHolder {
-//     fn clone(&self) -> Self {
-//         Self {
-//             json: self.json.clone(),
-//             recipe: None,
-//         }
-//     }
-// }
-// impl FromStr for SolverRecipePlaceHolder {
-//     type Err = Error;
-
-//     fn from_str(s: &str) -> Result<Self> {
-//         track!(json::parse_json(s))
-//     }
-// }
+    pub fn get(
+        &self,
+        recipe_json: &SolverRecipeJson,
+        problem: &ProblemSpec,
+    ) -> Result<Arc<Mutex<BoxSolver>>> {
+        let mut solvers = track!(self.solvers.lock().map_err(Error::from))?;
+        if let Some(solver) = solvers.get(recipe_json).cloned() {
+            Ok(solver)
+        } else {
+            let json_to_recipe = track!(self.json_to_recipe.lock().map_err(Error::from))?;
+            let recipe = track!(json_to_recipe(recipe_json); recipe_json)?;
+            let solver = Arc::new(Mutex::new(track!(recipe.create_solver(problem))?));
+            solvers.insert(recipe_json.clone(), Arc::clone(&solver));
+            Ok(solver)
+        }
+    }
+}
+impl fmt::Debug for SolverRepository {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "SolverRepository {{ .. }}")
+    }
+}

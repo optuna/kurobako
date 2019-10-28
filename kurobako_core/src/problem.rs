@@ -106,7 +106,7 @@ pub trait ProblemRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a>
 }
 
 pub trait Problem {
-    type Evaluator: Evaluate;
+    type Evaluator: Evaluator;
 
     fn specification(&self) -> Result<ProblemSpec>;
     fn create_evaluator(&self, id: TrialId, params: Params) -> Result<Self::Evaluator>;
@@ -167,25 +167,25 @@ impl fmt::Debug for BoxProblem {
     }
 }
 
-pub trait Evaluate {
+pub trait Evaluator {
     fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)>;
 }
-impl<T: Evaluate + ?Sized> Evaluate for Box<T> {
+impl<T: Evaluator + ?Sized> Evaluator for Box<T> {
     fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
         (**self).evaluate(next_step)
     }
 }
 
-pub struct BoxEvaluator(Box<(dyn Evaluate + 'static)>);
+pub struct BoxEvaluator(Box<(dyn Evaluator + 'static)>);
 impl BoxEvaluator {
     pub fn new<T>(evaluator: T) -> Self
     where
-        T: Evaluate + 'static,
+        T: Evaluator + 'static,
     {
         Self(Box::new(evaluator))
     }
 }
-impl Evaluate for BoxEvaluator {
+impl Evaluator for BoxEvaluator {
     fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
         self.0.evaluate(next_step)
     }
