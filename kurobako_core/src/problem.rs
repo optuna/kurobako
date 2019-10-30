@@ -101,98 +101,98 @@ pub struct ProblemSpec {
 // }
 
 pub trait ProblemRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> {
+    type Factory: ProblemFactory;
+
+    fn create_problem_factory(&self, repository: &mut Repository) -> Result<Self::Factory>;
+}
+
+pub trait ProblemFactory {
     type Problem: Problem;
 
-    fn create_problem(&self, repository: &mut Repository) -> Result<Self::Problem>;
-}
-
-pub trait Problem {
-    type Evaluator: Evaluator;
-
     fn specification(&self) -> Result<ProblemSpec>;
-    fn create_evaluator(&self, id: TrialId, params: Params) -> Result<Self::Evaluator>;
+    fn create_problem(&self, id: TrialId, params: Params) -> Result<Self::Problem>;
 }
 
-enum BoxProblemCall {
+enum ProblemFactoryCall {
     Specification,
-    CreateEvaluator { id: TrialId, params: Params },
+    CreateProblem { id: TrialId, params: Params },
 }
 
-enum BoxProblemReturn {
+enum ProblemFactoryReturn {
     Specification(ProblemSpec),
-    CreateEvaluator(BoxEvaluator),
+    CreateProblem(BoxProblem),
 }
 
-pub struct BoxProblem(Box<dyn Fn(BoxProblemCall) -> Result<BoxProblemReturn>>);
-impl BoxProblem {
+pub struct BoxProblemFactory(Box<dyn Fn(ProblemFactoryCall) -> Result<ProblemFactoryReturn>>);
+impl BoxProblemFactory {
     pub fn new<T>(problem: T) -> Self
     where
-        T: Problem + 'static,
-        T::Evaluator: 'static,
+        T: ProblemFactory + 'static,
+        T::Problem: 'static,
     {
         Self(Box::new(move |call| match call {
-            BoxProblemCall::Specification => {
-                problem.specification().map(BoxProblemReturn::Specification)
-            }
-            BoxProblemCall::CreateEvaluator { id, params } => problem
-                .create_evaluator(id, params)
-                .map(BoxEvaluator::new)
-                .map(BoxProblemReturn::CreateEvaluator),
+            ProblemFactoryCall::Specification => problem
+                .specification()
+                .map(ProblemFactoryReturn::Specification),
+            ProblemFactoryCall::CreateProblem { id, params } => problem
+                .create_problem(id, params)
+                .map(BoxProblem::new)
+                .map(ProblemFactoryReturn::CreateProblem),
         }))
     }
 }
-impl Problem for BoxProblem {
-    type Evaluator = BoxEvaluator;
+impl ProblemFactory for BoxProblemFactory {
+    type Problem = BoxProblem;
 
     fn specification(&self) -> Result<ProblemSpec> {
-        let v = track!((self.0)(BoxProblemCall::Specification))?;
-        if let BoxProblemReturn::Specification(v) = v {
+        let v = track!((self.0)(ProblemFactoryCall::Specification))?;
+        if let ProblemFactoryReturn::Specification(v) = v {
             Ok(v)
         } else {
             unreachable!()
         }
     }
 
-    fn create_evaluator(&self, id: TrialId, params: Params) -> Result<Self::Evaluator> {
-        let v = track!((self.0)(BoxProblemCall::CreateEvaluator { id, params }))?;
-        if let BoxProblemReturn::CreateEvaluator(v) = v {
+    fn create_problem(&self, id: TrialId, params: Params) -> Result<Self::Problem> {
+        let v = track!((self.0)(ProblemFactoryCall::CreateProblem { id, params }))?;
+        if let ProblemFactoryReturn::CreateProblem(v) = v {
             Ok(v)
         } else {
             unreachable!()
         }
     }
 }
-impl fmt::Debug for BoxProblem {
+impl fmt::Debug for BoxProblemFactory {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "BoxProblem {{ .. }}")
+        write!(f, "BoxProblemFactory {{ .. }}")
     }
 }
 
-pub trait Evaluator {
+pub trait Problem {
     fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)>;
 }
-impl<T: Evaluator + ?Sized> Evaluator for Box<T> {
+impl<T: Problem + ?Sized> Problem for Box<T> {
     fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
         (**self).evaluate(next_step)
     }
 }
 
-pub struct BoxEvaluator(Box<(dyn Evaluator + 'static)>);
-impl BoxEvaluator {
-    pub fn new<T>(evaluator: T) -> Self
+pub struct BoxProblem(Box<(dyn Problem + 'static)>);
+impl BoxProblem {
+    pub fn new<T>(problem: T) -> Self
     where
-        T: Evaluator + 'static,
+        T: Problem + 'static,
     {
-        Self(Box::new(evaluator))
+        Self(Box::new(problem))
     }
 }
-impl Evaluator for BoxEvaluator {
+impl Problem for BoxProblem {
     fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
         self.0.evaluate(next_step)
     }
 }
-impl fmt::Debug for BoxEvaluator {
+impl fmt::Debug for BoxProblem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "BoxEvaluator {{ .. }}")
+        write!(f, "BoxProblem {{ .. }}")
     }
 }

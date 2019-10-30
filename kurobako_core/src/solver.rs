@@ -156,13 +156,13 @@ pub enum Capability {
 }
 
 pub trait SolverRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> {
-    type Solver: Solver;
+    type Factory: SolverFactory;
 
-    fn create_solver(
+    fn create_solver_factory(
         &self,
         problem: &ProblemSpec,
         repository: &mut Repository,
-    ) -> Result<Self::Solver>;
+    ) -> Result<Self::Factory>;
 
     fn to_json(&self) -> SolverRecipeJson {
         unimplemented!()
@@ -170,25 +170,25 @@ pub trait SolverRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> 
 }
 
 pub struct BoxSolverRecipe {
-    create_solver: Box<dyn Fn(&ProblemSpec, &mut Repository) -> Result<BoxSolver>>,
+    create: Box<dyn Fn(&ProblemSpec, &mut Repository) -> Result<BoxSolverFactory>>,
 }
 impl BoxSolverRecipe {
     pub fn new<R>(recipe: R) -> Self
     where
         R: 'static + SolverRecipe,
     {
-        let create_solver = Box::new(move |problem: &ProblemSpec, repository: &mut Repository| {
-            track!(recipe.create_solver(problem, repository)).map(BoxSolver::new)
+        let create = Box::new(move |problem: &ProblemSpec, repository: &mut Repository| {
+            track!(recipe.create_solver_factory(problem, repository)).map(BoxSolverFactory::new)
         });
-        Self { create_solver }
+        Self { create }
     }
 
-    pub fn create_solver(
+    pub fn create_solver_factory(
         &self,
         problem: &ProblemSpec,
         repository: &mut Repository,
-    ) -> Result<BoxSolver> {
-        (self.create_solver)(problem, repository)
+    ) -> Result<BoxSolverFactory> {
+        (self.create)(problem, repository)
     }
 }
 impl fmt::Debug for BoxSolverRecipe {
@@ -197,74 +197,74 @@ impl fmt::Debug for BoxSolverRecipe {
     }
 }
 
-pub trait Solver {
-    type Optimizer: Optimizer;
+pub trait SolverFactory {
+    type Solver: Solver;
 
     fn specification(&self) -> Result<SolverSpec>;
-    fn create_optimizer(&self) -> Result<Self::Optimizer>;
+    fn create_optimizer(&self) -> Result<Self::Solver>;
 }
 
-enum BoxSolverCall {
+enum SolverFactoryCall {
     Specification,
-    CreateOptimizer,
+    CreateSolver,
 }
 
-enum BoxSolverReturn {
+enum SolverFactoryReturn {
     Specification(SolverSpec),
-    CreateOptimizer(BoxOptimizer),
+    CreateSolver(BoxSolver),
 }
 
-pub struct BoxSolver(Box<dyn Fn(BoxSolverCall) -> Result<BoxSolverReturn>>);
-impl BoxSolver {
+pub struct BoxSolverFactory(Box<dyn Fn(SolverFactoryCall) -> Result<SolverFactoryReturn>>);
+impl BoxSolverFactory {
     pub fn new<S>(inner: S) -> Self
     where
-        S: 'static + Solver,
+        S: 'static + SolverFactory,
     {
         let solver = Box::new(move |call| match call {
-            BoxSolverCall::Specification => {
-                inner.specification().map(BoxSolverReturn::Specification)
-            }
-            BoxSolverCall::CreateOptimizer => inner
+            SolverFactoryCall::Specification => inner
+                .specification()
+                .map(SolverFactoryReturn::Specification),
+            SolverFactoryCall::CreateSolver => inner
                 .create_optimizer()
-                .map(BoxOptimizer::new)
-                .map(BoxSolverReturn::CreateOptimizer),
+                .map(BoxSolver::new)
+                .map(SolverFactoryReturn::CreateSolver),
         });
         Self(solver)
     }
 }
-impl Solver for BoxSolver {
-    type Optimizer = BoxOptimizer;
+impl SolverFactory for BoxSolverFactory {
+    type Solver = BoxSolver;
 
     fn specification(&self) -> Result<SolverSpec> {
-        let v = track!((self.0)(BoxSolverCall::Specification))?;
-        if let BoxSolverReturn::Specification(v) = v {
+        let v = track!((self.0)(SolverFactoryCall::Specification))?;
+        if let SolverFactoryReturn::Specification(v) = v {
             Ok(v)
         } else {
             unreachable!()
         }
     }
 
-    fn create_optimizer(&self) -> Result<Self::Optimizer> {
-        let v = track!((self.0)(BoxSolverCall::CreateOptimizer))?;
-        if let BoxSolverReturn::CreateOptimizer(v) = v {
+    fn create_optimizer(&self) -> Result<Self::Solver> {
+        let v = track!((self.0)(SolverFactoryCall::CreateSolver))?;
+        if let SolverFactoryReturn::CreateSolver(v) = v {
             Ok(v)
         } else {
             unreachable!()
         }
     }
 }
-impl fmt::Debug for BoxSolver {
+impl fmt::Debug for BoxSolverFactory {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "BoxSolver {{ .. }}")
+        write!(f, "BoxSolverFactory {{ .. }}")
     }
 }
 
-pub trait Optimizer {
+pub trait Solver {
     fn ask<R: Rng, G: IdGen>(&mut self, rng: R, idg: G) -> Result<Trial>;
     fn tell(&mut self, trial: Trial) -> Result<()>;
 }
 
-enum BoxOptimizerCall<'a> {
+enum SolverCall<'a> {
     Ask {
         rng: &'a mut dyn RngCore,
         idg: &'a mut dyn IdGen,
@@ -274,31 +274,31 @@ enum BoxOptimizerCall<'a> {
     },
 }
 
-enum BoxOptimizerReturn {
+enum SolverReturn {
     Ask(Trial),
     Tell(()),
 }
 
-pub struct BoxOptimizer(Box<dyn FnMut(BoxOptimizerCall) -> Result<BoxOptimizerReturn>>);
-impl BoxOptimizer {
+pub struct BoxSolver(Box<dyn FnMut(SolverCall) -> Result<SolverReturn>>);
+impl BoxSolver {
     pub fn new<O>(mut inner: O) -> Self
     where
-        O: 'static + Optimizer,
+        O: 'static + Solver,
     {
-        let optimizer = Box::new(move |call: BoxOptimizerCall| match call {
-            BoxOptimizerCall::Ask { rng, idg } => inner.ask(rng, idg).map(BoxOptimizerReturn::Ask),
-            BoxOptimizerCall::Tell { trial } => inner.tell(trial).map(BoxOptimizerReturn::Tell),
+        let optimizer = Box::new(move |call: SolverCall| match call {
+            SolverCall::Ask { rng, idg } => inner.ask(rng, idg).map(SolverReturn::Ask),
+            SolverCall::Tell { trial } => inner.tell(trial).map(SolverReturn::Tell),
         });
         Self(optimizer)
     }
 }
-impl Optimizer for BoxOptimizer {
+impl Solver for BoxSolver {
     fn ask<R: Rng, G: IdGen>(&mut self, mut rng: R, mut idg: G) -> Result<Trial> {
-        let v = track!((self.0)(BoxOptimizerCall::Ask {
+        let v = track!((self.0)(SolverCall::Ask {
             rng: &mut rng,
             idg: &mut idg
         }))?;
-        if let BoxOptimizerReturn::Ask(v) = v {
+        if let SolverReturn::Ask(v) = v {
             Ok(v)
         } else {
             unreachable!()
@@ -306,17 +306,17 @@ impl Optimizer for BoxOptimizer {
     }
 
     fn tell(&mut self, trial: Trial) -> Result<()> {
-        let v = track!((self.0)(BoxOptimizerCall::Tell { trial }))?;
-        if let BoxOptimizerReturn::Tell(v) = v {
+        let v = track!((self.0)(SolverCall::Tell { trial }))?;
+        if let SolverReturn::Tell(v) = v {
             Ok(v)
         } else {
             unreachable!()
         }
     }
 }
-impl fmt::Debug for BoxOptimizer {
+impl fmt::Debug for BoxSolver {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "BoxOptimizer {{ .. }}")
+        write!(f, "BoxSolver {{ .. }}")
     }
 }
 
