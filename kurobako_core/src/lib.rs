@@ -11,6 +11,7 @@ pub use error::{Error, ErrorKind};
 //pub mod json;
 pub mod domain;
 pub mod problem;
+pub mod repository;
 pub mod solver;
 pub mod trial;
 

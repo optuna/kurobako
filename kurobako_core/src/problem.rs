@@ -1,5 +1,6 @@
 //! Problem interface for black-box optimization.
 use crate::domain::{Domain, VariableBuilder};
+use crate::repository::Repository;
 use crate::trial::{Params, TrialId, Values};
 use crate::{ErrorKind, Result};
 use serde::{Deserialize, Serialize};
@@ -102,7 +103,7 @@ pub struct ProblemSpec {
 pub trait ProblemRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> {
     type Problem: Problem;
 
-    fn create_problem(&self) -> Result<Self::Problem>;
+    fn create_problem(&self, repository: &mut Repository) -> Result<Self::Problem>;
 }
 
 pub trait Problem {

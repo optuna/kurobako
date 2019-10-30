@@ -1,13 +1,12 @@
 //! Solver interface for black-box optimization.
 use crate::problem::ProblemSpec;
+use crate::repository::Repository;
 use crate::trial::{IdGen, Trial};
-use crate::{Error, Result};
+use crate::Result;
 use rand::{Rng, RngCore};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
-use std::sync::{Arc, Mutex};
 use structopt::StructOpt;
 
 #[derive(Debug)]
@@ -159,25 +158,37 @@ pub enum Capability {
 pub trait SolverRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> {
     type Solver: Solver;
 
-    fn create_solver(&self, problem: &ProblemSpec) -> Result<Self::Solver>;
+    fn create_solver(
+        &self,
+        problem: &ProblemSpec,
+        repository: &mut Repository,
+    ) -> Result<Self::Solver>;
+
+    fn to_json(&self) -> SolverRecipeJson {
+        unimplemented!()
+    }
 }
 
 pub struct BoxSolverRecipe {
-    create_solver: Box<dyn Fn(&ProblemSpec) -> Result<BoxSolver>>,
+    create_solver: Box<dyn Fn(&ProblemSpec, &mut Repository) -> Result<BoxSolver>>,
 }
 impl BoxSolverRecipe {
     pub fn new<R>(recipe: R) -> Self
     where
         R: 'static + SolverRecipe,
     {
-        let create_solver = Box::new(move |problem: &ProblemSpec| {
-            track!(recipe.create_solver(problem)).map(BoxSolver::new)
+        let create_solver = Box::new(move |problem: &ProblemSpec, repository: &mut Repository| {
+            track!(recipe.create_solver(problem, repository)).map(BoxSolver::new)
         });
         Self { create_solver }
     }
 
-    pub fn create_solver(&self, problem: &ProblemSpec) -> Result<BoxSolver> {
-        (self.create_solver)(problem)
+    pub fn create_solver(
+        &self,
+        problem: &ProblemSpec,
+        repository: &mut Repository,
+    ) -> Result<BoxSolver> {
+        (self.create_solver)(problem, repository)
     }
 }
 impl fmt::Debug for BoxSolverRecipe {
@@ -311,41 +322,3 @@ impl fmt::Debug for BoxOptimizer {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct SolverRecipeJson {}
-
-#[derive(Clone)]
-pub struct SolverRepository {
-    json_to_recipe: Arc<Mutex<Box<dyn Fn(&SolverRecipeJson) -> Result<BoxSolverRecipe>>>>,
-    solvers: Arc<Mutex<HashMap<SolverRecipeJson, Arc<Mutex<BoxSolver>>>>>,
-}
-impl SolverRepository {
-    pub fn set_recipe_deserializer<F>(&self, f: F) -> Result<()>
-    where
-        F: 'static + Fn(&SolverRecipeJson) -> Result<BoxSolverRecipe>,
-    {
-        let mut json_to_recipe = track!(self.json_to_recipe.lock().map_err(Error::from))?;
-        *json_to_recipe = Box::new(f);
-        Ok(())
-    }
-
-    pub fn get(
-        &self,
-        recipe_json: &SolverRecipeJson,
-        problem: &ProblemSpec,
-    ) -> Result<Arc<Mutex<BoxSolver>>> {
-        let mut solvers = track!(self.solvers.lock().map_err(Error::from))?;
-        if let Some(solver) = solvers.get(recipe_json).cloned() {
-            Ok(solver)
-        } else {
-            let json_to_recipe = track!(self.json_to_recipe.lock().map_err(Error::from))?;
-            let recipe = track!(json_to_recipe(recipe_json); recipe_json)?;
-            let solver = Arc::new(Mutex::new(track!(recipe.create_solver(problem))?));
-            solvers.insert(recipe_json.clone(), Arc::clone(&solver));
-            Ok(solver)
-        }
-    }
-}
-impl fmt::Debug for SolverRepository {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "SolverRepository {{ .. }}")
-    }
-}
