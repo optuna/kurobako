@@ -158,11 +158,7 @@ pub enum Capability {
 pub trait SolverRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> {
     type Factory: SolverFactory;
 
-    fn create_solver_factory(
-        &self,
-        problem: &ProblemSpec,
-        repository: &mut Repository,
-    ) -> Result<Self::Factory>;
+    fn create_solver_factory(&self, repository: &mut Repository) -> Result<Self::Factory>;
 
     fn to_json(&self) -> SolverRecipeJson {
         unimplemented!()
@@ -170,25 +166,21 @@ pub trait SolverRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> 
 }
 
 pub struct BoxSolverRecipe {
-    create: Box<dyn Fn(&ProblemSpec, &mut Repository) -> Result<BoxSolverFactory>>,
+    create: Box<dyn Fn(&mut Repository) -> Result<BoxSolverFactory>>,
 }
 impl BoxSolverRecipe {
     pub fn new<R>(recipe: R) -> Self
     where
         R: 'static + SolverRecipe,
     {
-        let create = Box::new(move |problem: &ProblemSpec, repository: &mut Repository| {
-            track!(recipe.create_solver_factory(problem, repository)).map(BoxSolverFactory::new)
+        let create = Box::new(move |repository: &mut Repository| {
+            track!(recipe.create_solver_factory(repository)).map(BoxSolverFactory::new)
         });
         Self { create }
     }
 
-    pub fn create_solver_factory(
-        &self,
-        problem: &ProblemSpec,
-        repository: &mut Repository,
-    ) -> Result<BoxSolverFactory> {
-        (self.create)(problem, repository)
+    pub fn create_solver_factory(&self, repository: &mut Repository) -> Result<BoxSolverFactory> {
+        (self.create)(repository)
     }
 }
 impl fmt::Debug for BoxSolverRecipe {
@@ -201,12 +193,12 @@ pub trait SolverFactory {
     type Solver: Solver;
 
     fn specification(&self) -> Result<SolverSpec>;
-    fn create_optimizer(&self) -> Result<Self::Solver>;
+    fn create_solver(&self, problem: &ProblemSpec) -> Result<Self::Solver>;
 }
 
-enum SolverFactoryCall {
+enum SolverFactoryCall<'a> {
     Specification,
-    CreateSolver,
+    CreateSolver(&'a ProblemSpec),
 }
 
 enum SolverFactoryReturn {
@@ -220,12 +212,12 @@ impl BoxSolverFactory {
     where
         S: 'static + SolverFactory,
     {
-        let solver = Box::new(move |call| match call {
+        let solver = Box::new(move |call: SolverFactoryCall| match call {
             SolverFactoryCall::Specification => inner
                 .specification()
                 .map(SolverFactoryReturn::Specification),
-            SolverFactoryCall::CreateSolver => inner
-                .create_optimizer()
+            SolverFactoryCall::CreateSolver(problem) => inner
+                .create_solver(problem)
                 .map(BoxSolver::new)
                 .map(SolverFactoryReturn::CreateSolver),
         });
@@ -244,8 +236,8 @@ impl SolverFactory for BoxSolverFactory {
         }
     }
 
-    fn create_optimizer(&self) -> Result<Self::Solver> {
-        let v = track!((self.0)(SolverFactoryCall::CreateSolver))?;
+    fn create_solver(&self, problem: &ProblemSpec) -> Result<Self::Solver> {
+        let v = track!((self.0)(SolverFactoryCall::CreateSolver(problem)))?;
         if let SolverFactoryReturn::CreateSolver(v) = v {
             Ok(v)
         } else {
@@ -285,11 +277,11 @@ impl BoxSolver {
     where
         O: 'static + Solver,
     {
-        let optimizer = Box::new(move |call: SolverCall| match call {
+        let solver = Box::new(move |call: SolverCall| match call {
             SolverCall::Ask { rng, idg } => inner.ask(rng, idg).map(SolverReturn::Ask),
             SolverCall::Tell { trial } => inner.tell(trial).map(SolverReturn::Tell),
         });
-        Self(optimizer)
+        Self(solver)
     }
 }
 impl Solver for BoxSolver {
