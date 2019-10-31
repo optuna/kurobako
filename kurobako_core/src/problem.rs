@@ -1,8 +1,9 @@
 //! Problem interface for black-box optimization.
 use crate::domain::{Domain, VariableBuilder};
 use crate::repository::Repository;
-use crate::trial::{Params, TrialId, Values};
+use crate::trial::{Params, Values};
 use crate::{ErrorKind, Result};
+use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;
@@ -103,19 +104,19 @@ pub struct ProblemSpec {
 pub trait ProblemRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> {
     type Factory: ProblemFactory;
 
-    fn create_problem_factory(&self, repository: &mut Repository) -> Result<Self::Factory>;
+    fn create_factory(&self, repository: &mut Repository) -> Result<Self::Factory>;
 }
 
 pub trait ProblemFactory {
     type Problem: Problem;
 
     fn specification(&self) -> Result<ProblemSpec>;
-    fn create_problem(&self, id: TrialId, params: Params) -> Result<Self::Problem>;
+    fn create_problem(&self, rng: StdRng) -> Result<Self::Problem>;
 }
 
 enum ProblemFactoryCall {
     Specification,
-    CreateProblem { id: TrialId, params: Params },
+    CreateProblem(StdRng),
 }
 
 enum ProblemFactoryReturn {
@@ -128,14 +129,13 @@ impl BoxProblemFactory {
     pub fn new<T>(problem: T) -> Self
     where
         T: ProblemFactory + 'static,
-        T::Problem: 'static,
     {
         Self(Box::new(move |call| match call {
             ProblemFactoryCall::Specification => problem
                 .specification()
                 .map(ProblemFactoryReturn::Specification),
-            ProblemFactoryCall::CreateProblem { id, params } => problem
-                .create_problem(id, params)
+            ProblemFactoryCall::CreateProblem(rng) => problem
+                .create_problem(rng)
                 .map(BoxProblem::new)
                 .map(ProblemFactoryReturn::CreateProblem),
         }))
@@ -153,8 +153,8 @@ impl ProblemFactory for BoxProblemFactory {
         }
     }
 
-    fn create_problem(&self, id: TrialId, params: Params) -> Result<Self::Problem> {
-        let v = track!((self.0)(ProblemFactoryCall::CreateProblem { id, params }))?;
+    fn create_problem(&self, rng: StdRng) -> Result<Self::Problem> {
+        let v = track!((self.0)(ProblemFactoryCall::CreateProblem(rng)))?;
         if let ProblemFactoryReturn::CreateProblem(v) = v {
             Ok(v)
         } else {
@@ -169,30 +169,60 @@ impl fmt::Debug for BoxProblemFactory {
 }
 
 pub trait Problem {
-    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)>;
-}
-impl<T: Problem + ?Sized> Problem for Box<T> {
-    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
-        (**self).evaluate(next_step)
-    }
+    type Evaluator: Evaluator;
+
+    fn create_evaluator(&self, params: Params) -> Result<Self::Evaluator>;
 }
 
-pub struct BoxProblem(Box<(dyn Problem + 'static)>);
+pub struct BoxProblem(Box<dyn Fn(Params) -> Result<BoxEvaluator>>);
 impl BoxProblem {
     pub fn new<T>(problem: T) -> Self
     where
         T: Problem + 'static,
     {
-        Self(Box::new(problem))
+        Self(Box::new(move |params| {
+            problem.create_evaluator(params).map(BoxEvaluator::new)
+        }))
     }
 }
 impl Problem for BoxProblem {
-    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
-        self.0.evaluate(next_step)
+    type Evaluator = BoxEvaluator;
+
+    fn create_evaluator(&self, params: Params) -> Result<Self::Evaluator> {
+        track!((self.0)(params))
     }
 }
 impl fmt::Debug for BoxProblem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "BoxProblem {{ .. }}")
+    }
+}
+
+pub trait Evaluator {
+    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)>;
+}
+impl<T: Evaluator + ?Sized> Evaluator for Box<T> {
+    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
+        (**self).evaluate(next_step)
+    }
+}
+
+pub struct BoxEvaluator(Box<(dyn Evaluator + 'static)>);
+impl BoxEvaluator {
+    pub fn new<T>(evaluator: T) -> Self
+    where
+        T: Evaluator + 'static,
+    {
+        Self(Box::new(evaluator))
+    }
+}
+impl Evaluator for BoxEvaluator {
+    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
+        self.0.evaluate(next_step)
+    }
+}
+impl fmt::Debug for BoxEvaluator {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "BoxEvaluator {{ .. }}")
     }
 }
