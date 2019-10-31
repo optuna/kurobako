@@ -3,7 +3,7 @@ use crate::problem::ProblemSpec;
 use crate::repository::Repository;
 use crate::trial::{IdGen, Trial};
 use crate::Result;
-use rand::{Rng, RngCore};
+use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -158,7 +158,7 @@ pub enum Capability {
 pub trait SolverRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> {
     type Factory: SolverFactory;
 
-    fn create_solver_factory(&self, repository: &mut Repository) -> Result<Self::Factory>;
+    fn create_factory(&self, repository: &mut Repository) -> Result<Self::Factory>;
 
     fn to_json(&self) -> SolverRecipeJson {
         unimplemented!()
@@ -174,12 +174,12 @@ impl BoxSolverRecipe {
         R: 'static + SolverRecipe,
     {
         let create = Box::new(move |repository: &mut Repository| {
-            track!(recipe.create_solver_factory(repository)).map(BoxSolverFactory::new)
+            track!(recipe.create_factory(repository)).map(BoxSolverFactory::new)
         });
         Self { create }
     }
 
-    pub fn create_solver_factory(&self, repository: &mut Repository) -> Result<BoxSolverFactory> {
+    pub fn create_factory(&self, repository: &mut Repository) -> Result<BoxSolverFactory> {
         (self.create)(repository)
     }
 }
@@ -193,12 +193,12 @@ pub trait SolverFactory {
     type Solver: Solver;
 
     fn specification(&self) -> Result<SolverSpec>;
-    fn create_solver(&self, problem: &ProblemSpec) -> Result<Self::Solver>;
+    fn create_solver(&self, rng: StdRng, problem: &ProblemSpec) -> Result<Self::Solver>;
 }
 
 enum SolverFactoryCall<'a> {
     Specification,
-    CreateSolver(&'a ProblemSpec),
+    CreateSolver(StdRng, &'a ProblemSpec),
 }
 
 enum SolverFactoryReturn {
@@ -216,8 +216,8 @@ impl BoxSolverFactory {
             SolverFactoryCall::Specification => inner
                 .specification()
                 .map(SolverFactoryReturn::Specification),
-            SolverFactoryCall::CreateSolver(problem) => inner
-                .create_solver(problem)
+            SolverFactoryCall::CreateSolver(rng, problem) => inner
+                .create_solver(rng, problem)
                 .map(BoxSolver::new)
                 .map(SolverFactoryReturn::CreateSolver),
         });
@@ -236,8 +236,8 @@ impl SolverFactory for BoxSolverFactory {
         }
     }
 
-    fn create_solver(&self, problem: &ProblemSpec) -> Result<Self::Solver> {
-        let v = track!((self.0)(SolverFactoryCall::CreateSolver(problem)))?;
+    fn create_solver(&self, rng: StdRng, problem: &ProblemSpec) -> Result<Self::Solver> {
+        let v = track!((self.0)(SolverFactoryCall::CreateSolver(rng, problem)))?;
         if let SolverFactoryReturn::CreateSolver(v) = v {
             Ok(v)
         } else {
@@ -252,58 +252,26 @@ impl fmt::Debug for BoxSolverFactory {
 }
 
 pub trait Solver {
-    fn ask<R: Rng, G: IdGen>(&mut self, rng: R, idg: G) -> Result<Trial>;
+    fn ask(&mut self, idg: &mut IdGen) -> Result<Trial>;
     fn tell(&mut self, trial: Trial) -> Result<()>;
 }
 
-enum SolverCall<'a> {
-    Ask {
-        rng: &'a mut dyn RngCore,
-        idg: &'a mut dyn IdGen,
-    },
-    Tell {
-        trial: Trial,
-    },
-}
-
-enum SolverReturn {
-    Ask(Trial),
-    Tell(()),
-}
-
-pub struct BoxSolver(Box<dyn FnMut(SolverCall) -> Result<SolverReturn>>);
+pub struct BoxSolver(Box<dyn Solver>);
 impl BoxSolver {
-    pub fn new<O>(mut inner: O) -> Self
+    pub fn new<S>(solver: S) -> Self
     where
-        O: 'static + Solver,
+        S: 'static + Solver,
     {
-        let solver = Box::new(move |call: SolverCall| match call {
-            SolverCall::Ask { rng, idg } => inner.ask(rng, idg).map(SolverReturn::Ask),
-            SolverCall::Tell { trial } => inner.tell(trial).map(SolverReturn::Tell),
-        });
-        Self(solver)
+        Self(Box::new(solver))
     }
 }
 impl Solver for BoxSolver {
-    fn ask<R: Rng, G: IdGen>(&mut self, mut rng: R, mut idg: G) -> Result<Trial> {
-        let v = track!((self.0)(SolverCall::Ask {
-            rng: &mut rng,
-            idg: &mut idg
-        }))?;
-        if let SolverReturn::Ask(v) = v {
-            Ok(v)
-        } else {
-            unreachable!()
-        }
+    fn ask(&mut self, idg: &mut IdGen) -> Result<Trial> {
+        track!(self.0.ask(idg))
     }
 
     fn tell(&mut self, trial: Trial) -> Result<()> {
-        let v = track!((self.0)(SolverCall::Tell { trial }))?;
-        if let SolverReturn::Tell(v) = v {
-            Ok(v)
-        } else {
-            unreachable!()
-        }
+        track!(self.0.tell(trial))
     }
 }
 impl fmt::Debug for BoxSolver {

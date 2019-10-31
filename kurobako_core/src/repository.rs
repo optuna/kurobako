@@ -29,7 +29,7 @@ impl Repository {
             Ok(solver)
         } else {
             let recipe = track!((self.json_to_solver_recipe)(recipe_json); recipe_json)?;
-            let solver = Arc::new(Mutex::new(track!(recipe.create_solver_factory(self))?));
+            let solver = Arc::new(Mutex::new(track!(recipe.create_factory(self))?));
             self.solvers
                 .insert(recipe_json.clone(), Arc::downgrade(&solver));
             Ok(solver)

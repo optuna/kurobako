@@ -1,5 +1,4 @@
 //! A trial that represents one ask-evaluate-tell cycle.
-use crate::Result;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std;
@@ -38,18 +37,18 @@ pub struct Trial {
 }
 impl Trial {
     /// Makes a new unevaluated trial.
-    pub fn new<G: IdGen>(mut idg: G, budget: Budget, params: Params) -> Result<Self> {
-        let id = track!(idg.generate())?;
-        Ok(Self {
-            id,
+    pub fn new(idg: &mut IdGen, budget: Budget, params: Params) -> Self {
+        Self {
+            id: idg.generate(),
             budget,
             params,
             values: Values::default(),
-        })
+        }
     }
 }
 
 // TODO: move to `problem` (?)
+// TODO: rename
 /// Evaluation budget.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Budget {
@@ -90,18 +89,21 @@ impl Budget {
 }
 
 /// Trial ID generator.
-pub trait IdGen {
-    /// Generates a new identifier.
-    fn generate(&mut self) -> Result<TrialId>;
+#[derive(Debug)]
+pub struct IdGen {
+    next: u64,
 }
-impl<'a, T: IdGen + ?Sized> IdGen for &'a mut T {
-    fn generate(&mut self) -> Result<TrialId> {
-        (**self).generate()
+impl IdGen {
+    /// Makes a new `IdGen` instance.
+    pub const fn new() -> Self {
+        Self { next: 0 }
     }
-}
-impl<T: IdGen + ?Sized> IdGen for Box<T> {
-    fn generate(&mut self) -> Result<TrialId> {
-        (**self).generate()
+
+    /// Generates a new identifier.
+    pub fn generate(&mut self) -> TrialId {
+        let id = TrialId(self.next);
+        self.next += 1;
+        id
     }
 }
 

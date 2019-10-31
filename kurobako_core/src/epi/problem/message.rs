@@ -1,5 +1,5 @@
 use crate::problem::ProblemSpec;
-use crate::trial::TrialId;
+// use crate::trial::TrialId;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
