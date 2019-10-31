@@ -6,10 +6,10 @@ extern crate trackable;
 
 pub use error::{Error, ErrorKind};
 
-// pub mod epi; // TODO
 //pub mod filter;
 //pub mod json;
 pub mod domain;
+pub mod epi;
 pub mod problem;
 pub mod repository;
 pub mod solver;
