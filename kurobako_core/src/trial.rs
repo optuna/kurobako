@@ -74,7 +74,7 @@ impl Budget {
     /// # Errors
     ///
     /// If the consumption of the budget exceeded the budget amount, `Err(excess amount)` will be returned.
-    pub fn remaining(&self) -> std::result::Result<u64, u64> {
+    pub fn remaining(&self) -> Result<u64, u64> {
         if self.consumption <= self.amount {
             Ok(self.amount - self.consumption)
         } else {
