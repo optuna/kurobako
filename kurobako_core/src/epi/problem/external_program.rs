@@ -1,20 +1,17 @@
 use crate::epi::channel::{JsonMessageReceiver, JsonMessageSender};
-use crate::parameter::ParamValue;
-use crate::problem::{
-    Evaluate, EvaluatorCapabilities, EvaluatorCapability, Problem, ProblemRecipe, ProblemSpec,
-    Values,
-};
+use crate::epi::problem::ProblemMessage;
+use crate::problem::{Evaluator, Problem, ProblemFactory, ProblemRecipe, ProblemSpec};
+use crate::repository::Repository;
+use crate::trial::{Params, Values};
 use crate::{Error, ErrorKind, Result};
-use rustats::num::FiniteF64;
+use rand::rngs::StdRng;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
-use std::io::{BufRead, BufReader, BufWriter};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
-use std::rc::Rc;
+use std::sync::atomic::{self, AtomicU64};
+use std::sync::{Arc, Mutex};
 use structopt::StructOpt;
-use yamakan::budget::Budget;
-use yamakan::observation::ObsId;
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
@@ -22,15 +19,11 @@ use yamakan::observation::ObsId;
 pub struct ExternalProgramProblemRecipe {
     pub path: PathBuf,
     pub args: Vec<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[structopt(long)]
-    pub skip_lines: Option<usize>,
 }
 impl ProblemRecipe for ExternalProgramProblemRecipe {
-    type Problem = ExternalProgramProblem;
+    type Factory = ExternalProgramProblemFactory;
 
-    fn create_problem(&self) -> Result<Self::Problem> {
+    fn create_factory(&self, _repository: &mut Repository) -> Result<Self::Factory> {
         let mut child = track!(Command::new(&self.path)
             .args(&self.args)
             .stdin(Stdio::piped())
@@ -38,59 +31,53 @@ impl ProblemRecipe for ExternalProgramProblemRecipe {
             .spawn()
             .map_err(Error::from))?;
 
-        let stdin = BufWriter::new(track_assert_some!(child.stdin.take(), ErrorKind::IoError));
-        let mut stdout =
-            BufReader::new(track_assert_some!(child.stdout.take(), ErrorKind::IoError));
-        for _ in 0..self.skip_lines.unwrap_or(0) {
-            let mut s = String::new();
-            track!(stdout.read_line(&mut s).map_err(Error::from))?;
-            debug!("Skipped line ({:?}): {}", self.path, s);
-        }
+        let stdin = track_assert_some!(child.stdin.take(), ErrorKind::IoError);
+        let stdout = track_assert_some!(child.stdout.take(), ErrorKind::IoError);
 
-        let tx = Rc::new(RefCell::new(JsonMessageSender::new(stdin)));
-        let rx = Rc::new(RefCell::new(JsonMessageReceiver::new(stdout)));
-        let spec = match track!(rx.borrow_mut().recv())? {
-            ProblemMessage::ProblemSpecCast(m) => m,
+        let tx = JsonMessageSender::new(stdin);
+        let mut rx = JsonMessageReceiver::new(stdout);
+        let spec = match track!(rx.recv())? {
+            ProblemMessage::ProblemSpecCast { spec } => spec,
             m => track_panic!(ErrorKind::InvalidInput, "Unexpected message: {:?}", m),
         };
 
-        Ok(ExternalProgramProblem {
+        Ok(ExternalProgramProblemFactory {
             spec,
             child,
-            tx,
-            rx,
+            tx: Arc::new(Mutex::new(tx)),
+            rx: Arc::new(Mutex::new(rx)),
         })
     }
 }
 
 #[derive(Debug)]
-pub struct ExternalProgramProblem {
+pub struct ExternalProgramProblemFactory {
     spec: ProblemSpec,
     child: Child,
-    tx: Rc<RefCell<JsonMessageSender<ProblemMessage, BufWriter<ChildStdin>>>>,
-    rx: Rc<RefCell<JsonMessageReceiver<ProblemMessage, BufReader<ChildStdout>>>>,
+    tx: Arc<Mutex<JsonMessageSender<ProblemMessage, ChildStdin>>>,
+    rx: Arc<Mutex<JsonMessageReceiver<ProblemMessage, ChildStdout>>>,
 }
-impl Problem for ExternalProgramProblem {
-    type Evaluator = ExternalProgramEvaluator;
+impl ProblemFactory for ExternalProgramProblemFactory {
+    type Problem = ExternalProgramProblem;
 
-    fn specification(&self) -> ProblemSpec {
-        self.spec.clone()
+    fn specification(&self) -> Result<ProblemSpec> {
+        Ok(self.spec.clone())
     }
 
-    fn create_evaluator(&mut self, id: ObsId) -> Result<Self::Evaluator> {
-        let m = ProblemMessage::CreateEvaluatorCast { id };
-        track!(self.tx.borrow_mut().send(&m))?;
-        Ok(ExternalProgramEvaluator {
-            id,
-            tx: self.tx.clone(),
-            rx: self.rx.clone(),
-            capabilities: self.spec.capabilities.clone(),
-            prev_params: None,
-            prev_values: None,
+    fn create_problem(&self, mut rng: StdRng) -> Result<Self::Problem> {
+        let random_seed = rng.gen();
+        let m = ProblemMessage::CreateProblemCast { random_seed };
+        let mut tx = track!(self.tx.lock().map_err(Error::from))?;
+        track!(tx.send(&m))?;
+
+        Ok(ExternalProgramProblem {
+            tx: Arc::clone(&self.tx),
+            rx: Arc::clone(&self.rx),
+            next_evaluator_id: AtomicU64::new(0),
         })
     }
 }
-impl Drop for ExternalProgramProblem {
+impl Drop for ExternalProgramProblemFactory {
     fn drop(&mut self) {
         if self.child.kill().is_ok() {
             let _ = self.child.wait(); // for preventing the child process becomes a zombie.
@@ -99,120 +86,97 @@ impl Drop for ExternalProgramProblem {
 }
 
 #[derive(Debug)]
-pub struct ExternalProgramEvaluator {
-    id: ObsId,
-    tx: Rc<RefCell<JsonMessageSender<ProblemMessage, BufWriter<ChildStdin>>>>,
-    rx: Rc<RefCell<JsonMessageReceiver<ProblemMessage, BufReader<ChildStdout>>>>,
-    capabilities: EvaluatorCapabilities,
-    prev_params: Option<Vec<ParamValue>>,
-    prev_values: Option<Vec<FiniteF64>>,
+pub struct ExternalProgramProblem {
+    tx: Arc<Mutex<JsonMessageSender<ProblemMessage, ChildStdin>>>,
+    rx: Arc<Mutex<JsonMessageReceiver<ProblemMessage, ChildStdout>>>,
+    next_evaluator_id: AtomicU64,
 }
-impl ExternalProgramEvaluator {
-    // TODO: Move to `kurobako` crate
-    fn check_capabilities(&self, params: &[ParamValue]) -> Result<()> {
-        if !self
-            .capabilities
-            .contains(&EvaluatorCapability::DynamicParamChange)
-        {
-            if let Some(prev_params) = &self.prev_params {
-                track_assert_eq!(
-                    params,
-                    &prev_params[..],
-                    ErrorKind::Incapable,
-                    "{:?}",
-                    EvaluatorCapability::DynamicParamChange
-                );
-            }
-        }
-        if !self.capabilities.contains(&EvaluatorCapability::Concurrent) {
-            track_assert_eq!(
-                Rc::strong_count(&self.tx),
-                2,
-                ErrorKind::Incapable,
-                "{:?}",
-                EvaluatorCapability::Concurrent
-            );
-        }
-        Ok(())
-    }
-}
+impl Problem for ExternalProgramProblem {
+    type Evaluator = ExternalProgramEvaluator;
 
-impl Evaluate for ExternalProgramEvaluator {
-    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values> {
-        track!(self.check_capabilities(params))?;
-        self.prev_params = Some(Vec::from(params));
-
-        if budget.is_consumed() {
-            if let Some(prev_values) = self.prev_values.clone() {
-                return Ok(prev_values);
-            }
-        }
-
-        let m = ProblemMessage::EvaluateCall {
-            id: self.id,
-            params: Vec::from(params),
-            budget: *budget,
+    fn create_evaluator(&self, params: Params) -> Result<Self::Evaluator> {
+        let evaluator_id = self
+            .next_evaluator_id
+            .fetch_add(1, atomic::Ordering::SeqCst);
+        let m = ProblemMessage::CreateEvaluatorCall {
+            evaluator_id,
+            params,
         };
-        track!(self.tx.borrow_mut().send(&m))?;
+        let mut tx = track!(self.tx.lock().map_err(Error::from))?;
+        track!(tx.send(&m))?;
 
-        match track!(self.rx.borrow_mut().recv())? {
-            ProblemMessage::EvaluateOkReply {
-                values,
-                budget: consumed_budget,
-            } => {
-                track_assert_eq!(
-                    consumed_budget.amount,
-                    budget.amount,
-                    ErrorKind::InvalidInput
-                );
-                // TODO
-                // track_assert!(consumed_budget.is_consumed(), ErrorKind::InvalidInput; consumed_budget);
-                budget.consumption = consumed_budget.consumption;
-
-                self.prev_values = Some(values.clone());
-
-                Ok(values)
-            }
-            ProblemMessage::EvaluateErrorReply { kind, message } => {
+        let mut rx = track!(self.rx.lock().map_err(Error::from))?;
+        match track!(rx.recv())? {
+            ProblemMessage::CreateEvaluatorOkReply => {}
+            ProblemMessage::ErrorReply { kind, message } => {
                 if let Some(message) = message {
                     track_panic!(kind, "{}", message);
                 } else {
                     track_panic!(kind);
                 }
             }
-            m => track_panic!(ErrorKind::InvalidInput, "Unexpected message: {:?}", m),
+            m => {
+                track_panic!(ErrorKind::Other, "Unexpected message: {:?}", m);
+            }
+        }
+
+        Ok(ExternalProgramEvaluator {
+            evaluator_id,
+            tx: Arc::clone(&self.tx),
+            rx: Arc::clone(&self.rx),
+        })
+    }
+}
+impl Drop for ExternalProgramProblem {
+    fn drop(&mut self) {
+        let m = ProblemMessage::DropProblemCast;
+        if let Ok(mut tx) = self.tx.lock() {
+            let _ = tx.send(&m);
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ExternalProgramEvaluator {
+    evaluator_id: u64,
+    tx: Arc<Mutex<JsonMessageSender<ProblemMessage, ChildStdin>>>,
+    rx: Arc<Mutex<JsonMessageReceiver<ProblemMessage, ChildStdout>>>,
+}
+impl Evaluator for ExternalProgramEvaluator {
+    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
+        let evaluator_id = self.evaluator_id;
+        let m = ProblemMessage::EvaluateCall {
+            evaluator_id,
+            next_step,
+        };
+        let mut tx = track!(self.tx.lock().map_err(Error::from))?;
+        track!(tx.send(&m))?;
+
+        let mut rx = track!(self.rx.lock().map_err(Error::from))?;
+        match track!(rx.recv())? {
+            ProblemMessage::EvaluateOkReply {
+                current_step,
+                values,
+            } => Ok((current_step, values)),
+            ProblemMessage::ErrorReply { kind, message } => {
+                if let Some(message) = message {
+                    track_panic!(kind, "{}", message);
+                } else {
+                    track_panic!(kind);
+                }
+            }
+            m => {
+                track_panic!(ErrorKind::Other, "Unexpected message: {:?}", m);
+            }
         }
     }
 }
 impl Drop for ExternalProgramEvaluator {
     fn drop(&mut self) {
-        let m = ProblemMessage::DropEvaluatorCast { id: self.id };
-        let _ = self.tx.borrow_mut().send(&m);
+        let evaluator_id = self.evaluator_id;
+        let m = ProblemMessage::DropEvaluatorCast { evaluator_id };
+        if let Ok(mut tx) = self.tx.lock() {
+            let _ = tx.send(&m);
+        }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum ProblemMessage {
-    ProblemSpecCast(ProblemSpec),
-    CreateEvaluatorCast {
-        id: ObsId,
-    },
-    DropEvaluatorCast {
-        id: ObsId,
-    },
-    EvaluateCall {
-        id: ObsId,
-        params: Vec<ParamValue>,
-        budget: Budget,
-    },
-    EvaluateOkReply {
-        values: Vec<FiniteF64>,
-        budget: Budget,
-    },
-    EvaluateErrorReply {
-        kind: ErrorKind,
-        #[serde(default)]
-        message: Option<String>,
-    },
 }

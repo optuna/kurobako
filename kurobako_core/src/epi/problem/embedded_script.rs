@@ -1,93 +1,87 @@
 use crate::epi::problem::{
-    ExternalProgramEvaluator, ExternalProgramProblem, ExternalProgramProblemRecipe,
+    ExternalProgramEvaluator, ExternalProgramProblem, ExternalProgramProblemFactory,
+    ExternalProgramProblemRecipe,
 };
-use crate::parameter::ParamValue;
-use crate::problem::{Evaluate, Problem, ProblemRecipe, ProblemSpec, Values};
-use crate::{Error, ErrorKind, Result};
+use crate::problem::{Evaluator, Problem, ProblemFactory, ProblemRecipe, ProblemSpec};
+use crate::repository::Repository;
+use crate::trial::{Params, Values};
+use crate::{Error, Result};
+use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
 use std::io::Write as _;
-use std::path::PathBuf;
 use structopt::StructOpt;
 use tempfile::{NamedTempFile, TempPath};
-use yamakan::budget::Budget;
-use yamakan::observation::ObsId;
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
-#[serde(rename_all = "kebab-case")]
 pub struct EmbeddedScriptProblemRecipe {
     pub script: String,
-
     pub args: Vec<String>,
-
-    #[structopt(long)]
-    pub interpreter: Option<PathBuf>,
-
-    pub interpreter_args: Vec<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[structopt(long)]
-    pub skip_lines: Option<usize>,
 }
 impl ProblemRecipe for EmbeddedScriptProblemRecipe {
-    type Problem = EmbeddedScriptProblem;
+    type Factory = EmbeddedScriptProblemFactory;
 
-    fn create_problem(&self) -> Result<Self::Problem> {
+    fn create_factory(&self, repository: &mut Repository) -> Result<Self::Factory> {
         let mut temp = track!(NamedTempFile::new().map_err(Error::from))?;
         track!(write!(temp.as_file_mut(), "{}", self.script).map_err(Error::from))?;
         let temp = temp.into_temp_path();
 
-        let mut args = Vec::new();
-        let path = if let Some(interpreter_path) = self.interpreter.clone() {
-            args.extend(self.interpreter_args.clone());
-            args.push(track_assert_some!(temp.to_str(), ErrorKind::InvalidInput).to_owned());
-            interpreter_path
-        } else {
-            #[cfg(unix)]
-            {
-                use std::fs;
-                use std::os::unix::fs::PermissionsExt as _;
+        #[cfg(unix)]
+        {
+            use std::fs;
+            use std::os::unix::fs::PermissionsExt as _;
 
-                track!(
-                    fs::set_permissions(&temp, fs::Permissions::from_mode(0o755))
-                        .map_err(Error::from)
-                )?;
-            }
-            temp.to_path_buf()
-        };
-        args.extend(self.args.clone());
+            track!(
+                fs::set_permissions(&temp, fs::Permissions::from_mode(0o755)).map_err(Error::from)
+            )?;
+        }
 
-        let eppr = ExternalProgramProblemRecipe {
-            path,
-            args,
-            skip_lines: self.skip_lines,
-        };
-        let inner = track!(eppr.create_problem())?;
-        Ok(EmbeddedScriptProblem { inner, temp })
+        let path = temp.to_path_buf();
+        let args = self.args.clone();
+        let eppr = ExternalProgramProblemRecipe { path, args };
+        let inner = track!(eppr.create_factory(repository))?;
+
+        Ok(EmbeddedScriptProblemFactory { inner, temp })
+    }
+}
+
+#[derive(Debug)]
+pub struct EmbeddedScriptProblemFactory {
+    inner: ExternalProgramProblemFactory,
+    temp: TempPath,
+}
+impl ProblemFactory for EmbeddedScriptProblemFactory {
+    type Problem = EmbeddedScriptProblem;
+
+    fn specification(&self) -> Result<ProblemSpec> {
+        track!(self.inner.specification())
+    }
+
+    fn create_problem(&self, rng: StdRng) -> Result<Self::Problem> {
+        let inner = track!(self.inner.create_problem(rng))?;
+        Ok(EmbeddedScriptProblem { inner })
     }
 }
 
 #[derive(Debug)]
 pub struct EmbeddedScriptProblem {
     inner: ExternalProgramProblem,
-    temp: TempPath,
 }
 impl Problem for EmbeddedScriptProblem {
     type Evaluator = EmbeddedScriptEvaluator;
 
-    fn specification(&self) -> ProblemSpec {
-        self.inner.specification()
-    }
-
-    fn create_evaluator(&mut self, id: ObsId) -> Result<Self::Evaluator> {
-        track!(self.inner.create_evaluator(id)).map(EmbeddedScriptEvaluator)
+    fn create_evaluator(&self, params: Params) -> Result<Self::Evaluator> {
+        let inner = track!(self.inner.create_evaluator(params))?;
+        Ok(EmbeddedScriptEvaluator { inner })
     }
 }
 
 #[derive(Debug)]
-pub struct EmbeddedScriptEvaluator(ExternalProgramEvaluator);
-impl Evaluate for EmbeddedScriptEvaluator {
-    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values> {
-        track!(self.0.evaluate(params, budget))
+pub struct EmbeddedScriptEvaluator {
+    inner: ExternalProgramEvaluator,
+}
+impl Evaluator for EmbeddedScriptEvaluator {
+    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
+        track!(self.inner.evaluate(next_step))
     }
 }
