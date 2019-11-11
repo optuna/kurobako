@@ -115,7 +115,7 @@ impl Problem for ExternalProgramProblem {
 
         let mut rx = track!(self.rx.lock().map_err(Error::from))?;
         match track!(rx.recv())? {
-            ProblemMessage::CreateEvaluatorOkReply => {}
+            ProblemMessage::CreateEvaluatorReply => {}
             ProblemMessage::ErrorReply { kind, message } => {
                 if let Some(message) = message {
                     track_panic!(kind, "{}", message);
@@ -166,7 +166,7 @@ impl Evaluator for ExternalProgramEvaluator {
 
         let mut rx = track!(self.rx.lock().map_err(Error::from))?;
         match track!(rx.recv())? {
-            ProblemMessage::EvaluateOkReply {
+            ProblemMessage::EvaluateReply {
                 current_step,
                 values,
             } => Ok((current_step, values)),

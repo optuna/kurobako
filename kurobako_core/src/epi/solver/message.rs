@@ -1,40 +1,39 @@
 use crate::problem::ProblemSpec;
+use crate::solver::SolverSpec;
 use crate::trial::{Params, Values};
 use crate::ErrorKind;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum ProblemMessage {
-    ProblemSpecCast {
-        spec: ProblemSpec,
+pub enum SolverMessage {
+    SolverSpecCast {
+        spec: SolverSpec,
     },
-    CreateProblemCast {
-        problem_id: u64,
+    CreateSolverCast {
+        solver_id: u64,
         random_seed: u64,
+        problem: ProblemSpec,
     },
-    DropProblemCast {
-        problem_id: u64,
+    DropSolverCast {
+        solver_id: u64,
     },
-    CreateEvaluatorCall {
-        problem_id: u64,
-        evaluator_id: u64,
-        params: Params,
+    AskCall {
+        solver_id: u64,
+        next_trial_id: u64,
     },
-    CreateEvaluatorReply,
-    DropEvaluatorCast {
-        problem_id: u64,
-        evaluator_id: u64,
-    },
-    EvaluateCall {
-        problem_id: u64,
-        evaluator_id: u64,
+    AskReply {
+        trial_id: u64,
         next_step: u64,
+        params: Params,
+        next_trial_id: u64,
     },
-    EvaluateReply {
+    TellCall {
+        trial_id: u64,
         current_step: u64,
         values: Values,
     },
+    TellReply,
     ErrorReply {
         kind: ErrorKind,
         #[serde(default)]
