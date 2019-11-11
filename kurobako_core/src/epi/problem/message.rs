@@ -10,18 +10,24 @@ pub enum ProblemMessage {
         spec: ProblemSpec,
     },
     CreateProblemCast {
+        problem_id: u64,
         random_seed: u64,
     },
-    DropProblemCast,
+    DropProblemCast {
+        problem_id: u64,
+    },
     CreateEvaluatorCall {
+        problem_id: u64,
         evaluator_id: u64,
         params: Params,
     },
     CreateEvaluatorOkReply,
     DropEvaluatorCast {
+        problem_id: u64,
         evaluator_id: u64,
     },
     EvaluateCall {
+        problem_id: u64,
         evaluator_id: u64,
         next_step: u64,
     },

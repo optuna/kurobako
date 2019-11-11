@@ -46,6 +46,7 @@ impl ProblemRecipe for ExternalProgramProblemRecipe {
             child,
             tx: Arc::new(Mutex::new(tx)),
             rx: Arc::new(Mutex::new(rx)),
+            next_problem_id: AtomicU64::new(0),
         })
     }
 }
@@ -56,6 +57,7 @@ pub struct ExternalProgramProblemFactory {
     child: Child,
     tx: Arc<Mutex<JsonMessageSender<ProblemMessage, ChildStdin>>>,
     rx: Arc<Mutex<JsonMessageReceiver<ProblemMessage, ChildStdout>>>,
+    next_problem_id: AtomicU64,
 }
 impl ProblemFactory for ExternalProgramProblemFactory {
     type Problem = ExternalProgramProblem;
@@ -65,12 +67,16 @@ impl ProblemFactory for ExternalProgramProblemFactory {
     }
 
     fn create_problem(&self, mut rng: StdRng) -> Result<Self::Problem> {
-        let random_seed = rng.gen();
-        let m = ProblemMessage::CreateProblemCast { random_seed };
+        let problem_id = self.next_problem_id.fetch_add(1, atomic::Ordering::SeqCst);
+        let m = ProblemMessage::CreateProblemCast {
+            problem_id,
+            random_seed: rng.gen(),
+        };
         let mut tx = track!(self.tx.lock().map_err(Error::from))?;
         track!(tx.send(&m))?;
 
         Ok(ExternalProgramProblem {
+            problem_id,
             tx: Arc::clone(&self.tx),
             rx: Arc::clone(&self.rx),
             next_evaluator_id: AtomicU64::new(0),
@@ -87,6 +93,7 @@ impl Drop for ExternalProgramProblemFactory {
 
 #[derive(Debug)]
 pub struct ExternalProgramProblem {
+    problem_id: u64,
     tx: Arc<Mutex<JsonMessageSender<ProblemMessage, ChildStdin>>>,
     rx: Arc<Mutex<JsonMessageReceiver<ProblemMessage, ChildStdout>>>,
     next_evaluator_id: AtomicU64,
@@ -99,6 +106,7 @@ impl Problem for ExternalProgramProblem {
             .next_evaluator_id
             .fetch_add(1, atomic::Ordering::SeqCst);
         let m = ProblemMessage::CreateEvaluatorCall {
+            problem_id: self.problem_id,
             evaluator_id,
             params,
         };
@@ -121,6 +129,7 @@ impl Problem for ExternalProgramProblem {
         }
 
         Ok(ExternalProgramEvaluator {
+            problem_id: self.problem_id,
             evaluator_id,
             tx: Arc::clone(&self.tx),
             rx: Arc::clone(&self.rx),
@@ -129,7 +138,8 @@ impl Problem for ExternalProgramProblem {
 }
 impl Drop for ExternalProgramProblem {
     fn drop(&mut self) {
-        let m = ProblemMessage::DropProblemCast;
+        let problem_id = self.problem_id;
+        let m = ProblemMessage::DropProblemCast { problem_id };
         if let Ok(mut tx) = self.tx.lock() {
             let _ = tx.send(&m);
         }
@@ -138,6 +148,7 @@ impl Drop for ExternalProgramProblem {
 
 #[derive(Debug)]
 pub struct ExternalProgramEvaluator {
+    problem_id: u64,
     evaluator_id: u64,
     tx: Arc<Mutex<JsonMessageSender<ProblemMessage, ChildStdin>>>,
     rx: Arc<Mutex<JsonMessageReceiver<ProblemMessage, ChildStdout>>>,
@@ -146,6 +157,7 @@ impl Evaluator for ExternalProgramEvaluator {
     fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
         let evaluator_id = self.evaluator_id;
         let m = ProblemMessage::EvaluateCall {
+            problem_id: self.problem_id,
             evaluator_id,
             next_step,
         };
@@ -173,8 +185,10 @@ impl Evaluator for ExternalProgramEvaluator {
 }
 impl Drop for ExternalProgramEvaluator {
     fn drop(&mut self) {
-        let evaluator_id = self.evaluator_id;
-        let m = ProblemMessage::DropEvaluatorCast { evaluator_id };
+        let m = ProblemMessage::DropEvaluatorCast {
+            problem_id: self.problem_id,
+            evaluator_id: self.evaluator_id,
+        };
         if let Ok(mut tx) = self.tx.lock() {
             let _ = tx.send(&m);
         }
