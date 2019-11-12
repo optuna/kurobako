@@ -2,11 +2,10 @@ use crate::epi::channel::{JsonMessageReceiver, JsonMessageSender};
 use crate::epi::solver::SolverMessage;
 use crate::problem::ProblemSpec;
 use crate::repository::Repository;
+use crate::rng::{ArcRng, Rng as _};
 use crate::solver::{Solver, SolverFactory, SolverRecipe, SolverSpec};
 use crate::trial::{EvaluatedTrial, IdGen, UnevaluatedTrial};
 use crate::{Error, ErrorKind, Result};
-use rand::rngs::StdRng;
-use rand::Rng as _;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
@@ -66,7 +65,7 @@ impl SolverFactory for ExternalProgramSolverFactory {
         Ok(self.spec.clone())
     }
 
-    fn create_solver(&self, mut rng: StdRng, problem: &ProblemSpec) -> Result<Self::Solver> {
+    fn create_solver(&self, mut rng: ArcRng, problem: &ProblemSpec) -> Result<Self::Solver> {
         let solver_id = self.next_solver_id.fetch_add(1, atomic::Ordering::SeqCst);
         let m = SolverMessage::CreateSolverCast {
             solver_id,

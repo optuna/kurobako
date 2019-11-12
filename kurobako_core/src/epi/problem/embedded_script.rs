@@ -4,9 +4,9 @@ use crate::epi::problem::{
 };
 use crate::problem::{Evaluator, Problem, ProblemFactory, ProblemRecipe, ProblemSpec};
 use crate::repository::Repository;
+use crate::rng::ArcRng;
 use crate::trial::{Params, Values};
 use crate::{Error, Result};
-use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
 use std::io::Write as _;
 use structopt::StructOpt;
@@ -57,7 +57,7 @@ impl ProblemFactory for EmbeddedScriptProblemFactory {
         track!(self.inner.specification())
     }
 
-    fn create_problem(&self, rng: StdRng) -> Result<Self::Problem> {
+    fn create_problem(&self, rng: ArcRng) -> Result<Self::Problem> {
         let inner = track!(self.inner.create_problem(rng))?;
         Ok(EmbeddedScriptProblem { inner })
     }

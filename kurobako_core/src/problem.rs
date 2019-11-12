@@ -1,9 +1,9 @@
 //! Problem interface for black-box optimization.
 use crate::domain::{Domain, VariableBuilder};
 use crate::repository::Repository;
+use crate::rng::ArcRng;
 use crate::trial::{Params, Values};
 use crate::{ErrorKind, Result};
-use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;
@@ -111,12 +111,12 @@ pub trait ProblemFactory {
     type Problem: Problem;
 
     fn specification(&self) -> Result<ProblemSpec>;
-    fn create_problem(&self, rng: StdRng) -> Result<Self::Problem>;
+    fn create_problem(&self, rng: ArcRng) -> Result<Self::Problem>;
 }
 
 enum ProblemFactoryCall {
     Specification,
-    CreateProblem(StdRng),
+    CreateProblem(ArcRng),
 }
 
 enum ProblemFactoryReturn {
@@ -153,7 +153,7 @@ impl ProblemFactory for BoxProblemFactory {
         }
     }
 
-    fn create_problem(&self, rng: StdRng) -> Result<Self::Problem> {
+    fn create_problem(&self, rng: ArcRng) -> Result<Self::Problem> {
         let v = track!((self.0)(ProblemFactoryCall::CreateProblem(rng)))?;
         if let ProblemFactoryReturn::CreateProblem(v) = v {
             Ok(v)

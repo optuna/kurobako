@@ -1,9 +1,9 @@
 //! Solver interface for black-box optimization.
 use crate::problem::ProblemSpec;
 use crate::repository::Repository;
+use crate::rng::ArcRng;
 use crate::trial::{EvaluatedTrial, IdGen, UnevaluatedTrial};
 use crate::Result;
-use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -193,12 +193,12 @@ pub trait SolverFactory {
     type Solver: Solver;
 
     fn specification(&self) -> Result<SolverSpec>;
-    fn create_solver(&self, rng: StdRng, problem: &ProblemSpec) -> Result<Self::Solver>;
+    fn create_solver(&self, rng: ArcRng, problem: &ProblemSpec) -> Result<Self::Solver>;
 }
 
 enum SolverFactoryCall<'a> {
     Specification,
-    CreateSolver(StdRng, &'a ProblemSpec),
+    CreateSolver(ArcRng, &'a ProblemSpec),
 }
 
 enum SolverFactoryReturn {
@@ -236,7 +236,7 @@ impl SolverFactory for BoxSolverFactory {
         }
     }
 
-    fn create_solver(&self, rng: StdRng, problem: &ProblemSpec) -> Result<Self::Solver> {
+    fn create_solver(&self, rng: ArcRng, problem: &ProblemSpec) -> Result<Self::Solver> {
         let v = track!((self.0)(SolverFactoryCall::CreateSolver(rng, problem)))?;
         if let SolverFactoryReturn::CreateSolver(v) = v {
             Ok(v)

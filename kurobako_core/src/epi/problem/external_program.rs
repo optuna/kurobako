@@ -2,10 +2,9 @@ use crate::epi::channel::{JsonMessageReceiver, JsonMessageSender};
 use crate::epi::problem::ProblemMessage;
 use crate::problem::{Evaluator, Problem, ProblemFactory, ProblemRecipe, ProblemSpec};
 use crate::repository::Repository;
+use crate::rng::{ArcRng, Rng as _};
 use crate::trial::{Params, Values};
 use crate::{Error, ErrorKind, Result};
-use rand::rngs::StdRng;
-use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
@@ -66,7 +65,7 @@ impl ProblemFactory for ExternalProgramProblemFactory {
         Ok(self.spec.clone())
     }
 
-    fn create_problem(&self, mut rng: StdRng) -> Result<Self::Problem> {
+    fn create_problem(&self, mut rng: ArcRng) -> Result<Self::Problem> {
         let problem_id = self.next_problem_id.fetch_add(1, atomic::Ordering::SeqCst);
         let m = ProblemMessage::CreateProblemCast {
             problem_id,
