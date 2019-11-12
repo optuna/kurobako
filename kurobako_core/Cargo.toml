@@ -14,8 +14,7 @@ travis-ci = {repository = "sile/kurobako"}
 codecov = {repository = "sile/kurobako"}
 
 [dependencies]
-log = "0.4"
-ordered-float = "1" #{ version = "1", features = ["serde"] }
+ordered-float = "1"
 rand = "0.7"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

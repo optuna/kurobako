@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use std;
 
 /// Domain.
+///
+/// A `Domain` instance consists of a vector of `Variable`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Domain(Vec<Variable>);
 impl Domain {
@@ -29,12 +31,15 @@ impl Domain {
         Ok(Self(vars))
     }
 
-    /// Returns an iterator visiting variables in this domain.
-    pub fn variables<'a>(&'a self) -> impl 'a + Iterator<Item = &'a Variable> {
-        self.0.iter()
+    /// Returns a reference to the variables in this domain.
+    pub fn variables(&self) -> &[Variable] {
+        &self.0
     }
 }
 
+/// Returns a `VariableBuilder` which was initialized with the given variable name.
+///
+/// This is equivalent to `VariableBuilder::new(name)`.
 pub fn var(name: &str) -> VariableBuilder {
     VariableBuilder::new(name)
 }
@@ -48,6 +53,7 @@ pub struct VariableBuilder {
     conditions: Vec<Condition>,
 }
 impl VariableBuilder {
+    /// Makes a new `VariableBuilder` with the given variable name.
     pub fn new(name: &str) -> Self {
         Self {
             name: name.to_owned(),
@@ -60,26 +66,33 @@ impl VariableBuilder {
         }
     }
 
+    /// Sets the distribution of this variable to `Distribution::Uniform`.
+    ///
+    /// Note that `Distribution::Uniform` is the default distribution.
     pub fn uniform(mut self) -> Self {
         self.distribution = Distribution::Uniform;
         self
     }
 
+    /// Sets the distribution of this variable to `Distribution::LogUniform`.
     pub fn log_uniform(mut self) -> Self {
         self.distribution = Distribution::LogUniform;
         self
     }
 
+    /// Sets the range of this variable to the given continuous numerical range.
     pub fn continuous(mut self, low: f64, high: f64) -> Self {
         self.range = Range::Continuous { low, high };
         self
     }
 
+    /// Sets the range of this variable to the given discrete numerical range.
     pub fn discrete(mut self, low: i64, high: i64) -> Self {
         self.range = Range::Discrete { low, high };
         self
     }
 
+    /// Sets the range of this variable to the given categorical range.
     pub fn categorical<I, T>(mut self, choices: I) -> Self
     where
         I: IntoIterator<Item = T>,
@@ -91,20 +104,31 @@ impl VariableBuilder {
         self
     }
 
+    /// Sets the range of this variable to boolean.
+    ///
+    /// This is equivalent to `self.categorical(&["false", "true"])`.
     pub fn boolean(self) -> Self {
         self.categorical(&["false", "true"])
     }
 
+    /// Adds an evaluation condition to this variable.
     pub fn condition(mut self, condition: Condition) -> Self {
         self.conditions.push(condition);
         self
     }
 
+    /// Builds a `Variable` instance with the given settings.
     pub fn finish(self) -> Result<Variable> {
         match &self.range {
-            Range::Continuous { low, high } => track_assert!(low < high, ErrorKind::InvalidInput; self),
-            Range::Discrete { low, high } => track_assert!(low < high, ErrorKind::InvalidInput; self),
-            Range::Categorical { choices } => track_assert!(choices.len() > 0, ErrorKind::InvalidInput; self),
+            Range::Continuous { low, high } => {
+                track_assert!(low < high, ErrorKind::InvalidInput; self)
+            }
+            Range::Discrete { low, high } => {
+                track_assert!(low < high, ErrorKind::InvalidInput; self)
+            }
+            Range::Categorical { choices } => {
+                track_assert!(choices.len() > 0, ErrorKind::InvalidInput; self)
+            }
         }
 
         if self.distribution == Distribution::LogUniform {
@@ -156,6 +180,7 @@ impl Variable {
 
 /// Distribution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[allow(missing_docs)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Distribution {
     Uniform,
@@ -163,8 +188,9 @@ pub enum Distribution {
 }
 
 /// Variable range.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[allow(missing_docs)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Range {
     /// Continuous numerical range: `[low..high)`.
     Continuous { low: f64, high: f64 },
@@ -175,51 +201,38 @@ pub enum Range {
     /// Categorical range.
     Categorical { choices: Vec<String> },
 }
-impl PartialEq for Range {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Continuous { low: l0, high: h0 }, Self::Continuous { low: l1, high: h1 }) => {
-                l0 == l1 && h0 == h1
-            }
-            (Self::Discrete { low: l0, high: h0 }, Self::Discrete { low: l1, high: h1 }) => {
-                l0 == l1 && h0 == h1
-            }
-            (Self::Categorical { choices: c0 }, Self::Categorical { choices: c1 }) => c0 == c1,
-            _ => false,
+impl Range {
+    fn contains(&self, v: f64) -> bool {
+        match self {
+            Self::Continuous { low, high } => *low <= v && v < *high,
+            Self::Discrete { low, high } => *low as f64 <= v && v < *high as f64,
+            Self::Categorical { choices } => 0.0 <= v && v < choices.len() as f64,
         }
     }
 }
 impl Eq for Range {}
 
 /// Evaluation condition.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[allow(missing_docs)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Condition {
-    Category { name: String, value: String },
+    /// This condition holds if the value of the variable named `target` is equal to `value`.
+    Eq { target: String, value: f64 },
 }
 impl Condition {
-    pub fn category(name: &str, value: &str) -> Self {
-        Self::Category {
-            name: name.to_owned(),
-            value: value.to_owned(),
-        }
-    }
-
     fn validate(&self, preceding_variables: &[Variable]) -> Result<()> {
-        let Condition::Category { name, value } = self;
+        let Condition::Eq { target, value } = self;
 
         for v in preceding_variables {
-            if name != &v.name {
+            if target != &v.name {
                 continue;
             }
 
-            if let Range::Categorical { choices } = &v.range {
-                if choices.iter().find(|&c| c == value).is_some() {
-                    return Ok(());
-                }
-            }
+            track_assert!(v.range.contains(*value), ErrorKind::InvalidInput; self);
         }
 
         track_panic!(ErrorKind::InvalidInput; self);
     }
 }
+impl Eq for Condition {}

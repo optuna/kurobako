@@ -1,6 +1,6 @@
 //! The core crate for [`kurobako`](https://github.com/sile/kurobako).
-// #[macro_use]
-// extern crate log;
+#![warn(missing_docs)]
+
 #[macro_use]
 extern crate trackable;
 
