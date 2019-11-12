@@ -199,11 +199,11 @@ impl fmt::Debug for BoxProblem {
 }
 
 pub trait Evaluator {
-    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)>;
+    fn evaluate(&mut self, max_step: u64) -> Result<(u64, Values)>;
 }
 impl<T: Evaluator + ?Sized> Evaluator for Box<T> {
-    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
-        (**self).evaluate(next_step)
+    fn evaluate(&mut self, max_step: u64) -> Result<(u64, Values)> {
+        (**self).evaluate(max_step)
     }
 }
 
@@ -217,8 +217,8 @@ impl BoxEvaluator {
     }
 }
 impl Evaluator for BoxEvaluator {
-    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
-        self.0.evaluate(next_step)
+    fn evaluate(&mut self, max_step: u64) -> Result<(u64, Values)> {
+        self.0.evaluate(max_step)
     }
 }
 impl fmt::Debug for BoxEvaluator {

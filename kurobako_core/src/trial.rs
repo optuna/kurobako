@@ -20,72 +20,27 @@ impl TrialId {
     }
 }
 
-/// Trial.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Trial {
-    /// Trial identifier.
+pub struct UnevaluatedTrial {
     pub id: TrialId,
-
-    /// Evaluation budget.
-    pub budget: Budget,
-
-    /// Evaluation parameters.
     pub params: Params,
+    pub max_step: u64,
+}
+impl UnevaluatedTrial {
+    pub fn to_evaluated_trial(&self, values: Values, current_step: u64) -> EvaluatedTrial {
+        EvaluatedTrial {
+            id: self.id,
+            values,
+            current_step,
+        }
+    }
+}
 
-    /// Evaluated values.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EvaluatedTrial {
+    pub id: TrialId,
     pub values: Values,
-}
-impl Trial {
-    /// Makes a new unevaluated trial.
-    pub fn new(idg: &mut IdGen, budget: Budget, params: Params) -> Self {
-        Self {
-            id: idg.generate(),
-            budget,
-            params,
-            values: Values::default(),
-        }
-    }
-}
-
-// TODO: move to `problem` (?)
-// TODO: rename
-/// Evaluation budget.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct Budget {
-    /// The amount of this budget.
-    pub amount: u64,
-
-    /// The consumption of this budget.
-    ///
-    /// Note that this value can exceed the budget amount.
-    pub consumption: u64,
-}
-impl Budget {
-    /// Makes a new `Budget` instance which has the given amount of budget.
-    pub const fn new(amount: u64) -> Self {
-        Self {
-            consumption: 0,
-            amount,
-        }
-    }
-
-    /// Returns the remaining amount of this budget.
-    ///
-    /// # Errors
-    ///
-    /// If the consumption of the budget exceeded the budget amount, `Err(excess amount)` will be returned.
-    pub fn remaining(&self) -> Result<u64, u64> {
-        if self.consumption <= self.amount {
-            Ok(self.amount - self.consumption)
-        } else {
-            Err(self.consumption - self.amount)
-        }
-    }
-
-    /// Returns `true` if the consumption has exceeded the budget amount, otherwise `false`.
-    pub fn is_consumed(&self) -> bool {
-        self.consumption >= self.amount
-    }
+    pub current_step: u64,
 }
 
 /// Trial ID generator.
@@ -104,6 +59,14 @@ impl IdGen {
         let id = TrialId(self.next);
         self.next += 1;
         id
+    }
+
+    pub fn peek_id(&self) -> TrialId {
+        TrialId(self.next)
+    }
+
+    pub fn set(&mut self, next: u64) {
+        self.next = next;
     }
 }
 

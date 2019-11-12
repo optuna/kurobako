@@ -8,6 +8,7 @@ pub use error::{Error, ErrorKind};
 
 //pub mod filter;
 //pub mod json;
+//pub mod rng;
 pub mod domain;
 pub mod epi;
 pub mod problem;

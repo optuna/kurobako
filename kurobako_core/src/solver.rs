@@ -1,7 +1,7 @@
 //! Solver interface for black-box optimization.
 use crate::problem::ProblemSpec;
 use crate::repository::Repository;
-use crate::trial::{IdGen, Trial};
+use crate::trial::{EvaluatedTrial, IdGen, UnevaluatedTrial};
 use crate::Result;
 use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
@@ -252,8 +252,8 @@ impl fmt::Debug for BoxSolverFactory {
 }
 
 pub trait Solver {
-    fn ask(&mut self, idg: &mut IdGen) -> Result<Trial>;
-    fn tell(&mut self, trial: Trial) -> Result<()>;
+    fn ask(&mut self, idg: &mut IdGen) -> Result<UnevaluatedTrial>;
+    fn tell(&mut self, trial: EvaluatedTrial) -> Result<()>;
 }
 
 pub struct BoxSolver(Box<dyn Solver>);
@@ -266,11 +266,11 @@ impl BoxSolver {
     }
 }
 impl Solver for BoxSolver {
-    fn ask(&mut self, idg: &mut IdGen) -> Result<Trial> {
+    fn ask(&mut self, idg: &mut IdGen) -> Result<UnevaluatedTrial> {
         track!(self.0.ask(idg))
     }
 
-    fn tell(&mut self, trial: Trial) -> Result<()> {
+    fn tell(&mut self, trial: EvaluatedTrial) -> Result<()> {
         track!(self.0.tell(trial))
     }
 }

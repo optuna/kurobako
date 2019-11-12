@@ -29,7 +29,7 @@ pub enum ProblemMessage {
     EvaluateCall {
         problem_id: u64,
         evaluator_id: u64,
-        next_step: u64,
+        max_step: u64,
     },
     EvaluateReply {
         current_step: u64,
