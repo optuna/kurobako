@@ -1,4 +1,4 @@
-use crate::epi::channel::{JsonMessageReceiver, JsonMessageSender};
+use crate::epi::channel::{MessageReceiver, MessageSender};
 use crate::epi::solver::SolverMessage;
 use crate::problem::ProblemSpec;
 use crate::repository::Repository;
@@ -33,8 +33,8 @@ impl SolverRecipe for ExternalProgramSolverRecipe {
         let stdin = track_assert_some!(child.stdin.take(), ErrorKind::IoError);
         let stdout = track_assert_some!(child.stdout.take(), ErrorKind::IoError);
 
-        let tx = JsonMessageSender::new(stdin);
-        let mut rx = JsonMessageReceiver::new(stdout);
+        let tx = MessageSender::new(stdin);
+        let mut rx = MessageReceiver::new(stdout);
         let spec = match track!(rx.recv())? {
             SolverMessage::SolverSpecCast { spec } => spec,
             m => track_panic!(ErrorKind::InvalidInput, "Unexpected message: {:?}", m),
@@ -54,8 +54,8 @@ impl SolverRecipe for ExternalProgramSolverRecipe {
 pub struct ExternalProgramSolverFactory {
     spec: SolverSpec,
     child: Child,
-    tx: Arc<Mutex<JsonMessageSender<SolverMessage, ChildStdin>>>,
-    rx: Arc<Mutex<JsonMessageReceiver<SolverMessage, ChildStdout>>>,
+    tx: Arc<Mutex<MessageSender<SolverMessage, ChildStdin>>>,
+    rx: Arc<Mutex<MessageReceiver<SolverMessage, ChildStdout>>>,
     next_solver_id: AtomicU64,
 }
 impl SolverFactory for ExternalProgramSolverFactory {
@@ -93,8 +93,8 @@ impl Drop for ExternalProgramSolverFactory {
 #[derive(Debug)]
 pub struct ExternalProgramSolver {
     solver_id: u64,
-    tx: Arc<Mutex<JsonMessageSender<SolverMessage, ChildStdin>>>,
-    rx: Arc<Mutex<JsonMessageReceiver<SolverMessage, ChildStdout>>>,
+    tx: Arc<Mutex<MessageSender<SolverMessage, ChildStdin>>>,
+    rx: Arc<Mutex<MessageReceiver<SolverMessage, ChildStdout>>>,
 }
 impl Solver for ExternalProgramSolver {
     fn ask(&mut self, idg: &mut IdGen) -> Result<UnevaluatedTrial> {

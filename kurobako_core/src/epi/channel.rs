@@ -7,16 +7,16 @@ use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::marker::PhantomData;
 
 /// Sending channel.
-pub struct JsonMessageSender<T, W: Write> {
+pub struct MessageSender<T, W: Write> {
     writer: BufWriter<W>,
     _message: PhantomData<T>,
 }
-impl<T, W> JsonMessageSender<T, W>
+impl<T, W> MessageSender<T, W>
 where
     T: Serialize,
     W: Write,
 {
-    /// Makes a new `JsonMessageSender` instance.
+    /// Makes a new `MessageSender` instance.
     pub fn new(writer: W) -> Self {
         Self {
             writer: BufWriter::new(writer),
@@ -33,23 +33,23 @@ where
         Ok(())
     }
 }
-impl<T, W: Write> fmt::Debug for JsonMessageSender<T, W> {
+impl<T, W: Write> fmt::Debug for MessageSender<T, W> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "JsonMessageSender {{ .. }}")
+        write!(f, "MessageSender {{ .. }}")
     }
 }
 
 /// Receiving channel.
-pub struct JsonMessageReceiver<T, R: Read> {
+pub struct MessageReceiver<T, R: Read> {
     reader: BufReader<R>,
     _message: PhantomData<T>,
 }
-impl<T, R> JsonMessageReceiver<T, R>
+impl<T, R> MessageReceiver<T, R>
 where
     T: for<'a> Deserialize<'a>,
     R: Read,
 {
-    /// Makes a new `JsonMessageReceiver` instance.
+    /// Makes a new `MessageReceiver` instance.
     pub fn new(reader: R) -> Self {
         Self {
             reader: BufReader::new(reader),
@@ -72,8 +72,8 @@ where
         }
     }
 }
-impl<T, R: Read> fmt::Debug for JsonMessageReceiver<T, R> {
+impl<T, R: Read> fmt::Debug for MessageReceiver<T, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "JsonMessageReceiver {{ .. }}")
+        write!(f, "MessageReceiver {{ .. }}")
     }
 }

@@ -1,4 +1,4 @@
-use crate::epi::channel::{JsonMessageReceiver, JsonMessageSender};
+use crate::epi::channel::{MessageReceiver, MessageSender};
 use crate::epi::problem::ProblemMessage;
 use crate::problem::{Evaluator, Problem, ProblemFactory, ProblemRecipe, ProblemSpec};
 use crate::repository::Repository;
@@ -33,8 +33,8 @@ impl ProblemRecipe for ExternalProgramProblemRecipe {
         let stdin = track_assert_some!(child.stdin.take(), ErrorKind::IoError);
         let stdout = track_assert_some!(child.stdout.take(), ErrorKind::IoError);
 
-        let tx = JsonMessageSender::new(stdin);
-        let mut rx = JsonMessageReceiver::new(stdout);
+        let tx = MessageSender::new(stdin);
+        let mut rx = MessageReceiver::new(stdout);
         let spec = match track!(rx.recv())? {
             ProblemMessage::ProblemSpecCast { spec } => spec,
             m => track_panic!(ErrorKind::InvalidInput, "Unexpected message: {:?}", m),
@@ -54,8 +54,8 @@ impl ProblemRecipe for ExternalProgramProblemRecipe {
 pub struct ExternalProgramProblemFactory {
     spec: ProblemSpec,
     child: Child,
-    tx: Arc<Mutex<JsonMessageSender<ProblemMessage, ChildStdin>>>,
-    rx: Arc<Mutex<JsonMessageReceiver<ProblemMessage, ChildStdout>>>,
+    tx: Arc<Mutex<MessageSender<ProblemMessage, ChildStdin>>>,
+    rx: Arc<Mutex<MessageReceiver<ProblemMessage, ChildStdout>>>,
     next_problem_id: AtomicU64,
 }
 impl ProblemFactory for ExternalProgramProblemFactory {
@@ -93,8 +93,8 @@ impl Drop for ExternalProgramProblemFactory {
 #[derive(Debug)]
 pub struct ExternalProgramProblem {
     problem_id: u64,
-    tx: Arc<Mutex<JsonMessageSender<ProblemMessage, ChildStdin>>>,
-    rx: Arc<Mutex<JsonMessageReceiver<ProblemMessage, ChildStdout>>>,
+    tx: Arc<Mutex<MessageSender<ProblemMessage, ChildStdin>>>,
+    rx: Arc<Mutex<MessageReceiver<ProblemMessage, ChildStdout>>>,
     next_evaluator_id: AtomicU64,
 }
 impl Problem for ExternalProgramProblem {
@@ -149,8 +149,8 @@ impl Drop for ExternalProgramProblem {
 pub struct ExternalProgramEvaluator {
     problem_id: u64,
     evaluator_id: u64,
-    tx: Arc<Mutex<JsonMessageSender<ProblemMessage, ChildStdin>>>,
-    rx: Arc<Mutex<JsonMessageReceiver<ProblemMessage, ChildStdout>>>,
+    tx: Arc<Mutex<MessageSender<ProblemMessage, ChildStdin>>>,
+    rx: Arc<Mutex<MessageReceiver<ProblemMessage, ChildStdout>>>,
 }
 impl Evaluator for ExternalProgramEvaluator {
     fn evaluate(&mut self, max_step: u64) -> Result<(u64, Values)> {
