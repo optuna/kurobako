@@ -1,3 +1,4 @@
+//! The receiving and sending channels used to communicate with the external problems that support EPI.
 use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -5,6 +6,7 @@ use std::fmt;
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::marker::PhantomData;
 
+/// Sending channel.
 pub struct JsonMessageSender<T, W: Write> {
     writer: BufWriter<W>,
     _message: PhantomData<T>,
@@ -14,6 +16,7 @@ where
     T: Serialize,
     W: Write,
 {
+    /// Makes a new `JsonMessageSender` instance.
     pub fn new(writer: W) -> Self {
         Self {
             writer: BufWriter::new(writer),
@@ -21,6 +24,7 @@ where
         }
     }
 
+    /// Sends a message.
     pub fn send(&mut self, message: &T) -> Result<()> {
         track!(write!(self.writer, "kurobako:").map_err(Error::from))?;
         track!(serde_json::to_writer(&mut self.writer, message).map_err(Error::from))?;
@@ -35,6 +39,7 @@ impl<T, W: Write> fmt::Debug for JsonMessageSender<T, W> {
     }
 }
 
+/// Receiving channel.
 pub struct JsonMessageReceiver<T, R: Read> {
     reader: BufReader<R>,
     _message: PhantomData<T>,
@@ -44,6 +49,7 @@ where
     T: for<'a> Deserialize<'a>,
     R: Read,
 {
+    /// Makes a new `JsonMessageReceiver` instance.
     pub fn new(reader: R) -> Self {
         Self {
             reader: BufReader::new(reader),
@@ -51,6 +57,7 @@ where
         }
     }
 
+    /// Receives a message.
     pub fn recv(&mut self) -> Result<T> {
         let mut line = String::new();
         loop {
