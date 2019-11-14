@@ -11,6 +11,8 @@ pub struct Domain(Vec<Variable>);
 impl Domain {
     /// Makes a new `Domain` instance.
     pub fn new(variables: Vec<VariableBuilder>) -> Result<Self> {
+        track_assert!(!variables.is_empty(), ErrorKind::InvalidInput);
+
         let mut vars = Vec::<Variable>::new();
         for v in variables.into_iter() {
             let v = track!(v.finish())?;

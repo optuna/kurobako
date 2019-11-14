@@ -13,10 +13,14 @@ use std::sync::atomic::{self, AtomicU64};
 use std::sync::{Arc, Mutex};
 use structopt::StructOpt;
 
+/// Recipe for the solver that is implemented by an external program.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
 pub struct ExternalProgramSolverRecipe {
+    /// The path of the external program.
     pub path: PathBuf,
+
+    /// The command line arguments that are passed to the program.
     pub args: Vec<String>,
 }
 impl SolverRecipe for ExternalProgramSolverRecipe {
@@ -50,6 +54,7 @@ impl SolverRecipe for ExternalProgramSolverRecipe {
     }
 }
 
+/// Factory for the solver that is implemented by an external program.
 #[derive(Debug)]
 pub struct ExternalProgramSolverFactory {
     spec: SolverSpec,
@@ -90,6 +95,7 @@ impl Drop for ExternalProgramSolverFactory {
     }
 }
 
+/// Solver that is implemented by an external program.
 #[derive(Debug)]
 pub struct ExternalProgramSolver {
     solver_id: u64,

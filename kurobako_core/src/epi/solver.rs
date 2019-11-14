@@ -1,3 +1,4 @@
+//! EPI components for `solver`.
 pub use self::embedded_script::{
     EmbeddedScriptSolver, EmbeddedScriptSolverFactory, EmbeddedScriptSolverRecipe,
 };

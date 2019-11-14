@@ -12,10 +12,14 @@ use std::io::Write as _;
 use structopt::StructOpt;
 use tempfile::{NamedTempFile, TempPath};
 
+/// Recipe for the solver that is implemented by an embedded script.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
 pub struct EmbeddedScriptSolverRecipe {
+    /// Embedded script code.
     pub script: String,
+
+    /// Command line arguments that are passed to the script.
     pub args: Vec<String>,
 }
 impl SolverRecipe for EmbeddedScriptSolverRecipe {
@@ -45,6 +49,7 @@ impl SolverRecipe for EmbeddedScriptSolverRecipe {
     }
 }
 
+/// Factory for the solver that is implemented by an embedded script.
 #[derive(Debug)]
 pub struct EmbeddedScriptSolverFactory {
     inner: ExternalProgramSolverFactory,
@@ -63,6 +68,7 @@ impl SolverFactory for EmbeddedScriptSolverFactory {
     }
 }
 
+/// Solver that is implemented by an embedded script.
 #[derive(Debug)]
 pub struct EmbeddedScriptSolver {
     inner: ExternalProgramSolver,

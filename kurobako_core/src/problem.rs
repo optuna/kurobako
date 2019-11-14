@@ -1,7 +1,8 @@
 //! Problem interface for black-box optimization.
-use crate::domain::{Domain, VariableBuilder};
+use crate::domain::{Distribution, Domain, Range, VariableBuilder};
 use crate::repository::Repository;
 use crate::rng::ArcRng;
+use crate::solver::Capabilities;
 use crate::trial::{Params, Values};
 use crate::{ErrorKind, Result};
 use serde::{Deserialize, Serialize};
@@ -20,9 +21,10 @@ pub struct ProblemSpecBuilder {
     evaluation_steps: u64,
 }
 impl ProblemSpecBuilder {
-    pub fn new(name: &str) -> Self {
+    /// Makes a new `ProblemSpecBuilder` instance.
+    pub fn new(problem_name: &str) -> Self {
         Self {
-            name: name.to_owned(),
+            name: problem_name.to_owned(),
             attrs: BTreeMap::new(),
             params: Vec::new(),
             values: Vec::new(),
@@ -30,26 +32,31 @@ impl ProblemSpecBuilder {
         }
     }
 
+    /// Sets an attribute of this problem.
     pub fn attr(mut self, key: &str, value: &str) -> Self {
         self.attrs.insert(key.to_owned(), value.to_owned());
         self
     }
 
+    /// Adds a variable to the parameter domain of this problem.
     pub fn param(mut self, var: VariableBuilder) -> Self {
         self.params.push(var);
         self
     }
 
+    /// Adds a variable to the value domain of this problem.
     pub fn value(mut self, var: VariableBuilder) -> Self {
         self.values.push(var);
         self
     }
 
+    /// Sets the evaluation steps of this problem.
     pub fn evaluation_steps(mut self, steps: u64) -> Self {
         self.evaluation_steps = steps;
         self
     }
 
+    /// Builds a `ProblemSpec` with the given settings.
     pub fn finish(self) -> Result<ProblemSpec> {
         let params_domain = track!(Domain::new(self.params))?;
         let values_domain = track!(Domain::new(self.values))?;
@@ -69,7 +76,7 @@ impl ProblemSpecBuilder {
 }
 
 /// Problem specification.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProblemSpec {
     /// Problem name.
     pub name: String,
@@ -87,19 +94,42 @@ pub struct ProblemSpec {
     /// Number of steps to complete evaluating a parameter set.
     pub evaluation_steps: NonZeroU64,
 }
-// TODO
-// impl ProblemSpec {
-//     pub fn required_solver_capabilities(&self) -> SolverCapabilities {
-//         let mut c = SolverCapabilities::empty();
-//         if self.values_domain.len() > 1 {
-//             c = c.multi_objective();
-//         }
-//         for p in &self.params_domain {
-//             c = c.union(p.required_solver_capabilities());
-//         }
-//         c
-//     }
-// }
+impl ProblemSpec {
+    /// Returns the capabilities required to solver to handle this problem.
+    pub fn requirements(&self) -> Capabilities {
+        let mut c = Capabilities::empty();
+
+        if self.values_domain.variables().len() > 1 {
+            c = c.multi_objective();
+        }
+
+        for v in self.params_domain.variables() {
+            if !v.conditions().is_empty() {
+                c = c.conditional();
+            }
+
+            match (v.range(), v.distribution()) {
+                (Range::Continuous { .. }, Distribution::Uniform) => {
+                    c = c.uniform_continuous();
+                }
+                (Range::Continuous { .. }, Distribution::LogUniform) => {
+                    c = c.log_uniform_continuous();
+                }
+                (Range::Discrete { .. }, Distribution::Uniform) => {
+                    c = c.uniform_discrete();
+                }
+                (Range::Discrete { .. }, Distribution::LogUniform) => {
+                    c = c.log_uniform_discrete();
+                }
+                (Range::Categorical { .. }, _) => {
+                    c = c.categorical();
+                }
+            }
+        }
+
+        c
+    }
+}
 
 pub trait ProblemRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> {
     type Factory: ProblemFactory;

@@ -12,10 +12,14 @@ use std::io::Write as _;
 use structopt::StructOpt;
 use tempfile::{NamedTempFile, TempPath};
 
+/// Recipe for the problem implemented by an embedded script.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
 pub struct EmbeddedScriptProblemRecipe {
+    /// Embedded script code.
     pub script: String,
+
+    /// Command line arguments that are passed to the script.
     pub args: Vec<String>,
 }
 impl ProblemRecipe for EmbeddedScriptProblemRecipe {
@@ -45,6 +49,7 @@ impl ProblemRecipe for EmbeddedScriptProblemRecipe {
     }
 }
 
+/// Factory for the problem implemented by an embedded script.
 #[derive(Debug)]
 pub struct EmbeddedScriptProblemFactory {
     inner: ExternalProgramProblemFactory,
@@ -63,6 +68,7 @@ impl ProblemFactory for EmbeddedScriptProblemFactory {
     }
 }
 
+/// Problem that is implemented by an embedded script.
 #[derive(Debug)]
 pub struct EmbeddedScriptProblem {
     inner: ExternalProgramProblem,
@@ -76,6 +82,7 @@ impl Problem for EmbeddedScriptProblem {
     }
 }
 
+/// Evaluator that is implemented by an embedded script.
 #[derive(Debug)]
 pub struct EmbeddedScriptEvaluator {
     inner: ExternalProgramEvaluator,

@@ -12,11 +12,14 @@ use std::sync::atomic::{self, AtomicU64};
 use std::sync::{Arc, Mutex};
 use structopt::StructOpt;
 
+/// Recipe for the problem implemented by an external program.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
-#[serde(rename_all = "kebab-case")]
 pub struct ExternalProgramProblemRecipe {
+    /// The path of the external program.
     pub path: PathBuf,
+
+    /// The command line arguments that are passed to the program.
     pub args: Vec<String>,
 }
 impl ProblemRecipe for ExternalProgramProblemRecipe {
@@ -50,6 +53,7 @@ impl ProblemRecipe for ExternalProgramProblemRecipe {
     }
 }
 
+/// Factory for the problem implemented by an external program.
 #[derive(Debug)]
 pub struct ExternalProgramProblemFactory {
     spec: ProblemSpec,
@@ -90,6 +94,7 @@ impl Drop for ExternalProgramProblemFactory {
     }
 }
 
+/// Problem that is implemented by an external program.
 #[derive(Debug)]
 pub struct ExternalProgramProblem {
     problem_id: u64,
@@ -145,6 +150,7 @@ impl Drop for ExternalProgramProblem {
     }
 }
 
+/// Evaluator that is implemented by an external program.
 #[derive(Debug)]
 pub struct ExternalProgramEvaluator {
     problem_id: u64,

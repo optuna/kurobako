@@ -4,7 +4,9 @@ use crate::trial::{EvaluatedTrial, UnevaluatedTrial};
 use crate::ErrorKind;
 use serde::{Deserialize, Serialize};
 
+/// Messages that are used to communicate with external solvers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(missing_docs)]
 #[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SolverMessage {
     SolverSpecCast {

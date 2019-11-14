@@ -1,3 +1,4 @@
+//! EPI components for `problem`.
 pub use self::embedded_script::{
     EmbeddedScriptEvaluator, EmbeddedScriptProblem, EmbeddedScriptProblemFactory,
     EmbeddedScriptProblemRecipe,
