@@ -1,6 +1,6 @@
 //! The interface of the problem for black-box optimization.
 use crate::domain::{Distribution, Domain, Range, VariableBuilder};
-use crate::repository::Repository;
+use crate::registry::FactoryRegistry;
 use crate::rng::ArcRng;
 use crate::solver::Capabilities;
 use crate::trial::{Params, Values};
@@ -136,8 +136,8 @@ pub trait ProblemRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a>
     /// The type of the factory creating the problem instance.
     type Factory: ProblemFactory;
 
-    /// Create a problem factory.
-    fn create_factory(&self, repository: &mut Repository) -> Result<Self::Factory>;
+    /// Creates a problem factory.
+    fn create_factory(&self, registry: &FactoryRegistry) -> Result<Self::Factory>;
 }
 
 /// This trait allows creating instances of a problem.
@@ -145,7 +145,7 @@ pub trait ProblemFactory {
     /// The type of the problem instance created by this factory.
     type Problem: Problem;
 
-    /// Returns the specification of the problem create by this factory.
+    /// Returns the specification of the problem created by this factory.
     fn specification(&self) -> Result<ProblemSpec>;
 
     /// Creates a problem instance.

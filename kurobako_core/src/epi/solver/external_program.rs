@@ -1,7 +1,7 @@
 use crate::epi::channel::{MessageReceiver, MessageSender};
 use crate::epi::solver::SolverMessage;
 use crate::problem::ProblemSpec;
-use crate::repository::Repository;
+use crate::registry::FactoryRegistry;
 use crate::rng::{ArcRng, Rng as _};
 use crate::solver::{Solver, SolverFactory, SolverRecipe, SolverSpec};
 use crate::trial::{EvaluatedTrial, IdGen, UnevaluatedTrial};
@@ -26,7 +26,7 @@ pub struct ExternalProgramSolverRecipe {
 impl SolverRecipe for ExternalProgramSolverRecipe {
     type Factory = ExternalProgramSolverFactory;
 
-    fn create_factory(&self, _repository: &mut Repository) -> Result<Self::Factory> {
+    fn create_factory(&self, _registry: &FactoryRegistry) -> Result<Self::Factory> {
         let mut child = track!(Command::new(&self.path)
             .args(&self.args)
             .stdin(Stdio::piped())

@@ -1,6 +1,6 @@
 //! Solver interface for black-box optimization.
 use crate::problem::ProblemSpec;
-use crate::repository::Repository;
+use crate::registry::FactoryRegistry;
 use crate::rng::ArcRng;
 use crate::trial::{EvaluatedTrial, IdGen, UnevaluatedTrial};
 use crate::Result;
@@ -158,34 +158,10 @@ pub enum Capability {
 pub trait SolverRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> {
     type Factory: SolverFactory;
 
-    fn create_factory(&self, repository: &mut Repository) -> Result<Self::Factory>;
+    fn create_factory(&self, registry: &FactoryRegistry) -> Result<Self::Factory>;
 
     fn to_json(&self) -> SolverRecipeJson {
         unimplemented!()
-    }
-}
-
-pub struct BoxSolverRecipe {
-    create: Box<dyn Fn(&mut Repository) -> Result<BoxSolverFactory>>,
-}
-impl BoxSolverRecipe {
-    pub fn new<R>(recipe: R) -> Self
-    where
-        R: 'static + SolverRecipe,
-    {
-        let create = Box::new(move |repository: &mut Repository| {
-            track!(recipe.create_factory(repository)).map(BoxSolverFactory::new)
-        });
-        Self { create }
-    }
-
-    pub fn create_factory(&self, repository: &mut Repository) -> Result<BoxSolverFactory> {
-        (self.create)(repository)
-    }
-}
-impl fmt::Debug for BoxSolverRecipe {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "BoxSolverRecipe {{ .. }}")
     }
 }
 

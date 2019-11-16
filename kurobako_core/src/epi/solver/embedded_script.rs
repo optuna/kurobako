@@ -2,7 +2,7 @@ use crate::epi::solver::{
     ExternalProgramSolver, ExternalProgramSolverFactory, ExternalProgramSolverRecipe,
 };
 use crate::problem::ProblemSpec;
-use crate::repository::Repository;
+use crate::registry::FactoryRegistry;
 use crate::rng::ArcRng;
 use crate::solver::{Solver, SolverFactory, SolverRecipe, SolverSpec};
 use crate::trial::{EvaluatedTrial, IdGen, UnevaluatedTrial};
@@ -25,7 +25,7 @@ pub struct EmbeddedScriptSolverRecipe {
 impl SolverRecipe for EmbeddedScriptSolverRecipe {
     type Factory = EmbeddedScriptSolverFactory;
 
-    fn create_factory(&self, repository: &mut Repository) -> Result<Self::Factory> {
+    fn create_factory(&self, registry: &FactoryRegistry) -> Result<Self::Factory> {
         let mut temp = track!(NamedTempFile::new().map_err(Error::from))?;
         track!(write!(temp.as_file_mut(), "{}", self.script).map_err(Error::from))?;
         let temp = temp.into_temp_path();
@@ -44,7 +44,7 @@ impl SolverRecipe for EmbeddedScriptSolverRecipe {
         args.extend(self.args.clone());
 
         let eppr = ExternalProgramSolverRecipe { path, args };
-        let inner = track!(eppr.create_factory(repository))?;
+        let inner = track!(eppr.create_factory(registry))?;
         Ok(EmbeddedScriptSolverFactory { inner, temp })
     }
 }

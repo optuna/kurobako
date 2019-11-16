@@ -6,12 +6,11 @@ extern crate trackable;
 
 pub use error::{Error, ErrorKind};
 
-//pub mod filter;
-//pub mod json;
 pub mod domain;
 pub mod epi;
+pub mod json;
 pub mod problem;
-pub mod repository;
+pub mod registry;
 pub mod rng;
 pub mod solver;
 pub mod trial;

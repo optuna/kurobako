@@ -3,7 +3,7 @@ use crate::epi::problem::{
     ExternalProgramProblemRecipe,
 };
 use crate::problem::{Evaluator, Problem, ProblemFactory, ProblemRecipe, ProblemSpec};
-use crate::repository::Repository;
+use crate::registry::FactoryRegistry;
 use crate::rng::ArcRng;
 use crate::trial::{Params, Values};
 use crate::{Error, Result};
@@ -25,7 +25,7 @@ pub struct EmbeddedScriptProblemRecipe {
 impl ProblemRecipe for EmbeddedScriptProblemRecipe {
     type Factory = EmbeddedScriptProblemFactory;
 
-    fn create_factory(&self, repository: &mut Repository) -> Result<Self::Factory> {
+    fn create_factory(&self, registry: &FactoryRegistry) -> Result<Self::Factory> {
         let mut temp = track!(NamedTempFile::new().map_err(Error::from))?;
         track!(write!(temp.as_file_mut(), "{}", self.script).map_err(Error::from))?;
         let temp = temp.into_temp_path();
@@ -43,7 +43,7 @@ impl ProblemRecipe for EmbeddedScriptProblemRecipe {
         let path = temp.to_path_buf();
         let args = self.args.clone();
         let eppr = ExternalProgramProblemRecipe { path, args };
-        let inner = track!(eppr.create_factory(repository))?;
+        let inner = track!(eppr.create_factory(registry))?;
 
         Ok(EmbeddedScriptProblemFactory { inner, temp })
     }
