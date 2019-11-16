@@ -88,7 +88,7 @@ pub struct EmbeddedScriptEvaluator {
     inner: ExternalProgramEvaluator,
 }
 impl Evaluator for EmbeddedScriptEvaluator {
-    fn evaluate(&mut self, max_step: u64) -> Result<(u64, Values)> {
-        track!(self.inner.evaluate(max_step))
+    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
+        track!(self.inner.evaluate(next_step))
     }
 }

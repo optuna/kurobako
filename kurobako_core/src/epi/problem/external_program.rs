@@ -159,12 +159,12 @@ pub struct ExternalProgramEvaluator {
     rx: Arc<Mutex<MessageReceiver<ProblemMessage, ChildStdout>>>,
 }
 impl Evaluator for ExternalProgramEvaluator {
-    fn evaluate(&mut self, max_step: u64) -> Result<(u64, Values)> {
+    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
         let evaluator_id = self.evaluator_id;
         let m = ProblemMessage::EvaluateCall {
             problem_id: self.problem_id,
             evaluator_id,
-            max_step,
+            next_step,
         };
         let mut tx = track!(self.tx.lock().map_err(Error::from))?;
         track!(tx.send(&m))?;

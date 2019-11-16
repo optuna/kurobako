@@ -1,4 +1,4 @@
-//! Problem interface for black-box optimization.
+//! The interface of the problem for black-box optimization.
 use crate::domain::{Distribution, Domain, Range, VariableBuilder};
 use crate::repository::Repository;
 use crate::rng::ArcRng;
@@ -131,16 +131,24 @@ impl ProblemSpec {
     }
 }
 
+/// Recipe of a problem.
 pub trait ProblemRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> {
+    /// The type of the factory creating the problem instance.
     type Factory: ProblemFactory;
 
+    /// Create a problem factory.
     fn create_factory(&self, repository: &mut Repository) -> Result<Self::Factory>;
 }
 
+/// This trait allows creating instances of a problem.
 pub trait ProblemFactory {
+    /// The type of the problem instance created by this factory.
     type Problem: Problem;
 
+    /// Returns the specification of the problem create by this factory.
     fn specification(&self) -> Result<ProblemSpec>;
+
+    /// Creates a problem instance.
     fn create_problem(&self, rng: ArcRng) -> Result<Self::Problem>;
 }
 
@@ -154,8 +162,10 @@ enum ProblemFactoryReturn {
     CreateProblem(BoxProblem),
 }
 
+/// Boxed problem factory.
 pub struct BoxProblemFactory(Box<dyn Fn(ProblemFactoryCall) -> Result<ProblemFactoryReturn>>);
 impl BoxProblemFactory {
+    /// Makes a new `BoxProblemFactory` instance.
     pub fn new<T>(problem: T) -> Self
     where
         T: ProblemFactory + 'static,
@@ -198,14 +208,19 @@ impl fmt::Debug for BoxProblemFactory {
     }
 }
 
+/// Problem.
 pub trait Problem {
+    /// The type of the evaluator of this problem.
     type Evaluator: Evaluator;
 
+    /// Creates an evaluator that evaluates the given parameters.
     fn create_evaluator(&self, params: Params) -> Result<Self::Evaluator>;
 }
 
+/// Boxed problem.
 pub struct BoxProblem(Box<dyn Fn(Params) -> Result<BoxEvaluator>>);
 impl BoxProblem {
+    /// Makes a new `BoxProblem` instance.
     pub fn new<T>(problem: T) -> Self
     where
         T: Problem + 'static,
@@ -228,17 +243,25 @@ impl fmt::Debug for BoxProblem {
     }
 }
 
+/// This trait allows evaluating a parameter set of a problem.
 pub trait Evaluator {
-    fn evaluate(&mut self, max_step: u64) -> Result<(u64, Values)>;
+    /// Procedes the evaluation of the parameter set given to `Problem::create_evaluator` method until reaches to `next_step..
+    ///
+    /// The first element of the result tuple means the current step of the evaluation.
+    /// Although it's desirable that the current step matches to `next_step`,
+    /// it's allowed to exceed `next_step`.
+    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)>;
 }
 impl<T: Evaluator + ?Sized> Evaluator for Box<T> {
-    fn evaluate(&mut self, max_step: u64) -> Result<(u64, Values)> {
-        (**self).evaluate(max_step)
+    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
+        (**self).evaluate(next_step)
     }
 }
 
+/// Boxed evaluator.
 pub struct BoxEvaluator(Box<(dyn Evaluator + 'static)>);
 impl BoxEvaluator {
+    /// Makes a new `BoxEvaluator` instance.
     pub fn new<T>(evaluator: T) -> Self
     where
         T: Evaluator + 'static,
@@ -247,8 +270,8 @@ impl BoxEvaluator {
     }
 }
 impl Evaluator for BoxEvaluator {
-    fn evaluate(&mut self, max_step: u64) -> Result<(u64, Values)> {
-        self.0.evaluate(max_step)
+    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
+        self.0.evaluate(next_step)
     }
 }
 impl fmt::Debug for BoxEvaluator {

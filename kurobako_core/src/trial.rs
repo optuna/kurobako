@@ -24,7 +24,7 @@ impl TrialId {
 pub struct UnevaluatedTrial {
     pub id: TrialId,
     pub params: Params,
-    pub max_step: u64,
+    pub next_step: u64,
 }
 impl UnevaluatedTrial {
     pub fn to_evaluated_trial(&self, values: Values, current_step: u64) -> EvaluatedTrial {
