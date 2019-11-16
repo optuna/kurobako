@@ -1,12 +1,15 @@
+//! **R**andom **N**number **G**enerator.
 use rand::rngs::StdRng;
 use rand::{Error, RngCore, SeedableRng};
 use std::sync::{Arc, Mutex};
 
 pub use rand::Rng;
 
+/// The random number generator for `kurobako`.
 #[derive(Debug, Clone)]
 pub struct ArcRng(Arc<Mutex<StdRng>>);
 impl ArcRng {
+    /// Makes a new `ArcRng` with the given random seed.
     pub fn new(seed: u64) -> Self {
         let mut seed256 = [0; 32];
         (&mut seed256[0..8]).copy_from_slice(&seed.to_be_bytes());
