@@ -11,19 +11,6 @@ use kurobako_core::Result;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
-// use kurobako_core::num::FiniteF64;
-// use kurobako_core::parameter::{Distribution, ParamDomain, ParamValue};
-// use kurobako_core::problem::ProblemSpec;
-// use kurobako_core::solver::{
-//     ObservedObs, Solver, SolverCapabilities, SolverRecipe, SolverSpec, UnobservedObs,
-// };
-// use kurobako_core::{ErrorKind, Result};
-// use rand::Rng;
-// use serde::{Deserialize, Serialize};
-// use structopt::StructOpt;
-// use yamakan::budget::{Budget, Budgeted};
-// use yamakan::observation::{IdGen, Obs};
-
 /// Recipe of `RandomSolver`.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 pub struct RandomSolverRecipe {}
