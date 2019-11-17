@@ -42,6 +42,12 @@ impl SolverSpecBuilder {
         self
     }
 
+    /// Sets the given capabilities to this solver.
+    pub fn capabilities(mut self, capabilities: Capabilities) -> Self {
+        self.capabilities = capabilities.iter().collect();
+        self
+    }
+
     /// Builds a `SolverSpec` instance with the given settings.
     pub fn finish(self) -> SolverSpec {
         SolverSpec {

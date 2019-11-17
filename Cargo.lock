@@ -196,7 +196,7 @@ version = "0.0.16"
 dependencies = [
  "chrono 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "kurobako_core 0.1.0",
+ "kurobako_core 0.1.1",
  "kurobako_problems 0.1.0",
  "kurobako_solvers 0.0.7",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -212,7 +212,7 @@ dependencies = [
 
 [[package]]
 name = "kurobako_core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ordered-float 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -228,7 +228,7 @@ name = "kurobako_problems"
 version = "0.1.0"
 dependencies = [
  "hdf5file 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "kurobako_core 0.1.0",
+ "kurobako_core 0.1.1",
  "nasbench 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)",
  "structopt 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -239,14 +239,11 @@ dependencies = [
 name = "kurobako_solvers"
 version = "0.0.7"
 dependencies = [
- "kurobako_core 0.1.0",
- "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "rand 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustats 0.0.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kurobako_core 0.1.1",
  "serde 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)",
  "structopt 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "trackable 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
- "yamakan 0.0.18 (registry+https://github.com/rust-lang/crates.io-index)",
+ "yamakan 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -742,6 +739,16 @@ dependencies = [
  "trackable 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
+[[package]]
+name = "yamakan"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "ordered-float 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "trackable 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
 [metadata]
 "checksum aho-corasick 0.7.6 (registry+https://github.com/rust-lang/crates.io-index)" = "58fb5e95d83b38284460a5fda7d6470aa0b8844d283a0b614b8535e880800d2d"
 "checksum ansi_term 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ee49baf6cb617b853aa8d93bf420db2383fab46d314482ca2803b40d5fde979b"
@@ -829,3 +836,4 @@ dependencies = [
 "checksum winapi-x86_64-pc-windows-gnu 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 "checksum wincolor 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "96f5016b18804d24db43cebf3c77269e7569b8954a8464501c216cc5e070eaa9"
 "checksum yamakan 0.0.18 (registry+https://github.com/rust-lang/crates.io-index)" = "608fdf9363de8c53806f7a80fa44ac822ceb68485e773c2d825fb62dd731e0c2"
+"checksum yamakan 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9c0c85e83fa395fe93472aa7841fd0e873d0e79a6fe35d91c7e2c5026f603bc9"

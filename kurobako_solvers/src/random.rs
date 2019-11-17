@@ -1,82 +1,95 @@
-use kurobako_core::num::FiniteF64;
-use kurobako_core::parameter::{Distribution, ParamDomain, ParamValue};
+//! A solver based on random search.
+use kurobako_core::domain::{Distribution, Range};
 use kurobako_core::problem::ProblemSpec;
+use kurobako_core::registry::FactoryRegistry;
+use kurobako_core::rng::{ArcRng, Rng};
 use kurobako_core::solver::{
-    ObservedObs, Solver, SolverCapabilities, SolverRecipe, SolverSpec, UnobservedObs,
+    Capabilities, Solver, SolverFactory, SolverRecipe, SolverSpec, SolverSpecBuilder,
 };
-use kurobako_core::{ErrorKind, Result};
-use rand::Rng;
+use kurobako_core::trial::{AskedTrial, EvaluatedTrial, IdGen, Params};
+use kurobako_core::Result;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
-use yamakan::budget::{Budget, Budgeted};
-use yamakan::observation::{IdGen, Obs};
 
+// use kurobako_core::num::FiniteF64;
+// use kurobako_core::parameter::{Distribution, ParamDomain, ParamValue};
+// use kurobako_core::problem::ProblemSpec;
+// use kurobako_core::solver::{
+//     ObservedObs, Solver, SolverCapabilities, SolverRecipe, SolverSpec, UnobservedObs,
+// };
+// use kurobako_core::{ErrorKind, Result};
+// use rand::Rng;
+// use serde::{Deserialize, Serialize};
+// use structopt::StructOpt;
+// use yamakan::budget::{Budget, Budgeted};
+// use yamakan::observation::{IdGen, Obs};
+
+/// Recipe of `RandomSolver`.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 pub struct RandomSolverRecipe {}
 impl SolverRecipe for RandomSolverRecipe {
+    type Factory = RandomSolverFactory;
+
+    fn create_factory(&self, _registry: &FactoryRegistry) -> Result<Self::Factory> {
+        Ok(RandomSolverFactory {})
+    }
+}
+
+/// Factory of `RandomSolver`.
+#[derive(Debug)]
+pub struct RandomSolverFactory {}
+impl SolverFactory for RandomSolverFactory {
     type Solver = RandomSolver;
 
-    fn create_solver(&self, problem: ProblemSpec) -> Result<Self::Solver> {
+    fn specification(&self) -> Result<SolverSpec> {
+        let spec = SolverSpecBuilder::new("Random").capabilities(Capabilities::all());
+        Ok(spec.finish())
+    }
+
+    fn create_solver(&self, rng: ArcRng, problem: &ProblemSpec) -> Result<Self::Solver> {
         Ok(RandomSolver {
-            params_domain: problem.params_domain,
-            budget: Budget::new(problem.evaluation_expense.get()),
+            problem: problem.clone(),
+            rng,
         })
     }
 }
 
+/// Solver based on random search.
 #[derive(Debug)]
 pub struct RandomSolver {
-    params_domain: Vec<ParamDomain>,
-    budget: Budget,
-}
-impl RandomSolver {
-    // TODO: delete
-    pub fn new(params_domain: Vec<ParamDomain>) -> Self {
-        Self {
-            params_domain,
-            budget: Budget::new(1),
-        }
-    }
+    rng: ArcRng,
+    problem: ProblemSpec,
 }
 impl Solver for RandomSolver {
-    fn specification(&self) -> SolverSpec {
-        SolverSpec {
-            name: "random".to_owned(),
-            version: Some(env!("CARGO_PKG_VERSION").to_owned()),
-            capabilities: SolverCapabilities::empty()
-                .categorical()
-                .discrete()
-                .multi_objective(),
-        }
-    }
-
-    fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<UnobservedObs> {
+    fn ask(&mut self, idg: &mut IdGen) -> Result<AskedTrial> {
         let mut params = Vec::new();
-        for p in &self.params_domain {
-            let v = match p {
-                ParamDomain::Categorical(p) => {
-                    ParamValue::Categorical(rng.gen_range(0, p.choices.len()))
-                }
-                ParamDomain::Conditional(_) => {
-                    track_panic!(ErrorKind::Incapable);
-                }
-                ParamDomain::Continuous(p) => {
-                    track_assert_eq!(p.distribution, Distribution::Uniform, ErrorKind::Incapable);
-
-                    let n = rng.gen_range(p.range.low.get(), p.range.high.get());
-                    ParamValue::Continuous(unsafe { FiniteF64::new_unchecked(n) })
-                }
-                ParamDomain::Discrete(p) => {
-                    ParamValue::Discrete(rng.gen_range(p.range.low, p.range.high))
-                }
+        for p in self.problem.params_domain.variables() {
+            let param = match p.range() {
+                Range::Continuous { low, high } => match p.distribution() {
+                    Distribution::Uniform => self.rng.gen_range(low, high),
+                    Distribution::LogUniform => self.rng.gen_range(low.log2(), high.log2()).exp2(),
+                },
+                Range::Discrete { low, high } => match p.distribution() {
+                    Distribution::Uniform => self.rng.gen_range(low, high) as f64,
+                    Distribution::LogUniform => self
+                        .rng
+                        .gen_range((*low as f64).log2(), (*high as f64).log2())
+                        .exp2()
+                        .floor(),
+                },
+                Range::Categorical { choices } => self.rng.gen_range(0, choices.len()) as f64,
             };
-            params.push(v);
+            params.push(param);
         }
-        let obs = track!(Obs::new(idg, Budgeted::new(self.budget, params)))?;
-        Ok(obs)
+
+        Ok(AskedTrial {
+            id: idg.generate(),
+            params: Params::new(params),
+            next_step: Some(self.problem.evaluation_steps.get()),
+        })
     }
 
-    fn tell(&mut self, _obs: ObservedObs) -> Result<()> {
+    fn tell(&mut self, _trial: EvaluatedTrial) -> Result<()> {
         Ok(())
     }
 }

@@ -1,10 +1,9 @@
-#[macro_use]
-extern crate log;
+//! Built-in solvers of [`kurobako`](https://github.com/sile/kurobako).
+#![warn(missing_docs)]
+
 #[macro_use]
 extern crate trackable;
 
-pub mod asha;
-pub mod fallback;
-pub mod nelder_mead;
-pub mod optuna;
+// pub mod asha;
+// pub mod optuna;
 pub mod random;
