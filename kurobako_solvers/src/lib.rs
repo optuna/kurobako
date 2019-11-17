@@ -5,7 +5,7 @@
 extern crate trackable;
 
 pub mod asha;
-// pub mod optuna;
+pub mod optuna;
 pub mod random;
 
 mod error;

@@ -1,11 +1,15 @@
-use kurobako_core::epi::solver::{EmbeddedScriptSolver, EmbeddedScriptSolverRecipe};
+//! A solver based on [Optuna](https://github.com/optuna/optuna).
+use kurobako_core::epi::solver::{
+    EmbeddedScriptSolver, EmbeddedScriptSolverFactory, EmbeddedScriptSolverRecipe,
+};
 use kurobako_core::problem::ProblemSpec;
-use kurobako_core::solver::{ObservedObs, Solver, SolverRecipe, SolverSpec, UnobservedObs};
+use kurobako_core::registry::FactoryRegistry;
+use kurobako_core::rng::ArcRng;
+use kurobako_core::solver::{Solver, SolverFactory, SolverRecipe, SolverSpec};
+use kurobako_core::trial::{AskedTrial, EvaluatedTrial, IdGen};
 use kurobako_core::Result;
-use rand::Rng;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
-use yamakan::observation::IdGen;
 
 fn add_arg(args: &mut Vec<String>, key: &str, val: &str) {
     args.push(key.to_owned());
@@ -48,8 +52,9 @@ mod defaults {
     define!(asha_reduction_factor, is_asha_reduction_factor, usize, 4);
 }
 
+/// Recipe of `OptunaSolver`.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[allow(missing_docs)] // TODO: remove
 #[structopt(rename_all = "kebab-case")]
 pub struct OptunaSolverRecipe {
     #[structopt(
@@ -186,34 +191,49 @@ impl OptunaSolverRecipe {
     }
 }
 impl SolverRecipe for OptunaSolverRecipe {
-    type Solver = OptunaSolver;
+    type Factory = OptunaSolverFactory;
 
-    fn create_solver(&self, problem: ProblemSpec) -> Result<Self::Solver> {
+    fn create_factory(&self, registry: &FactoryRegistry) -> Result<Self::Factory> {
         let script = include_str!("../contrib/optuna_solver.py");
         let args = self.build_args();
         let recipe = EmbeddedScriptSolverRecipe {
             script: script.to_owned(),
             args,
-            interpreter: None, // TODO: env!("KUROBAKO_PYTHON"),
-            interpreter_args: Vec::new(),
         };
-        let inner = track!(recipe.create_solver(problem))?;
-        Ok(OptunaSolver(inner))
+        let inner = track!(recipe.create_factory(registry))?;
+        Ok(OptunaSolverFactory { inner })
     }
 }
 
+/// Factory of `OptunaSolver`.
 #[derive(Debug)]
-pub struct OptunaSolver(EmbeddedScriptSolver);
+pub struct OptunaSolverFactory {
+    inner: EmbeddedScriptSolverFactory,
+}
+impl SolverFactory for OptunaSolverFactory {
+    type Solver = OptunaSolver;
+
+    fn specification(&self) -> Result<SolverSpec> {
+        track!(self.inner.specification())
+    }
+
+    fn create_solver(&self, rng: ArcRng, problem: &ProblemSpec) -> Result<Self::Solver> {
+        let inner = track!(self.inner.create_solver(rng, problem))?;
+        Ok(OptunaSolver { inner })
+    }
+}
+
+/// Solver that uses [Optuna](https://github.com/optuna/optuna) as the backend.
+#[derive(Debug)]
+pub struct OptunaSolver {
+    inner: EmbeddedScriptSolver,
+}
 impl Solver for OptunaSolver {
-    fn specification(&self) -> SolverSpec {
-        self.0.specification()
+    fn ask(&mut self, idg: &mut IdGen) -> Result<AskedTrial> {
+        track!(self.inner.ask(idg))
     }
 
-    fn ask<R: Rng, G: IdGen>(&mut self, rng: &mut R, idg: &mut G) -> Result<UnobservedObs> {
-        track!(self.0.ask(rng, idg))
-    }
-
-    fn tell(&mut self, obs: ObservedObs) -> Result<()> {
-        track!(self.0.tell(obs))
+    fn tell(&mut self, trial: EvaluatedTrial) -> Result<()> {
+        track!(self.inner.tell(trial))
     }
 }
