@@ -25,6 +25,7 @@ pub struct UnevaluatedTrial {
     pub id: TrialId,
     pub params: Params,
     pub next_step: u64,
+    // TODO: pruned
 }
 impl UnevaluatedTrial {
     pub fn to_evaluated_trial(&self, values: Values, current_step: u64) -> EvaluatedTrial {
@@ -39,7 +40,7 @@ impl UnevaluatedTrial {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EvaluatedTrial {
     pub id: TrialId,
-    pub values: Values,
+    pub values: Values, // TODO: Optional?
     pub current_step: u64,
 }
 

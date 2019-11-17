@@ -133,7 +133,7 @@ impl ProblemSpec {
 
 /// Recipe of a problem.
 pub trait ProblemRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> {
-    /// The type of the factory creating the problem instance.
+    /// The type of the factory creating problem instances from this recipe.
     type Factory: ProblemFactory;
 
     /// Creates a problem factory.

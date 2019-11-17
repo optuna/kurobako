@@ -67,20 +67,24 @@ pub struct SolverSpec {
     pub capabilities: Capabilities,
 }
 
+/// Recipe of a solver.
 pub trait SolverRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> {
+    /// The type of he factory creating solver instances from this recipe.
     type Factory: SolverFactory;
 
+    /// Creates a solver factory.
     fn create_factory(&self, registry: &FactoryRegistry) -> Result<Self::Factory>;
-
-    fn to_json(&self) -> SolverRecipeJson {
-        unimplemented!()
-    }
 }
 
+/// This trait allows creating instances of a solver.
 pub trait SolverFactory {
+    /// The type of the solver instance created by this factory.
     type Solver: Solver;
 
+    /// Returns the specification of the solver created by this factory.
     fn specification(&self) -> Result<SolverSpec>;
+
+    /// Creates a solver instance.
     fn create_solver(&self, rng: ArcRng, problem: &ProblemSpec) -> Result<Self::Solver>;
 }
 
@@ -94,8 +98,10 @@ enum SolverFactoryReturn {
     CreateSolver(BoxSolver),
 }
 
+/// Boxed solver factory.
 pub struct BoxSolverFactory(Box<dyn Fn(SolverFactoryCall) -> Result<SolverFactoryReturn>>);
 impl BoxSolverFactory {
+    /// Makes a new `BoxSolverFactory` instance.
     pub fn new<S>(inner: S) -> Self
     where
         S: 'static + SolverFactory,
@@ -139,13 +145,19 @@ impl fmt::Debug for BoxSolverFactory {
     }
 }
 
+/// Solver.
 pub trait Solver {
+    /// Asks the next trial to be evaluated.
     fn ask(&mut self, idg: &mut IdGen) -> Result<UnevaluatedTrial>;
+
+    /// Tells the evaluation result of a trial.
     fn tell(&mut self, trial: EvaluatedTrial) -> Result<()>;
 }
 
+/// Boxed solver.
 pub struct BoxSolver(Box<dyn Solver>);
 impl BoxSolver {
+    /// Makes a new `BoxSolver` instance.
     pub fn new<S>(solver: S) -> Self
     where
         S: 'static + Solver,
@@ -167,6 +179,3 @@ impl fmt::Debug for BoxSolver {
         write!(f, "BoxSolver {{ .. }}")
     }
 }
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct SolverRecipeJson {}
