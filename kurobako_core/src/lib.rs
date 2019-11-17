@@ -9,6 +9,7 @@ pub use error::{Error, ErrorKind};
 pub mod domain;
 pub mod epi;
 pub mod json;
+pub mod num;
 pub mod problem;
 pub mod registry;
 pub mod rng;

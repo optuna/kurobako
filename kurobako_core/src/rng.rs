@@ -1,4 +1,5 @@
 //! **R**andom **N**number **G**enerator.
+use crate::Result;
 use rand::rngs::StdRng;
 use rand::{Error, RngCore, SeedableRng};
 use std::sync::{Arc, Mutex};
@@ -16,6 +17,15 @@ impl ArcRng {
 
         let inner = StdRng::from_seed(seed256);
         Self(Arc::new(Mutex::new(inner)))
+    }
+
+    /// Acquires the lock of this instance and invokes `f` with the internal RNG.
+    pub fn with_lock<F, T>(&self, f: F) -> Result<T>
+    where
+        F: FnOnce(&mut StdRng) -> T,
+    {
+        let mut rng = track!(self.0.lock().map_err(crate::Error::from))?;
+        Ok(f(&mut rng))
     }
 }
 impl RngCore for ArcRng {

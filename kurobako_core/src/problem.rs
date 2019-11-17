@@ -44,6 +44,12 @@ impl ProblemSpecBuilder {
         self
     }
 
+    /// Sets variables of the parameter domain of this problem.
+    pub fn params(mut self, vars: Vec<VariableBuilder>) -> Self {
+        self.params = vars;
+        self
+    }
+
     /// Adds a variable to the value domain of this problem.
     pub fn value(mut self, var: VariableBuilder) -> Self {
         self.values.push(var);
