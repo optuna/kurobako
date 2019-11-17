@@ -2,7 +2,7 @@
 //!
 //! [paper]: https://arxiv.org/abs/1905.04970
 use hdf5file::{self, DataObject, Hdf5File};
-use kurobako_core::domain::{self};
+use kurobako_core::domain;
 use kurobako_core::problem::{
     Evaluator, Problem, ProblemFactory, ProblemRecipe, ProblemSpec, ProblemSpecBuilder,
 };
@@ -85,7 +85,7 @@ impl ProblemFactory for FcnetProblemFactory {
     }
 }
 
-/// NASBench problem.
+/// FC-Net problem.
 #[derive(Debug)]
 pub struct FcnetProblem {
     file: Rc<RefCell<Hdf5File>>,

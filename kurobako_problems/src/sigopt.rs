@@ -1,43 +1,38 @@
+//! A problem based on the benchmark defined by [sigopt/evalset](https://github.com/sigopt/evalset).
 use kurobako_core::epi::problem::{
-    EmbeddedScriptEvaluator, EmbeddedScriptProblem, EmbeddedScriptProblemRecipe,
+    EmbeddedScriptEvaluator, EmbeddedScriptProblem, EmbeddedScriptProblemFactory,
+    EmbeddedScriptProblemRecipe,
 };
-use kurobako_core::parameter::ParamValue;
-use kurobako_core::problem::{Evaluate, Problem, ProblemRecipe, ProblemSpec, Values};
-use kurobako_core::{Error, Result};
-use lazy_static::lazy_static;
-use log::debug;
+use kurobako_core::problem::{Evaluator, Problem, ProblemFactory, ProblemRecipe, ProblemSpec};
+use kurobako_core::registry::FactoryRegistry;
+use kurobako_core::rng::ArcRng;
+use kurobako_core::trial::{Params, Values};
+use kurobako_core::Result;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::ops::{Deref, DerefMut};
-use std::sync::{Arc, Mutex, Weak};
 use structopt::StructOpt;
-use yamakan::budget::Budget;
-use yamakan::observation::ObsId;
 
-lazy_static! {
-    static ref PROBLEM_CACHE: Mutex<HashMap<Vec<String>, Weak<Mutex<SendableEmbeddedScriptProblem>>>> =
-        Default::default();
-}
-
+/// Recipe of `SigoptProblem`.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 #[structopt(rename_all = "kebab-case")]
 pub struct SigoptProblemRecipe {
+    /// Test function name.
     #[structopt(subcommand)]
     pub name: Name,
 
+    /// Dimension of the test function.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[structopt(long)]
     pub dim: Option<u32>,
 
+    /// Input resolution of the test function.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[structopt(long)]
     pub res: Option<f64>,
 }
 impl ProblemRecipe for SigoptProblemRecipe {
-    type Problem = SigoptProblem;
+    type Factory = SigoptProblemFactory;
 
-    fn create_problem(&self) -> Result<Self::Problem> {
+    fn create_factory(&self, registry: &FactoryRegistry) -> Result<Self::Factory> {
         let script = include_str!("../contrib/sigopt_problem.py");
         let mut args = vec![format!("{:?}", self.name)];
         if let Some(dim) = self.dim {
@@ -47,79 +42,65 @@ impl ProblemRecipe for SigoptProblemRecipe {
             args.extend_from_slice(&["--res".to_owned(), res.to_string()]);
         }
 
-        let mut cache = track!(PROBLEM_CACHE.lock().map_err(Error::from))?;
-        if let Some(inner) = cache.get(&args).and_then(|v| v.upgrade()) {
-            debug!("Use cache: args={:?}", args.join(" "));
-            Ok(SigoptProblem(inner))
-        } else {
-            let recipe = EmbeddedScriptProblemRecipe {
-                script: script.to_owned(),
-                args: args.clone(),
-                interpreter: None, // TODO: env!("KUROBAKO_PYTHON")
-                interpreter_args: Vec::new(),
-                skip_lines: None,
-            };
-
-            let inner = track!(recipe.create_problem())?;
-            let inner = Arc::new(Mutex::new(SendableEmbeddedScriptProblem(inner)));
-            cache.insert(args, Arc::downgrade(&inner));
-            Ok(SigoptProblem(inner))
-        }
+        let recipe = EmbeddedScriptProblemRecipe {
+            script: script.to_owned(),
+            args,
+        };
+        let inner = track!(recipe.create_factory(registry))?;
+        Ok(SigoptProblemFactory { inner })
     }
 }
 
+/// Factory of `SigoptProblem`.
 #[derive(Debug)]
-struct SendableEmbeddedScriptProblem(EmbeddedScriptProblem);
-unsafe impl Send for SendableEmbeddedScriptProblem {}
-impl Deref for SendableEmbeddedScriptProblem {
-    type Target = EmbeddedScriptProblem;
+pub struct SigoptProblemFactory {
+    inner: EmbeddedScriptProblemFactory,
+}
+impl ProblemFactory for SigoptProblemFactory {
+    type Problem = SigoptProblem;
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+    fn specification(&self) -> Result<ProblemSpec> {
+        track!(self.inner.specification())
+    }
+
+    fn create_problem(&self, rng: ArcRng) -> Result<Self::Problem> {
+        let inner = track!(self.inner.create_problem(rng))?;
+        Ok(SigoptProblem { inner })
     }
 }
-impl DerefMut for SendableEmbeddedScriptProblem {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
 
-#[derive(Debug, Clone)]
-pub struct SigoptProblem(Arc<Mutex<SendableEmbeddedScriptProblem>>);
+/// Problem that uses the test functions defined in [sigopt/evalset](https://github.com/sigopt/evalset).
+#[derive(Debug)]
+pub struct SigoptProblem {
+    inner: EmbeddedScriptProblem,
+}
 impl Problem for SigoptProblem {
     type Evaluator = SigoptEvaluator;
 
-    fn specification(&self) -> ProblemSpec {
-        let inner = self.0.lock().unwrap_or_else(|e| panic!("{}", e));
-        inner.specification()
-    }
-
-    fn create_evaluator(&mut self, id: ObsId) -> Result<Self::Evaluator> {
-        let mut inner = track!(self.0.lock().map_err(Error::from))?;
-        track!(inner.create_evaluator(id)).map(|inner| SigoptEvaluator {
-            lock: Arc::clone(&self.0),
-            inner,
-        })
+    fn create_evaluator(&self, params: Params) -> Result<Self::Evaluator> {
+        let inner = track!(self.inner.create_evaluator(params))?;
+        Ok(SigoptEvaluator { inner })
     }
 }
 
+/// Evaluator of `SigoptProblem`.
 #[derive(Debug)]
 pub struct SigoptEvaluator {
-    lock: Arc<Mutex<SendableEmbeddedScriptProblem>>,
     inner: EmbeddedScriptEvaluator,
 }
-impl Evaluate for SigoptEvaluator {
-    fn evaluate(&mut self, params: &[ParamValue], budget: &mut Budget) -> Result<Values> {
-        let _lock = track!(self.lock.lock().map_err(Error::from))?;
-        track!(self.inner.evaluate(params, budget))
+impl Evaluator for SigoptEvaluator {
+    fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
+        track!(self.inner.evaluate(next_step))
     }
 }
 
+/// Test function name.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, StructOpt, Serialize, Deserialize,
 )]
+#[allow(missing_docs)]
 #[structopt(rename_all = "kebab-case")]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Name {
     Ackley,
     Adjiman,
