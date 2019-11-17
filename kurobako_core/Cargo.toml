@@ -1,6 +1,6 @@
 [package]
 name = "kurobako_core"
-version = "0.0.11"
+version = "0.1.0"
 authors = ["Takeru Ohta <phjgt308@gmail.com>"]
 edition = "2018"
 description = "Core crate for `kurobako`"

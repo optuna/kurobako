@@ -1,4 +1,4 @@
 kurobako_core
 ==============
 
-The core crate for [`kurobako`](https://github.com/sile/kurobako).
+The core crate of [`kurobako`](https://github.com/sile/kurobako).
