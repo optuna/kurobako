@@ -198,7 +198,7 @@ dependencies = [
  "env_logger 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "kurobako_core 0.1.1",
  "kurobako_problems 0.1.0",
- "kurobako_solvers 0.0.7",
+ "kurobako_solvers 0.1.0",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand_distr 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -237,7 +237,7 @@ dependencies = [
 
 [[package]]
 name = "kurobako_solvers"
-version = "0.0.7"
+version = "0.1.0"
 dependencies = [
  "kurobako_core 0.1.1",
  "serde 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)",
