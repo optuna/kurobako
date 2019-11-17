@@ -2,7 +2,7 @@
 use crate::domain::{Distribution, Domain, Range, VariableBuilder};
 use crate::registry::FactoryRegistry;
 use crate::rng::ArcRng;
-use crate::solver::Capabilities;
+use crate::solver::{Capabilities, Capability};
 use crate::trial::{Params, Values};
 use crate::{ErrorKind, Result};
 use serde::{Deserialize, Serialize};
@@ -100,29 +100,29 @@ impl ProblemSpec {
         let mut c = Capabilities::empty();
 
         if self.values_domain.variables().len() > 1 {
-            c = c.multi_objective();
+            c.add_capability(Capability::MultiObjective);
         }
 
         for v in self.params_domain.variables() {
             if !v.conditions().is_empty() {
-                c = c.conditional();
+                c.add_capability(Capability::Conditional);
             }
 
             match (v.range(), v.distribution()) {
                 (Range::Continuous { .. }, Distribution::Uniform) => {
-                    c = c.uniform_continuous();
+                    c.add_capability(Capability::UniformContinuous);
                 }
                 (Range::Continuous { .. }, Distribution::LogUniform) => {
-                    c = c.log_uniform_continuous();
+                    c.add_capability(Capability::LogUniformContinuous);
                 }
                 (Range::Discrete { .. }, Distribution::Uniform) => {
-                    c = c.uniform_discrete();
+                    c.add_capability(Capability::UniformDiscrete);
                 }
                 (Range::Discrete { .. }, Distribution::LogUniform) => {
-                    c = c.log_uniform_discrete();
+                    c.add_capability(Capability::LogUniformDiscrete);
                 }
                 (Range::Categorical { .. }, _) => {
-                    c = c.categorical();
+                    c.add_capability(Capability::Categorical);
                 }
             }
         }
