@@ -5,8 +5,6 @@ extern crate trackable;
 
 pub mod benchmark;
 pub mod exam;
-pub mod filter;
-pub mod filters;
 pub mod homonym;
 pub mod markdown;
 pub mod multi_exam;

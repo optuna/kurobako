@@ -16,21 +16,16 @@ codecov = {repository = "sile/kurobako"}
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
 env_logger = "0.7"
-# kurobako_core = { path = "kurobako_core", version = "0.0" }
-kurobako_core = { path = "kurobako_core" }
-#kurobako_problems = { path = "kurobako_problems", version = "0.0" }
-kurobako_problems = { path = "kurobako_problems" }
-#kurobako_solvers = { path = "kurobako_solvers", version = "0.0" }
-kurobako_solvers = { path = "kurobako_solvers" }
+kurobako_core = { path = "kurobako_core", version = "0.1" }
+kurobako_problems = { path = "kurobako_problems", version = "0.1" }
+kurobako_solvers = { path = "kurobako_solvers", version = "0.1" }
 log = "0.4"
 rand = "0.7"
 rand_distr = "0.2"
-rustats = "0.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 structopt = "0.3"
 trackable = "0.2"
-yamakan = "0.0"
 
 [workspace]
 members = ["kurobako_core", "kurobako_problems", "kurobako_solvers"]
