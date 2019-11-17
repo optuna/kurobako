@@ -4,6 +4,6 @@
 #[macro_use]
 extern crate trackable;
 
-// pub mod fc_net;
+pub mod fcnet;
 pub mod nasbench;
 // pub mod sigopt;

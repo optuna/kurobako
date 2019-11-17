@@ -1,4 +1,4 @@
-//! A problem based on [NAS-Bench-101: Towards Reproducible Neural Architecture Search][nasbench].
+//! A problem based on the benchmark described in [NAS-Bench-101: Towards Reproducible Neural Architecture Search][nasbench].
 //!
 //! [nasbench]: https://arxiv.org/abs/1902.09635
 use kurobako_core::domain::{self, VariableBuilder};
@@ -14,8 +14,8 @@ use nasbench::{AdjacencyMatrix, ModelSpec, NasBench, Op};
 use serde::{Deserialize, Serialize};
 use std::collections::{Bound, HashSet};
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::str::FromStr;
-use std::sync::Arc;
 use structopt::StructOpt;
 
 const MAX_EDGES: usize = 9;
@@ -43,7 +43,7 @@ impl ProblemRecipe for NasbenchProblemRecipe {
     fn create_factory(&self, _registry: &FactoryRegistry) -> Result<Self::Factory> {
         let nasbench = track!(NasBench::new(&self.dataset))?;
         Ok(NasbenchProblemFactory {
-            nasbench: Arc::new(nasbench),
+            nasbench: Rc::new(nasbench),
             encoding: self.encoding,
         })
     }
@@ -52,7 +52,7 @@ impl ProblemRecipe for NasbenchProblemRecipe {
 /// Factory of `NasbenchProblem`.
 #[derive(Debug)]
 pub struct NasbenchProblemFactory {
-    nasbench: Arc<NasBench>,
+    nasbench: Rc<NasBench>,
     encoding: Encoding,
 }
 impl ProblemFactory for NasbenchProblemFactory {
@@ -71,7 +71,7 @@ impl ProblemFactory for NasbenchProblemFactory {
 
     fn create_problem(&self, rng: ArcRng) -> Result<Self::Problem> {
         Ok(NasbenchProblem {
-            nasbench: Arc::clone(&self.nasbench),
+            nasbench: Rc::clone(&self.nasbench),
             encoding: self.encoding,
             rng,
         })
@@ -81,7 +81,7 @@ impl ProblemFactory for NasbenchProblemFactory {
 /// NASBench problem.
 #[derive(Debug)]
 pub struct NasbenchProblem {
-    nasbench: Arc<NasBench>,
+    nasbench: Rc<NasBench>,
     encoding: Encoding,
     rng: ArcRng,
 }
@@ -111,7 +111,7 @@ impl Problem for NasbenchProblem {
         );
 
         Ok(NasbenchEvaluator {
-            nasbench: Arc::clone(&self.nasbench),
+            nasbench: Rc::clone(&self.nasbench),
             encoding: self.encoding,
             model_spec,
             sample_index: track!(self.rng.with_lock(|rng| rng.gen()))?,
@@ -122,7 +122,7 @@ impl Problem for NasbenchProblem {
 /// Evaluator of `NasbenchProblem`.
 #[derive(Debug)]
 pub struct NasbenchEvaluator {
-    nasbench: Arc<NasBench>,
+    nasbench: Rc<NasBench>,
     encoding: Encoding,
     model_spec: ModelSpec,
     sample_index: usize,
