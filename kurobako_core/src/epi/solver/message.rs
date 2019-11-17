@@ -1,6 +1,6 @@
 use crate::problem::ProblemSpec;
 use crate::solver::SolverSpec;
-use crate::trial::{EvaluatedTrial, UnevaluatedTrial};
+use crate::trial::{AskedTrial, EvaluatedTrial};
 use crate::ErrorKind;
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +25,7 @@ pub enum SolverMessage {
         next_trial_id: u64,
     },
     AskReply {
-        trial: UnevaluatedTrial,
+        trial: AskedTrial,
         next_trial_id: u64,
     },
     TellCall {

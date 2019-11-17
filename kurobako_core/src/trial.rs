@@ -20,27 +20,49 @@ impl TrialId {
     }
 }
 
+/// A trial that has a parameter set to be evaluated.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UnevaluatedTrial {
+pub struct AskedTrial {
+    /// The identifier of this trial.
     pub id: TrialId,
+
+    /// The parameters to be evaluated.
     pub params: Params,
-    pub next_step: u64,
-    // TODO: pruned
+
+    /// The next evaluation step.
+    ///
+    /// The evaluator needs to evaluate the parameters until this step reaches.
+    /// If this is `None`, it means that this trial doesn't need to be evaluated anymore.
+    pub next_step: Option<u64>,
 }
-impl UnevaluatedTrial {
-    pub fn to_evaluated_trial(&self, values: Values, current_step: u64) -> EvaluatedTrial {
+impl AskedTrial {
+    /// Makes an `EvaluatedTrial` instance with the given values and step.
+    pub fn evaluated(&self, values: Values, current_step: u64) -> EvaluatedTrial {
         EvaluatedTrial {
             id: self.id,
             values,
             current_step,
         }
     }
+
+    /// Makes an `EvaluatedTrial` instance that indicates this trial couldn't be evaluated.
+    pub fn unevaluable(&self) -> EvaluatedTrial {
+        self.evaluated(Values::new(Vec::new()), self.next_step.unwrap_or(0))
+    }
 }
 
+/// A trial that has an evaluated values.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EvaluatedTrial {
+    /// The identifier of this trial.
     pub id: TrialId,
-    pub values: Values, // TODO: Optional?
+
+    /// The evaluated objective values.
+    ///
+    /// If the parameters couldn't be evaluated for any reasons, this becomes empty.
+    pub values: Values,
+
+    /// The current evaluation step.
     pub current_step: u64,
 }
 
@@ -62,12 +84,9 @@ impl IdGen {
         id
     }
 
+    /// Peeks the next identifier.
     pub fn peek_id(&self) -> TrialId {
         TrialId(self.next)
-    }
-
-    pub fn set(&mut self, next: u64) {
-        self.next = next;
     }
 }
 

@@ -4,7 +4,7 @@ use crate::problem::ProblemSpec;
 use crate::registry::FactoryRegistry;
 use crate::rng::{ArcRng, Rng as _};
 use crate::solver::{Solver, SolverFactory, SolverRecipe, SolverSpec};
-use crate::trial::{EvaluatedTrial, IdGen, UnevaluatedTrial};
+use crate::trial::{AskedTrial, EvaluatedTrial, IdGen};
 use crate::{Error, ErrorKind, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -103,7 +103,7 @@ pub struct ExternalProgramSolver {
     rx: Arc<Mutex<MessageReceiver<SolverMessage, ChildStdout>>>,
 }
 impl Solver for ExternalProgramSolver {
-    fn ask(&mut self, idg: &mut IdGen) -> Result<UnevaluatedTrial> {
+    fn ask(&mut self, idg: &mut IdGen) -> Result<AskedTrial> {
         let m = SolverMessage::AskCall {
             solver_id: self.solver_id,
             next_trial_id: idg.peek_id().get(),
@@ -117,7 +117,13 @@ impl Solver for ExternalProgramSolver {
                 trial,
                 next_trial_id,
             } => {
-                idg.set(next_trial_id);
+                track_assert!(
+                    idg.peek_id().get() <= next_trial_id,
+                    ErrorKind::InvalidInput; idg.peek_id().get(), next_trial_id
+                );
+                while idg.peek_id().get() < next_trial_id {
+                    idg.generate();
+                }
                 Ok(trial)
             }
             SolverMessage::ErrorReply { kind, message } => {
