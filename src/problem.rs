@@ -1,45 +1,78 @@
-use crate::exam::ExamProblemRecipe;
-use crate::homonym::HomonymProblemRecipe;
-use crate::multi_exam::MultiExamProblemRecipe;
+//! The problem for `kurobako`.
 use kurobako_core::epi::problem::ExternalProgramProblemRecipe;
-use kurobako_core::problem::{BoxProblem, ProblemRecipe};
+use kurobako_core::problem::{
+    BoxProblem, BoxProblemFactory, ProblemFactory, ProblemRecipe, ProblemSpec,
+};
+use kurobako_core::registry::FactoryRegistry;
+use kurobako_core::rng::ArcRng;
 use kurobako_core::Result;
-use kurobako_problems::{deepobs, fc_net, ffmpeg, lightgbm, nasbench, sigopt, synthetic};
+use kurobako_problems::{fcnet, nasbench, sigopt};
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
+/// Problem recipe.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 #[structopt(rename_all = "kebab-case")]
-pub enum KurobakoProblemRecipe {
+pub struct KurobakoProblemRecipe {
+    #[structopt(long)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
+
+    #[structopt(flatten)]
+    #[serde(flatten)]
+    inner: InnerRecipe,
+}
+impl ProblemRecipe for KurobakoProblemRecipe {
+    type Factory = KurobakoProblemFactory;
+
+    fn create_factory(&self, registry: &FactoryRegistry) -> Result<Self::Factory> {
+        let inner = track!(self.inner.create_factory(registry))?;
+        Ok(KurobakoProblemFactory {
+            name: self.name.clone(),
+            inner,
+        })
+    }
+}
+
+#[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
+#[structopt(rename_all = "kebab-case")]
+enum InnerRecipe {
     Command(ExternalProgramProblemRecipe),
     Sigopt(sigopt::SigoptProblemRecipe),
     Nasbench(nasbench::NasbenchProblemRecipe),
-    FcNet(fc_net::FcNetProblemRecipe),
-    Ffmpeg(ffmpeg::FfmpegProblemRecipe),
-    Lightgbm(lightgbm::LightgbmProblemRecipe),
-    Deepobs(deepobs::DeepobsProblemRecipe),
-    Synthetic(synthetic::SyntheticProblemRecipe),
-    Exam(ExamProblemRecipe),
-    MultiExam(MultiExamProblemRecipe),
-    Homonym(HomonymProblemRecipe),
+    Fcnet(fcnet::FcnetProblemRecipe),
 }
-impl ProblemRecipe for KurobakoProblemRecipe {
+impl ProblemRecipe for InnerRecipe {
+    type Factory = BoxProblemFactory;
+
+    fn create_factory(&self, registry: &FactoryRegistry) -> Result<Self::Factory> {
+        match self {
+            Self::Command(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
+            Self::Sigopt(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
+            Self::Nasbench(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
+            Self::Fcnet(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
+        }
+    }
+}
+
+/// Problem factory.
+#[derive(Debug)]
+pub struct KurobakoProblemFactory {
+    name: Option<String>,
+    inner: BoxProblemFactory,
+}
+impl ProblemFactory for KurobakoProblemFactory {
     type Problem = BoxProblem;
 
-    fn create_problem(&self) -> Result<Self::Problem> {
-        match self {
-            KurobakoProblemRecipe::Command(p) => track!(p.create_problem().map(BoxProblem::new)),
-            KurobakoProblemRecipe::Sigopt(p) => track!(p.create_problem().map(BoxProblem::new)),
-            KurobakoProblemRecipe::Nasbench(p) => track!(p.create_problem().map(BoxProblem::new)),
-            KurobakoProblemRecipe::FcNet(p) => track!(p.create_problem().map(BoxProblem::new)),
-            KurobakoProblemRecipe::Ffmpeg(p) => track!(p.create_problem().map(BoxProblem::new)),
-            KurobakoProblemRecipe::Lightgbm(p) => track!(p.create_problem().map(BoxProblem::new)),
-            KurobakoProblemRecipe::Deepobs(p) => track!(p.create_problem().map(BoxProblem::new)),
-            KurobakoProblemRecipe::Synthetic(p) => track!(p.create_problem().map(BoxProblem::new)),
-            KurobakoProblemRecipe::Exam(p) => track!(p.create_problem().map(BoxProblem::new)),
-            KurobakoProblemRecipe::MultiExam(p) => track!(p.create_problem().map(BoxProblem::new)),
-            KurobakoProblemRecipe::Homonym(p) => track!(p.create_problem().map(BoxProblem::new)),
+    fn specification(&self) -> Result<ProblemSpec> {
+        let mut spec = track!(self.inner.specification())?;
+        if let Some(name) = &self.name {
+            spec.name = name.clone();
         }
+        Ok(spec)
+    }
+
+    fn create_problem(&self, rng: ArcRng) -> Result<Self::Problem> {
+        track!(self.inner.create_problem(rng)).map(BoxProblem::new)
     }
 }
