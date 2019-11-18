@@ -1,10 +1,12 @@
 #[macro_use]
 extern crate trackable;
 
+use indicatif::ProgressIterator;
 use kurobako::problem::KurobakoProblemRecipe;
+use kurobako::runner::StudyRunner;
 use kurobako::solver::KurobakoSolverRecipe;
 use kurobako::study::{StudiesRecipe, StudyRecipe};
-use kurobako_core::Error;
+use kurobako_core::{Error, Result};
 use structopt::StructOpt;
 
 // use kurobako::benchmark::BenchmarkRecipe;
@@ -15,8 +17,6 @@ use structopt::StructOpt;
 // use kurobako::plot_scatter::PlotScatterOptions;
 // use kurobako::problem_suites::{KurobakoProblemSuite, ProblemSuite};
 // use kurobako::record::{BenchmarkRecord, StudyRecord};
-// use kurobako::runner::StudyRunner;
-// use kurobako::select::SelectOpt;
 // use kurobako::stats::ranking::{SolverRanking, SolverRankingOptions};
 // use kurobako::variable::Variable;
 // use kurobako_core::{Error, Result};
@@ -25,6 +25,10 @@ use structopt::StructOpt;
 macro_rules! print_json {
     ($x:expr) => {
         track!(serde_json::to_writer(std::io::stdout().lock(), &$x).map_err(Error::from))?;
+        println!();
+    };
+    ($x:expr, $out:expr) => {
+        track!(serde_json::to_writer(&mut $out, &$x).map_err(Error::from))?;
         println!();
     };
 }
@@ -36,21 +40,20 @@ enum Opt {
     Problem(KurobakoProblemRecipe),
     Study(StudyRecipe),
     Studies(StudiesRecipe),
+    Run(RunOpt),
     // ProblemSuite(KurobakoProblemSuite),
     // Exam(ExamRecipe),
     // MultiExam(MultiExamRecipe),
     // Benchmark(BenchmarkRecipe),
-    // Run(RunOpt),
-    // Select(SelectOpt),
     // Stats(StatsOpt),
     // Plot(PlotOpt),
     // PlotScatter(PlotScatterOpt),
     // Var(Variable),
 }
 
-// #[derive(Debug, StructOpt)]
-// #[structopt(rename_all = "kebab-case")]
-// struct RunOpt {}
+#[derive(Debug, StructOpt)]
+#[structopt(rename_all = "kebab-case")]
+struct RunOpt {}
 
 // #[derive(Debug, StructOpt)]
 // #[structopt(rename_all = "kebab-case")]
@@ -104,6 +107,9 @@ fn main() -> trackable::result::TopLevelResult {
                 print_json!(y);
             }
         }
+        Opt::Run(opt) => {
+            handle_run_command(opt)?;
+        }
     }
 
     Ok(())
@@ -129,12 +135,6 @@ fn main() -> trackable::result::TopLevelResult {
 //                 println!();
 //             }
 //         }
-//         Opt::Run(opt) => {
-//             handle_run_command(opt)?;
-//         }
-//         Opt::Select(opt) => {
-//             handle_select_command(opt)?;
-//         }
 //         Opt::Stats(opt) => {
 //             handle_stats_command(opt)?;
 //         }
@@ -148,55 +148,23 @@ fn main() -> trackable::result::TopLevelResult {
 //     Ok(())
 // }
 
-// fn handle_select_command(opt: SelectOpt) -> Result<()> {
-//     let selector = opt.build();
-//     let stdin = std::io::stdin();
+fn handle_run_command(_opt: RunOpt) -> Result<()> {
+    let stdin = std::io::stdin();
+    let mut studies = Vec::new();
+    for study in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
+        let study: StudyRecipe = track!(study.map_err(Error::from))?;
+        studies.push(study);
+    }
 
-//     let stdout = std::io::stdout();
-//     let mut stdout = stdout.lock();
-//     for study in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
-//         match track!(study.map_err(Error::from)) {
-//             Err(e) => {
-//                 eprintln!("{}", e);
-//             }
-//             Ok(study) => {
-//                 let study: StudyRecord = study;
-//                 if selector.is_selected(&study) {
-//                     track!(serde_json::to_writer(&mut stdout, &study).map_err(Error::from))?;
-//                     println!();
-//                 }
-//             }
-//         }
-//     }
-//     Ok(())
-// }
-
-// fn handle_run_command(_opt: RunOpt) -> Result<()> {
-//     let stdin = std::io::stdin();
-//     let mut exams = Vec::new();
-//     for exam in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
-//         let exam: ExamRecipe = track!(exam.map_err(Error::from))?;
-//         exams.push(exam);
-//     }
-//     let total = exams.len();
-
-//     let stdout = std::io::stdout();
-//     let mut stdout = stdout.lock();
-//     for (i, exam) in exams.into_iter().enumerate() {
-//         eprintln!("# [{}/{}] {:?}", i + 1, total, exam);
-//         let runner = track!(StudyRunner::new(&exam.solver, &exam.problem, &exam.runner))?;
-//         match track!(runner.run()) {
-//             Ok(record) => {
-//                 track!(serde_json::to_writer(&mut stdout, &record).map_err(Error::from))?;
-//                 println!();
-//             }
-//             Err(e) => {
-//                 eprintln!("[WARN] Failed: {}", e);
-//             }
-//         }
-//     }
-//     Ok(())
-// }
+    let stdout = std::io::stdout();
+    let mut stdout = stdout.lock();
+    for study in studies.into_iter().progress() {
+        let runner = track!(StudyRunner::new(&study); study)?;
+        let record = track!(runner.run(); study)?;
+        print_json!(record, stdout);
+    }
+    Ok(())
+}
 
 // fn handle_stats_command(opt: StatsOpt) -> Result<()> {
 //     let stdin = std::io::stdin();

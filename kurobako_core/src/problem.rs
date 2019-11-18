@@ -139,7 +139,7 @@ impl ProblemSpec {
 }
 
 /// Recipe of a problem.
-pub trait ProblemRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a> {
+pub trait ProblemRecipe: Clone + Send + StructOpt + Serialize + for<'a> Deserialize<'a> {
     /// The type of the factory creating problem instances from this recipe.
     type Factory: ProblemFactory;
 
@@ -148,7 +148,7 @@ pub trait ProblemRecipe: Clone + StructOpt + Serialize + for<'a> Deserialize<'a>
 }
 
 /// This trait allows creating instances of a problem.
-pub trait ProblemFactory {
+pub trait ProblemFactory: Send {
     /// The type of the problem instance created by this factory.
     type Problem: Problem;
 
@@ -170,12 +170,14 @@ enum ProblemFactoryReturn {
 }
 
 /// Boxed problem factory.
-pub struct BoxProblemFactory(Box<dyn Fn(ProblemFactoryCall) -> Result<ProblemFactoryReturn>>);
+pub struct BoxProblemFactory(
+    Box<dyn Fn(ProblemFactoryCall) -> Result<ProblemFactoryReturn> + Send>,
+);
 impl BoxProblemFactory {
     /// Makes a new `BoxProblemFactory` instance.
     pub fn new<T>(problem: T) -> Self
     where
-        T: ProblemFactory + 'static,
+        T: 'static + ProblemFactory,
     {
         Self(Box::new(move |call| match call {
             ProblemFactoryCall::Specification => problem
@@ -216,7 +218,7 @@ impl fmt::Debug for BoxProblemFactory {
 }
 
 /// Problem.
-pub trait Problem {
+pub trait Problem: Send {
     /// The type of the evaluator of this problem.
     type Evaluator: Evaluator;
 
@@ -225,12 +227,12 @@ pub trait Problem {
 }
 
 /// Boxed problem.
-pub struct BoxProblem(Box<dyn Fn(Params) -> Result<BoxEvaluator>>);
+pub struct BoxProblem(Box<dyn Fn(Params) -> Result<BoxEvaluator> + Send>);
 impl BoxProblem {
     /// Makes a new `BoxProblem` instance.
     pub fn new<T>(problem: T) -> Self
     where
-        T: Problem + 'static,
+        T: 'static + Problem,
     {
         Self(Box::new(move |params| {
             problem.create_evaluator(params).map(BoxEvaluator::new)
@@ -251,7 +253,7 @@ impl fmt::Debug for BoxProblem {
 }
 
 /// This trait allows evaluating a parameter set of a problem.
-pub trait Evaluator {
+pub trait Evaluator: Send {
     /// Procedes the evaluation of the parameter set given to `Problem::create_evaluator` method until reaches to `next_step..
     ///
     /// The first element of the result tuple means the current step of the evaluation.
@@ -266,12 +268,12 @@ impl<T: Evaluator + ?Sized> Evaluator for Box<T> {
 }
 
 /// Boxed evaluator.
-pub struct BoxEvaluator(Box<(dyn Evaluator + 'static)>);
+pub struct BoxEvaluator(Box<dyn Evaluator>);
 impl BoxEvaluator {
     /// Makes a new `BoxEvaluator` instance.
     pub fn new<T>(evaluator: T) -> Self
     where
-        T: Evaluator + 'static,
+        T: 'static + Evaluator,
     {
         Self(Box::new(evaluator))
     }

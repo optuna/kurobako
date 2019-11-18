@@ -11,10 +11,9 @@ use kurobako_core::rng::{ArcRng, Rng};
 use kurobako_core::trial::{Params, Values};
 use kurobako_core::{Error, ErrorKind, Result};
 use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
 use std::f64;
 use std::path::PathBuf;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 use structopt::StructOpt;
 use trackable::error::ErrorKindExt as _;
 
@@ -31,7 +30,7 @@ impl ProblemRecipe for FcnetProblemRecipe {
     fn create_factory(&self, _registry: &FactoryRegistry) -> Result<Self::Factory> {
         let file = track!(Hdf5File::open_file(&self.dataset).map_err(into_error))?;
         Ok(FcnetProblemFactory {
-            file: Rc::new(RefCell::new(file)),
+            file: Arc::new(Mutex::new(file)),
             path: self.dataset.clone(),
         })
     }
@@ -40,7 +39,7 @@ impl ProblemRecipe for FcnetProblemRecipe {
 /// Factory of `FcnetProblem`.
 #[derive(Debug)]
 pub struct FcnetProblemFactory {
-    file: Rc<RefCell<Hdf5File>>,
+    file: Arc<Mutex<Hdf5File>>,
     path: PathBuf,
 }
 impl ProblemFactory for FcnetProblemFactory {
@@ -79,7 +78,7 @@ impl ProblemFactory for FcnetProblemFactory {
 
     fn create_problem(&self, rng: ArcRng) -> Result<Self::Problem> {
         Ok(FcnetProblem {
-            file: Rc::clone(&self.file),
+            file: Arc::clone(&self.file),
             rng,
         })
     }
@@ -88,7 +87,7 @@ impl ProblemFactory for FcnetProblemFactory {
 /// FC-Net problem.
 #[derive(Debug)]
 pub struct FcnetProblem {
-    file: Rc<RefCell<Hdf5File>>,
+    file: Arc<Mutex<Hdf5File>>,
     rng: ArcRng,
 }
 impl Problem for FcnetProblem {
@@ -112,7 +111,7 @@ impl Problem for FcnetProblem {
         );
 
         Ok(FcnetEvaluator {
-            file: Rc::clone(&self.file),
+            file: Arc::clone(&self.file),
             key: format!("/{}/valid_mse", key),
             sample_index: track!(self.rng.with_lock(|rng| rng.gen()))?,
         })
@@ -122,17 +121,14 @@ impl Problem for FcnetProblem {
 /// Evaluator of `FcnetProblem`.
 #[derive(Debug)]
 pub struct FcnetEvaluator {
-    file: Rc<RefCell<Hdf5File>>,
+    file: Arc<Mutex<Hdf5File>>,
     key: String,
     sample_index: usize,
 }
 impl Evaluator for FcnetEvaluator {
     fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
-        let data = track!(self
-            .file
-            .borrow_mut()
-            .get_object(&self.key)
-            .map_err(into_error))?;
+        let mut file = track!(self.file.lock().map_err(Error::from))?;
+        let data = track!(file.get_object(&self.key).map_err(into_error))?;
         let DataObject::Float(data) = track_assert_some!(data, ErrorKind::InvalidInput; self.key);
 
         let value = data[[self.sample_index, next_step as usize - 1]];

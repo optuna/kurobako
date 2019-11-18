@@ -45,8 +45,8 @@ impl FactoryRegistry {
 }
 
 struct ProblemFactoryRegistry {
-    normalize_json: Box<dyn Fn(&JsonRecipe) -> Result<String>>,
-    create_factory: Box<dyn Fn(&str, &FactoryRegistry) -> Result<BoxProblemFactory>>,
+    normalize_json: Box<dyn Fn(&JsonRecipe) -> Result<String> + Send>,
+    create_factory: Box<dyn Fn(&str, &FactoryRegistry) -> Result<BoxProblemFactory> + Send>,
     factories: Mutex<HashMap<String, Weak<Mutex<BoxProblemFactory>>>>,
 }
 impl ProblemFactoryRegistry {
@@ -97,8 +97,8 @@ impl fmt::Debug for ProblemFactoryRegistry {
 }
 
 struct SolverFactoryRegistry {
-    normalize_json: Box<dyn Fn(&JsonRecipe) -> Result<String>>,
-    create_factory: Box<dyn Fn(&str, &FactoryRegistry) -> Result<BoxSolverFactory>>,
+    normalize_json: Box<dyn Fn(&JsonRecipe) -> Result<String> + Send>,
+    create_factory: Box<dyn Fn(&str, &FactoryRegistry) -> Result<BoxSolverFactory> + Send>,
     factories: Mutex<HashMap<String, Weak<Mutex<BoxSolverFactory>>>>,
 }
 impl SolverFactoryRegistry {
