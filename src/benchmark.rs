@@ -16,6 +16,7 @@ pub struct BenchmarkRecipe {
     #[structopt(long, parse(try_from_str = json::parse_json))]
     pub problems: Vec<KurobakoProblemRecipe>,
 
+    // TODO: repeats
     #[structopt(long, default_value = "10")]
     pub iterations: usize,
 

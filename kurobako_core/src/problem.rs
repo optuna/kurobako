@@ -97,8 +97,10 @@ pub struct ProblemSpec {
     /// Domain of the objective values.
     pub values_domain: Domain,
 
-    /// Number of steps to complete evaluating a parameter set.
-    pub evaluation_steps: NonZeroU64,
+    /// List of steps.
+    ///
+    /// This problem can evaluate a given parameter set at a step in this list.
+    pub steps: EvaluableSteps,
 }
 impl ProblemSpec {
     /// Returns the capabilities required to solver to handle this problem.
@@ -285,3 +287,6 @@ impl fmt::Debug for BoxEvaluator {
         write!(f, "BoxEvaluator {{ .. }}")
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EvaluableSteps(Vec<u64>);

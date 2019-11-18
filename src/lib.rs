@@ -1,5 +1,5 @@
 //! A black-box optimization benchmarking framework.
-#![warn(missing_docs)]
+// #![warn(missing_docs)]
 
 #[macro_use]
 extern crate log;
@@ -14,6 +14,7 @@ extern crate trackable;
 // pub mod plot;
 // pub mod plot_scatter; // TODO: merge with plot
 pub mod problem;
+pub mod study;
 // pub mod problem_suites;
 // pub mod record;
 // pub mod runner;
