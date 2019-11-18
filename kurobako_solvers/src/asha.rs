@@ -27,7 +27,7 @@ use yamakan::{self, Budget, MfObs, MultiFidelityOptimizer, Obs, ObsId, Optimizer
 pub struct AshaSolverRecipe {
     /// Rate to determine the value of `min_step`.
     ///
-    /// The value of `min_step` will be set to `problem.evaluation_steps * min_step_rate`.
+    /// The value of `min_step` will be set to `problem.steps.last_step() * min_step_rate`.
     /// If `min_step` is given, this field is ignored.
     #[structopt(long, default_value = "0.01")]
     pub min_step_rate: f64,
@@ -87,7 +87,7 @@ impl SolverFactory for AshaSolverFactory {
     }
 
     fn create_solver(&self, rng: ArcRng, problem: &ProblemSpec) -> Result<Self::Solver> {
-        let max_budget = problem.evaluation_steps.get();
+        let max_budget = problem.steps.last_step();
         let min_budget = if let Some(v) = self.min_step {
             v
         } else {

@@ -3,6 +3,7 @@ extern crate trackable;
 
 use kurobako::problem::KurobakoProblemRecipe;
 use kurobako::solver::KurobakoSolverRecipe;
+use kurobako::study::StudyRecipe;
 use kurobako_core::Error;
 use structopt::StructOpt;
 
@@ -32,6 +33,7 @@ macro_rules! print_json {
 enum Opt {
     Solver(KurobakoSolverRecipe),
     Problem(KurobakoProblemRecipe),
+    Study(StudyRecipe),
     // ProblemSuite(KurobakoProblemSuite),
     // Exam(ExamRecipe),
     // MultiExam(MultiExamRecipe),
@@ -90,6 +92,9 @@ fn main() -> trackable::result::TopLevelResult {
             print_json!(x);
         }
         Opt::Problem(x) => {
+            print_json!(x);
+        }
+        Opt::Study(x) => {
             print_json!(x);
         }
     }

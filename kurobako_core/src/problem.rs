@@ -8,7 +8,6 @@ use crate::{ErrorKind, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;
-use std::num::NonZeroU64;
 use structopt::StructOpt;
 
 /// `ProblemSpec` builder.
@@ -18,7 +17,7 @@ pub struct ProblemSpecBuilder {
     attrs: BTreeMap<String, String>,
     params: Vec<VariableBuilder>,
     values: Vec<VariableBuilder>,
-    evaluation_steps: u64,
+    steps: Vec<u64>,
 }
 impl ProblemSpecBuilder {
     /// Makes a new `ProblemSpecBuilder` instance.
@@ -28,7 +27,7 @@ impl ProblemSpecBuilder {
             attrs: BTreeMap::new(),
             params: Vec::new(),
             values: Vec::new(),
-            evaluation_steps: 1,
+            steps: vec![1],
         }
     }
 
@@ -56,9 +55,12 @@ impl ProblemSpecBuilder {
         self
     }
 
-    /// Sets the evaluation steps of this problem.
-    pub fn evaluation_steps(mut self, steps: u64) -> Self {
-        self.evaluation_steps = steps;
+    /// Sets the evaluable steps of this problem.
+    pub fn steps<I>(mut self, steps: I) -> Self
+    where
+        I: IntoIterator<Item = u64>,
+    {
+        self.steps = steps.into_iter().collect();
         self
     }
 
@@ -66,17 +68,14 @@ impl ProblemSpecBuilder {
     pub fn finish(self) -> Result<ProblemSpec> {
         let params_domain = track!(Domain::new(self.params))?;
         let values_domain = track!(Domain::new(self.values))?;
-        let evaluation_steps = track_assert_some!(
-            NonZeroU64::new(self.evaluation_steps),
-            ErrorKind::InvalidInput
-        );
+        let steps = track!(EvaluableSteps::new(self.steps))?;
 
         Ok(ProblemSpec {
             name: self.name,
             attrs: self.attrs,
             params_domain,
             values_domain,
-            evaluation_steps,
+            steps,
         })
     }
 }
@@ -288,5 +287,29 @@ impl fmt::Debug for BoxEvaluator {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Evaluable steps of a problem.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EvaluableSteps(Vec<u64>);
+impl EvaluableSteps {
+    /// Makes a new `EvaluableSteps` instance.
+    pub fn new(steps: Vec<u64>) -> Result<Self> {
+        track_assert!(!steps.is_empty(), ErrorKind::InvalidInput);
+        track_assert!(steps[0] > 0, ErrorKind::InvalidInput);
+
+        for (a, b) in steps.iter().zip(steps.iter().skip(1)) {
+            track_assert!(a < b, ErrorKind::InvalidInput);
+        }
+
+        Ok(Self(steps))
+    }
+
+    /// Returns the last evaluation step.
+    pub fn last_step(&self) -> u64 {
+        self.0[self.0.len() - 1]
+    }
+
+    /// Returns an iterator that iterates over all the steps.
+    pub fn iter<'a>(&'a self) -> impl 'a + Iterator<Item = u64> {
+        self.0.iter().copied()
+    }
+}

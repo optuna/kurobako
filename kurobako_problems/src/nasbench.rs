@@ -64,7 +64,7 @@ impl ProblemFactory for NasbenchProblemFactory {
             .attr("GitHub", "https://github.com/automl/nas_benchmarks")
             .params(self.encoding.params())
             .value(domain::var("1.0 - Validation Accuracy").continuous(0.0, 1.0))
-            .evaluation_steps(108);
+            .steps(vec![4, 12, 36, 108]);
 
         track!(spec.finish())
     }

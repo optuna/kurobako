@@ -22,8 +22,4 @@ pub struct StudyRecipe {
     /// Random seed.
     #[structopt(long)]
     pub seed: Option<u64>,
-
-    // TODO: evaluation-interval
-    #[structopt(long)]
-    pub evaluation_points: Vec<u64>,
 }
