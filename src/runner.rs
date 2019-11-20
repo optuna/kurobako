@@ -25,6 +25,7 @@ pub struct StudyRunner {
     problem: BoxProblem,
     problem_spec: ProblemSpec,
     study_record: StudyRecord,
+    rng: ArcRng,
 }
 impl StudyRunner {
     pub fn new(study: &StudyRecipe) -> Result<Self> {
@@ -50,6 +51,7 @@ impl StudyRunner {
             problem,
             problem_spec,
             study_record,
+            rng,
         })
     }
 
