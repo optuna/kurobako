@@ -51,7 +51,7 @@ impl SolverRecipe for AshaSolverRecipe {
     type Factory = AshaSolverFactory;
 
     fn create_factory(&self, registry: &FactoryRegistry) -> Result<Self::Factory> {
-        let base = track!(registry.get_or_create_solver_factory(&self.base_solver))?;
+        let base = track!(registry.get_or_create_solver_factory_from_json(&self.base_solver))?;
         Ok(AshaSolverFactory {
             min_step_rate: self.min_step_rate,
             min_step: self.min_step,

@@ -1,9 +1,14 @@
 use crate::problem::KurobakoProblemRecipe;
+use crate::record::StudyRecord;
 use crate::solver::KurobakoSolverRecipe;
 use crate::study::StudyRecipe;
+use kurobako_core::problem::{BoxProblem, ProblemFactory as _, ProblemSpec};
 use kurobako_core::registry::FactoryRegistry;
-use kurobako_core::Result;
+use kurobako_core::rng::ArcRng;
+use kurobako_core::solver::{BoxSolver, SolverFactory as _, SolverSpec};
+use kurobako_core::{Error, Result};
 use lazy_static::lazy_static;
+use rand;
 use std::sync::Mutex;
 
 lazy_static! {
@@ -14,10 +19,38 @@ lazy_static! {
 }
 
 #[derive(Debug)]
-pub struct StudyRunner {}
+pub struct StudyRunner {
+    solver: BoxSolver,
+    solver_spec: SolverSpec,
+    problem: BoxProblem,
+    problem_spec: ProblemSpec,
+    study_record: StudyRecord,
+}
 impl StudyRunner {
     pub fn new(study: &StudyRecipe) -> Result<Self> {
-        Ok(Self {})
+        let registry = track!(REGISTRY.lock().map_err(Error::from))?;
+
+        let random_seed = study.seed.unwrap_or_else(rand::random);
+        let rng = ArcRng::new(random_seed);
+
+        let problem_factory = track!(registry.get_or_create_problem_factory(&study.problem))?;
+        let problem_factory = track!(problem_factory.lock().map_err(Error::from))?;
+        let problem_spec = track!(problem_factory.specification())?;
+        let problem = track!(problem_factory.create_problem(rng.clone()))?;
+
+        let solver_factory = track!(registry.get_or_create_solver_factory(&study.solver))?;
+        let solver_factory = track!(solver_factory.lock().map_err(Error::from))?;
+        let solver_spec = track!(solver_factory.specification())?;
+        let solver = track!(solver_factory.create_solver(rng.clone(), &problem_spec))?;
+
+        let study_record = StudyRecord::new();
+        Ok(Self {
+            solver,
+            solver_spec,
+            problem,
+            problem_spec,
+            study_record,
+        })
     }
 
     pub fn run(mut self) -> Result<()> {

@@ -17,7 +17,7 @@ pub mod runner;
 pub mod solver;
 pub mod study;
 // pub mod problem_suites;
-// pub mod record;
+pub mod record;
 // pub mod stats;
 // pub mod time;
 // pub mod variable;

@@ -27,16 +27,34 @@ impl FactoryRegistry {
         }
     }
 
+    /// Gets or creates a problem factory associated with the given recipe.
+    pub fn get_or_create_problem_factory<R: ProblemRecipe>(
+        &self,
+        recipe: &R,
+    ) -> Result<Arc<Mutex<BoxProblemFactory>>> {
+        let json = track!(serde_json::to_value(recipe).map_err(Error::from))?;
+        track!(self.get_or_create_problem_factory_from_json(&json))
+    }
+
     /// Gets or creates a problem factory associated with the given recipe JSON.
-    pub fn get_or_create_problem_factory(
+    pub fn get_or_create_problem_factory_from_json(
         &self,
         recipe: &JsonRecipe,
     ) -> Result<Arc<Mutex<BoxProblemFactory>>> {
         self.problem.get_or_create(recipe, self)
     }
 
+    /// Gets or creates a solver factory associated with the given recipe.
+    pub fn get_or_create_solver_factory<R: SolverRecipe>(
+        &self,
+        recipe: &R,
+    ) -> Result<Arc<Mutex<BoxSolverFactory>>> {
+        let json = track!(serde_json::to_value(recipe).map_err(Error::from))?;
+        track!(self.get_or_create_solver_factory_from_json(&json))
+    }
+
     /// Gets or creates a solver factory associated with the given recipe JSON.
-    pub fn get_or_create_solver_factory(
+    pub fn get_or_create_solver_factory_from_json(
         &self,
         recipe: &JsonRecipe,
     ) -> Result<Arc<Mutex<BoxSolverFactory>>> {
