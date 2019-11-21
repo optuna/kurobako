@@ -1,7 +1,10 @@
 use crate::problem::KurobakoProblemRecipe;
 use crate::solver::KurobakoSolverRecipe;
 use kurobako_core::json;
+use kurobako_core::{Error, ErrorKind, Result};
 use serde::{Deserialize, Serialize};
+use std::num::NonZeroUsize;
+use std::str::FromStr;
 use structopt::StructOpt;
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
@@ -17,11 +20,37 @@ pub struct StudyRecipe {
     pub budget: u64,
 
     #[structopt(long, default_value = "1")]
-    pub concurrency: usize,
+    pub concurrency: NonZeroUsize,
+
+    #[structopt(long, default_value = "random")]
+    pub scheduling: Scheduling,
 
     /// Random seed.
     #[structopt(long)]
     pub seed: Option<u64>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, StructOpt, Serialize, Deserialize)]
+#[structopt(rename_all = "kebab-case")]
+pub enum Scheduling {
+    Random,
+    Fair,
+}
+impl Default for Scheduling {
+    fn default() -> Self {
+        Self::Random
+    }
+}
+impl FromStr for Scheduling {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "random" => Ok(Self::Random),
+            "fair" => Ok(Self::Fair),
+            _ => track_panic!(ErrorKind::InvalidInput, "Unknown scheduling type: {:?}", s),
+        }
+    }
 }
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
@@ -40,7 +69,10 @@ pub struct StudiesRecipe {
     pub budget: u64,
 
     #[structopt(long, default_value = "1")]
-    pub concurrency: usize,
+    pub concurrency: NonZeroUsize,
+
+    #[structopt(long, default_value = "random")]
+    pub scheduling: Scheduling,
 
     /// Random seed.
     #[structopt(long)]
@@ -58,6 +90,7 @@ impl StudiesRecipe {
                         problem: problem.clone(),
                         budget: self.budget,
                         concurrency: self.concurrency,
+                        scheduling: self.scheduling,
                         seed,
                     };
                     studies.push(study);

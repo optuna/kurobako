@@ -1,7 +1,7 @@
 use crate::problem::KurobakoProblemRecipe;
 use crate::record::StudyRecord;
 use crate::solver::KurobakoSolverRecipe;
-use crate::study::StudyRecipe;
+use crate::study::{Scheduling, StudyRecipe};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use kurobako_core::problem::{BoxProblem, ProblemFactory as _, ProblemSpec};
 use kurobako_core::registry::FactoryRegistry;
@@ -171,6 +171,7 @@ struct StudyRunner {
     rng: ArcRng,
     pb: ProgressBar,
     cancel: Cancel,
+    threads: TrialThreads,
 }
 impl StudyRunner {
     fn new(study: &StudyRecipe, mpb: &MultiProgress, cancel: Cancel) -> Result<Self> {
@@ -207,26 +208,45 @@ impl StudyRunner {
             rng,
             pb,
             cancel,
+            threads: TrialThreads::new(study),
         })
     }
 
     fn run(mut self) -> Result<()> {
         self.pb.reset_elapsed();
 
-        // self.pb.set_message(&format!("item #{}", i + 1));
-        for _ in 0..10 {
-            ::std::thread::sleep_ms(::rand::random::<u32>() % 1000);
-            self.pb.inc(1);
-            // if rand::random::<u32>() % 10 == 0 {
-            //     track_panic!(ErrorKind::Bug);
-            // }
-        }
-        self.pb.inc(self.problem_spec.steps.last());
-        ::std::thread::sleep_ms(1000);
-
-        //self.pb.finish_with_message("done");
-        self.pb.finish_and_clear();
         Ok(())
+    }
+}
+impl Drop for StudyRunner {
+    fn drop(&mut self) {
+        self.pb.finish_and_clear();
+    }
+}
+
+#[derive(Debug)]
+struct TrialThreads {
+    threads: Vec<TrialThread>,
+    scheduling: Scheduling,
+}
+impl TrialThreads {
+    fn new(recipe: &StudyRecipe) -> Self {
+        Self {
+            threads: (0..recipe.concurrency.get())
+                .map(TrialThread::new)
+                .collect(),
+            scheduling: recipe.scheduling,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct TrialThread {
+    id: usize,
+}
+impl TrialThread {
+    fn new(id: usize) -> Self {
+        Self { id }
     }
 }
 
