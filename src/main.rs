@@ -1,17 +1,11 @@
 #[macro_use]
 extern crate trackable;
 
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use kurobako::problem::KurobakoProblemRecipe;
-use kurobako::runner::StudyRunner;
+use kurobako::runner::{Runner, RunnerOpt};
 use kurobako::solver::KurobakoSolverRecipe;
 use kurobako::study::{StudiesRecipe, StudyRecipe};
-use kurobako_core::{Error, Result};
-use std::num::NonZeroUsize;
-use std::sync::atomic::{self, AtomicUsize};
-use std::sync::mpsc;
-use std::sync::{Arc, Mutex};
-use std::thread;
+use kurobako_core::Error;
 use structopt::StructOpt;
 
 // use kurobako::exam::ExamRecipe;
@@ -44,7 +38,7 @@ enum Opt {
     Problem(KurobakoProblemRecipe),
     Study(StudyRecipe),
     Studies(StudiesRecipe),
-    Run(RunOpt),
+    Run(RunnerOpt),
     // ProblemSuite(KurobakoProblemSuite),
     // Exam(ExamRecipe),
     // MultiExam(MultiExamRecipe),
@@ -52,13 +46,6 @@ enum Opt {
     // Plot(PlotOpt),
     // PlotScatter(PlotScatterOpt),
     // Var(Variable),
-}
-
-#[derive(Debug, StructOpt)]
-#[structopt(rename_all = "kebab-case")]
-struct RunOpt {
-    #[structopt(long, default_value = "1")]
-    parallelism: NonZeroUsize,
 }
 
 // #[derive(Debug, StructOpt)]
@@ -112,87 +99,9 @@ fn main() -> trackable::result::TopLevelResult {
             }
         }
         Opt::Run(opt) => {
-            handle_run_command(opt)?;
+            track!(Runner::new(opt).run())?;
         }
     }
-
-    Ok(())
-}
-
-fn handle_run_command(opt: RunOpt) -> Result<()> {
-    let mpb = MultiProgress::new();
-
-    let stdin = std::io::stdin();
-    let mut studies = Vec::new();
-    for study in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
-        let study: StudyRecipe = track!(study.map_err(Error::from))?;
-        studies.push(study);
-    }
-
-    let runners = studies
-        .iter()
-        .map(|study| track!(StudyRunner::new(study, &mpb)).map(Some))
-        .collect::<Result<Vec<_>>>()?;
-
-    let pb = mpb.add(ProgressBar::new(runners.len() as u64));
-
-    let runners = Arc::new(Mutex::new(runners));
-    let study_index = Arc::new(AtomicUsize::new(0));
-
-    let pb_style = ProgressStyle::default_bar()
-        .template("!! [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
-        .progress_chars("##-");
-    pb.set_style(pb_style.clone());
-    pb.tick();
-    let pb = Arc::new(pb);
-
-    let pb_style = ProgressStyle::default_bar()
-        .template("-- [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
-        .progress_chars("##-");
-
-    let (tx, rx) = mpsc::channel();
-    for _ in 0..opt.parallelism.get() {
-        let pb = Arc::clone(&pb);
-        let tx = tx.clone();
-        let runners = Arc::clone(&runners);
-        let study_index = Arc::clone(&study_index);
-        thread::spawn(move || loop {
-            let i = study_index.fetch_add(1, atomic::Ordering::SeqCst);
-            let study = {
-                let mut runners = runners.lock().unwrap_or_else(|e| panic!("{}", e));
-                if i >= runners.len() {
-                    break;
-                }
-                runners[i].take().unwrap_or_else(|| unreachable!())
-            };
-            pb.inc(1);
-            let result = track!(study.run());
-            let _ = tx.send(result);
-        });
-    }
-    std::mem::drop(tx);
-
-    let (stop_tx, stop_rx) = mpsc::channel::<()>();
-    thread::spawn(move || {
-        mpb.join().unwrap_or_else(|e| panic!("{}", e));
-        std::mem::drop(stop_tx);
-    });
-
-    let stdout = std::io::stdout();
-    let mut stdout = stdout.lock();
-    while let Ok(result) = rx.recv() {
-        match result {
-            Ok(record) => {
-                print_json!(record, stdout);
-            }
-            Err(e) => {
-                unimplemented!("{}", e);
-            }
-        }
-    }
-    pb.finish_with_message("done");
-
-    let _ = stop_rx.recv();
 
     Ok(())
 }

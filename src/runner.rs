@@ -11,7 +11,6 @@ use kurobako_core::{Error, ErrorKind, Result};
 use lazy_static::lazy_static;
 use rand;
 use serde_json;
-use std::collections::HashMap;
 use std::num::NonZeroUsize;
 use std::sync::atomic::{self, AtomicUsize};
 use std::sync::{Arc, Mutex};
@@ -33,95 +32,102 @@ pub struct RunnerOpt {
     pub parallelism: NonZeroUsize,
 }
 
+#[derive(Debug, Clone)]
+struct Cancel(Arc<Mutex<Option<Error>>>);
+impl Cancel {
+    fn new() -> Self {
+        Self(Arc::new(Mutex::new(None)))
+    }
+
+    fn is_canceled(&self) -> bool {
+        self.0.lock().unwrap_or_else(|e| panic!("{}", e)).is_some()
+    }
+
+    fn cancel(&self, e: Error) -> bool {
+        let mut x = self.0.lock().unwrap_or_else(|e| panic!("{}", e));
+        if x.is_none() {
+            *x = Some(e);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn take(&self) -> Option<Error> {
+        self.0.lock().unwrap_or_else(|e| panic!("{}", e)).take()
+    }
+}
+
 #[derive(Debug)]
 pub struct Runner {
     mpb: MultiProgress,
     opt: RunnerOpt,
-    canceled: Arc<Mutex<Option<Error>>>,
+    cancel: Cancel,
 }
 impl Runner {
     pub fn new(opt: RunnerOpt) -> Self {
         Self {
             mpb: MultiProgress::new(),
             opt,
-            canceled: Arc::new(Mutex::new(None)),
+            cancel: Cancel::new(),
         }
     }
 
     pub fn run(mut self) -> Result<()> {
         let recipes = track!(self.read_study_recipes())?;
+        let pb = self.create_pb(&recipes);
         let runners = track!(self.create_study_runners(&recipes))?;
-        let solver_pbs = self.create_solver_pbs(&runners);
 
-        self.spawn_runners(runners, solver_pbs);
+        self.spawn_runners(runners, pb);
         track!(self.mpb.join().map_err(|e| ErrorKind::Other.cause(e)))?;
-        if let Some(e) = track!(self.canceled.lock().map_err(Error::from))?.take() {
+        eprintln!();
+
+        if let Some(e) = self.cancel.take() {
             Err(e)
         } else {
             Ok(())
         }
     }
 
-    fn spawn_runners(
-        &self,
-        runners: Vec<StudyRunner>,
-        // TODO: s/SolverSpec/(SolverSpec, Recipe)/
-        pbs: HashMap<SolverSpec, ProgressBar>,
-    ) {
-        let pbs = Arc::new(pbs);
+    fn spawn_runners(&self, runners: Vec<StudyRunner>, pb: ProgressBar) {
+        pb.tick();
+
+        let pb_len = runners.len() as u64;
         let runners = Arc::new(Mutex::new(
             runners.into_iter().map(Some).collect::<Vec<_>>(),
         ));
 
         let next_index = Arc::new(AtomicUsize::new(0));
         for _ in 0..self.opt.parallelism.get() {
-            let pbs = Arc::clone(&pbs);
+            let pb = pb.clone();
             let runners = Arc::clone(&runners);
             let next_index = Arc::clone(&next_index);
-            let canceled = Arc::clone(&self.canceled);
-            thread::spawn(move || loop {
-                if canceled
-                    .lock()
-                    .unwrap_or_else(|e| panic!("{}", e))
-                    .is_some()
-                {
-                    break;
-                }
-
-                let i = next_index.fetch_add(1, atomic::Ordering::SeqCst);
-                let runner = {
-                    let mut runners = runners.lock().unwrap_or_else(|e| panic!("{}", e));
-                    if i >= runners.len() {
-                        break;
-                    }
-                    runners[i].take().unwrap_or_else(|| unreachable!())
-                };
-
-                let pb = &pbs[&runner.solver_spec];
-                if pb.position() == 0 {
-                    pb.reset();
-                }
-
-                let result = track!(runner.run());
-                let result = track!(result.and_then(|record| serde_json::to_writer(
-                    std::io::stdout().lock(),
-                    &record
-                )
-                .map_err(Error::from)));
-                pb.inc(1);
-
-                match result {
-                    Err(e) => {
-                        let mut canceled = canceled.lock().unwrap_or_else(|e| panic!("{}", e));
-                        *canceled = Some(e);
-                        pb.finish_with_message("canceled");
-                        break;
-                    }
-                    Ok(()) => {
-                        let (pb_pos, pb_len) = pb.position();
-                        if pb_pos == pb_len {
-                            pb.finish_with_message("done");
+            let cancel = self.cancel.clone();
+            thread::spawn(move || {
+                while !cancel.is_canceled() {
+                    let i = next_index.fetch_add(1, atomic::Ordering::SeqCst);
+                    let runner = {
+                        let mut runners = runners.lock().unwrap_or_else(|e| panic!("{}", e));
+                        if i >= runners.len() {
+                            break;
                         }
+                        runners[i].take().unwrap_or_else(|| unreachable!())
+                    };
+
+                    let result = track!(runner.run());
+                    let result = track!(result.and_then(|record| serde_json::to_writer(
+                        std::io::stdout().lock(),
+                        &record
+                    )
+                    .map_err(Error::from)));
+                    pb.inc(1);
+
+                    if let Err(e) = result {
+                        if cancel.cancel(e) {
+                            pb.finish_with_message("canceled");
+                        }
+                    } else if pb.position() == pb_len {
+                        pb.finish_with_message("done");
                     }
                 }
             });
@@ -139,46 +145,24 @@ impl Runner {
     fn create_study_runners(&self, recipes: &[StudyRecipe]) -> Result<Vec<StudyRunner>> {
         recipes
             .iter()
-            .map(|recipe| track!(StudyRunner::new(recipe, &self.mpb)))
+            .map(|recipe| track!(StudyRunner::new(recipe, &self.mpb, self.cancel.clone())))
             .collect()
     }
 
-    fn create_solver_pbs(&self, runners: &[StudyRunner]) -> HashMap<SolverSpec, ProgressBar> {
-        let mut solvers = Vec::new();
-        let mut solver_studies = HashMap::new();
-        for runner in runners {
-            if let Some(count) = solver_studies.get_mut(&runner.solver_spec) {
-                *count += 1;
-            } else {
-                solvers.push(runner.solver_spec.clone());
-                solver_studies.insert(runner.solver_spec.clone(), 1);
-            }
-        }
-
-        solvers
-            .into_iter()
-            .map(|solver| {
-                let count = solver_studies[&solver];
-                let pb = self.mpb.add(ProgressBar::new(count as u64));
-
-                let template = format!(
-                    "(SOLVER) [{{elapsed_precise}}] {{bar:40.cyan/blue}} {{pos:>7}}/{{len:7}} \
-                     {{percent}}% {{eta_precise}} {:?} {{msg}}",
-                    solver.name
-                );
-                let style = ProgressStyle::default_bar()
-                    .template(&template)
-                    .progress_chars("##-");
-                pb.set_style(style);
-
-                (solver, pb)
-            })
-            .collect()
+    fn create_pb(&self, recipes: &[StudyRecipe]) -> ProgressBar {
+        let pb = self.mpb.add(ProgressBar::new(recipes.len() as u64));
+        let template = format!(
+            "(ALL) [{{elapsed_precise}}] [STUDIES \
+             {{pos:>6}}/{{len}} {{percent:>3}}%] [ETA {{eta:>3}}] {{msg}}",
+        );
+        let style = ProgressStyle::default_bar().template(&template);
+        pb.set_style(style);
+        pb
     }
 }
 
 #[derive(Debug)]
-pub struct StudyRunner {
+struct StudyRunner {
     solver: BoxSolver,
     solver_spec: SolverSpec,
     problem: BoxProblem,
@@ -186,9 +170,10 @@ pub struct StudyRunner {
     study_record: StudyRecord,
     rng: ArcRng,
     pb: ProgressBar,
+    cancel: Cancel,
 }
 impl StudyRunner {
-    pub fn new(study: &StudyRecipe, mpb: &MultiProgress) -> Result<Self> {
+    fn new(study: &StudyRecipe, mpb: &MultiProgress, cancel: Cancel) -> Result<Self> {
         let registry = track!(REGISTRY.lock().map_err(Error::from))?;
 
         let random_seed = study.seed.unwrap_or_else(rand::random);
@@ -205,12 +190,11 @@ impl StudyRunner {
         let solver = track!(solver_factory.create_solver(rng.clone(), &problem_spec))?;
 
         let pb = mpb.add(ProgressBar::new(problem_spec.steps.last() * study.budget));
-        let pb_style = ProgressStyle::default_bar()
-            .template(&format!(
-                "[{{elapsed_precise}}] {{bar:40.cyan/blue}} {{pos:>7}}/{{len:7}} {{percent}}% {{eta_precise}} {:?} {:?} {{msg}}",
-                solver_spec.name, problem_spec.name
-            ))
-            .progress_chars("##-");
+        let pb_style = ProgressStyle::default_bar().template(&format!(
+            "(STUDY) [{{elapsed_precise}}] [STEPS {{pos:>6}}/{{len}} \
+             {{percent:>3}}%] [ETA {{eta:>3}}] {:?} {:?}",
+            solver_spec.name, problem_spec.name
+        ));
         pb.set_style(pb_style.clone());
 
         let study_record = StudyRecord::new();
@@ -222,22 +206,26 @@ impl StudyRunner {
             study_record,
             rng,
             pb,
+            cancel,
         })
     }
 
-    pub fn run(mut self) -> Result<()> {
+    fn run(mut self) -> Result<()> {
         self.pb.reset_elapsed();
 
         // self.pb.set_message(&format!("item #{}", i + 1));
         for _ in 0..10 {
             ::std::thread::sleep_ms(::rand::random::<u32>() % 1000);
             self.pb.inc(1);
+            // if rand::random::<u32>() % 10 == 0 {
+            //     track_panic!(ErrorKind::Bug);
+            // }
         }
         self.pb.inc(self.problem_spec.steps.last());
         ::std::thread::sleep_ms(1000);
 
-        self.pb.finish_with_message("done");
-        //self.pb.finish_and_clear();
+        //self.pb.finish_with_message("done");
+        self.pb.finish_and_clear();
         Ok(())
     }
 }
