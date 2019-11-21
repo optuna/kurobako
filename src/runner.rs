@@ -2,6 +2,7 @@ use crate::problem::KurobakoProblemRecipe;
 use crate::record::StudyRecord;
 use crate::solver::KurobakoSolverRecipe;
 use crate::study::StudyRecipe;
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use kurobako_core::problem::{BoxProblem, ProblemFactory as _, ProblemSpec};
 use kurobako_core::registry::FactoryRegistry;
 use kurobako_core::rng::ArcRng;
@@ -28,7 +29,23 @@ pub struct StudyRunner {
     rng: ArcRng,
 }
 impl StudyRunner {
-    pub fn new(study: &StudyRecipe) -> Result<Self> {
+    pub fn new(study: &StudyRecipe, mpb: &MultiProgress) -> Result<Self> {
+        let pb_style = ProgressStyle::default_bar()
+            .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+            .progress_chars("##-");
+
+        let pb = mpb.add(ProgressBar::new(128)); // TODO
+        pb.set_style(pb_style.clone());
+
+        // for (_i, study) in studies.into_iter().enumerate() {
+        //     let runner = track!(StudyRunner::new(&study); study)?;
+        //     let record = track!(runner.run(); study)?;
+        //     print_json!(record, stdout);
+        //     // pb.set_message(&format!("item #{}", i + 1));
+        //     // pb.inc(1);
+        // }
+        // // pb.finish_with_message("done");
+
         let registry = track!(REGISTRY.lock().map_err(Error::from))?;
 
         let random_seed = study.seed.unwrap_or_else(rand::random);
@@ -56,7 +73,8 @@ impl StudyRunner {
     }
 
     pub fn run(mut self) -> Result<()> {
-        panic!()
+        //panic!()
+        Ok(())
     }
 }
 

@@ -1,15 +1,19 @@
 #[macro_use]
 extern crate trackable;
 
-use indicatif::ProgressIterator;
+use indicatif::MultiProgress;
 use kurobako::problem::KurobakoProblemRecipe;
 use kurobako::runner::StudyRunner;
 use kurobako::solver::KurobakoSolverRecipe;
 use kurobako::study::{StudiesRecipe, StudyRecipe};
 use kurobako_core::{Error, Result};
+use std::num::NonZeroUsize;
+use std::sync::atomic::{self, AtomicUsize};
+use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
+use std::thread;
 use structopt::StructOpt;
 
-// use kurobako::benchmark::BenchmarkRecipe;
 // use kurobako::exam::ExamRecipe;
 // use kurobako::markdown::MarkdownWriter;
 // use kurobako::multi_exam::MultiExamRecipe;
@@ -44,7 +48,6 @@ enum Opt {
     // ProblemSuite(KurobakoProblemSuite),
     // Exam(ExamRecipe),
     // MultiExam(MultiExamRecipe),
-    // Benchmark(BenchmarkRecipe),
     // Stats(StatsOpt),
     // Plot(PlotOpt),
     // PlotScatter(PlotScatterOpt),
@@ -53,7 +56,10 @@ enum Opt {
 
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
-struct RunOpt {}
+struct RunOpt {
+    #[structopt(long, default_value = "1")]
+    parallelism: NonZeroUsize,
+}
 
 // #[derive(Debug, StructOpt)]
 // #[structopt(rename_all = "kebab-case")]
@@ -114,6 +120,63 @@ fn main() -> trackable::result::TopLevelResult {
 
     Ok(())
 }
+
+fn handle_run_command(opt: RunOpt) -> Result<()> {
+    let mpb = MultiProgress::new();
+
+    let stdin = std::io::stdin();
+    let mut studies = Vec::new();
+    for study in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
+        let study: StudyRecipe = track!(study.map_err(Error::from))?;
+        studies.push(study);
+    }
+
+    let studies = studies
+        .iter()
+        .map(|study| track!(StudyRunner::new(study, &mpb)).map(Some))
+        .collect::<Result<Vec<_>>>()?;
+
+    let studies = Arc::new(Mutex::new(studies));
+    let study_index = Arc::new(AtomicUsize::new(0));
+
+    let (tx, rx) = mpsc::channel();
+    for _ in 0..opt.parallelism.get() {
+        let tx = tx.clone();
+        let studies = Arc::clone(&studies);
+        let study_index = Arc::clone(&study_index);
+        thread::spawn(move || loop {
+            let i = study_index.fetch_add(1, atomic::Ordering::SeqCst);
+            let mut studies = studies.lock().unwrap_or_else(|e| panic!("{}", e));
+            if i < studies.len() {
+                break;
+            }
+
+            let study = studies[i].take().unwrap_or_else(|| unreachable!());
+            let result = track!(study.run());
+            let _ = tx.send(result);
+        });
+    }
+
+    thread::spawn(move || {
+        mpb.join_and_clear().unwrap_or_else(|e| panic!("{}", e));
+    });
+
+    let stdout = std::io::stdout();
+    let mut stdout = stdout.lock();
+    while let Ok(result) = rx.recv() {
+        match result {
+            Ok(record) => {
+                print_json!(record, stdout);
+            }
+            Err(e) => {
+                unimplemented!("{}", e);
+            }
+        }
+    }
+
+    Ok(())
+}
+
 //         Opt::Exam(p) => {
 //             track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?
 //         }
@@ -129,12 +192,6 @@ fn main() -> trackable::result::TopLevelResult {
 //                 println!();
 //             }
 //         }
-//         Opt::Benchmark(b) => {
-//             for exam in b.exams() {
-//                 track!(serde_json::to_writer(std::io::stdout().lock(), &exam).map_err(Error::from))?;
-//                 println!();
-//             }
-//         }
 //         Opt::Stats(opt) => {
 //             handle_stats_command(opt)?;
 //         }
@@ -147,24 +204,6 @@ fn main() -> trackable::result::TopLevelResult {
 //     }
 //     Ok(())
 // }
-
-fn handle_run_command(_opt: RunOpt) -> Result<()> {
-    let stdin = std::io::stdin();
-    let mut studies = Vec::new();
-    for study in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
-        let study: StudyRecipe = track!(study.map_err(Error::from))?;
-        studies.push(study);
-    }
-
-    let stdout = std::io::stdout();
-    let mut stdout = stdout.lock();
-    for study in studies.into_iter().progress() {
-        let runner = track!(StudyRunner::new(&study); study)?;
-        let record = track!(runner.run(); study)?;
-        print_json!(record, stdout);
-    }
-    Ok(())
-}
 
 // fn handle_stats_command(opt: StatsOpt) -> Result<()> {
 //     let stdin = std::io::stdin();
