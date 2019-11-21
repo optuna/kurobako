@@ -81,7 +81,7 @@ impl ProblemSpecBuilder {
 }
 
 /// Problem specification.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ProblemSpec {
     /// Problem name.
     pub name: String,
@@ -290,7 +290,7 @@ impl fmt::Debug for BoxEvaluator {
 }
 
 /// Evaluable steps of a problem.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct EvaluableSteps(Vec<u64>);
 impl EvaluableSteps {
     /// Makes a new `EvaluableSteps` instance.
@@ -306,7 +306,7 @@ impl EvaluableSteps {
     }
 
     /// Returns the last evaluation step.
-    pub fn last_step(&self) -> u64 {
+    pub fn last(&self) -> u64 {
         self.0[self.0.len() - 1]
     }
 

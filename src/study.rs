@@ -49,9 +49,9 @@ pub struct StudiesRecipe {
 impl StudiesRecipe {
     pub fn studies(&self) -> impl Iterator<Item = StudyRecipe> {
         let mut studies = Vec::new();
-        for problem in &self.problems {
-            for solver in &self.solvers {
-                for i in 0..self.repeats {
+        for i in 0..self.repeats {
+            for problem in &self.problems {
+                for solver in &self.solvers {
                     let seed = self.seed.map(|s| s + i as u64);
                     let study = StudyRecipe {
                         solver: solver.clone(),

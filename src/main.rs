@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate trackable;
 
-use indicatif::MultiProgress;
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use kurobako::problem::KurobakoProblemRecipe;
 use kurobako::runner::StudyRunner;
 use kurobako::solver::KurobakoSolverRecipe;
@@ -94,8 +94,6 @@ struct RunOpt {
 // }
 
 fn main() -> trackable::result::TopLevelResult {
-    env_logger::init();
-
     let opt = Opt::from_args();
 
     match opt {
@@ -131,34 +129,53 @@ fn handle_run_command(opt: RunOpt) -> Result<()> {
         studies.push(study);
     }
 
-    let studies = studies
+    let runners = studies
         .iter()
         .map(|study| track!(StudyRunner::new(study, &mpb)).map(Some))
         .collect::<Result<Vec<_>>>()?;
 
-    let studies = Arc::new(Mutex::new(studies));
+    let pb = mpb.add(ProgressBar::new(runners.len() as u64));
+
+    let runners = Arc::new(Mutex::new(runners));
     let study_index = Arc::new(AtomicUsize::new(0));
+
+    let pb_style = ProgressStyle::default_bar()
+        .template("!! [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+        .progress_chars("##-");
+    pb.set_style(pb_style.clone());
+    pb.tick();
+    let pb = Arc::new(pb);
+
+    let pb_style = ProgressStyle::default_bar()
+        .template("-- [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+        .progress_chars("##-");
 
     let (tx, rx) = mpsc::channel();
     for _ in 0..opt.parallelism.get() {
+        let pb = Arc::clone(&pb);
         let tx = tx.clone();
-        let studies = Arc::clone(&studies);
+        let runners = Arc::clone(&runners);
         let study_index = Arc::clone(&study_index);
         thread::spawn(move || loop {
             let i = study_index.fetch_add(1, atomic::Ordering::SeqCst);
-            let mut studies = studies.lock().unwrap_or_else(|e| panic!("{}", e));
-            if i < studies.len() {
-                break;
-            }
-
-            let study = studies[i].take().unwrap_or_else(|| unreachable!());
+            let study = {
+                let mut runners = runners.lock().unwrap_or_else(|e| panic!("{}", e));
+                if i >= runners.len() {
+                    break;
+                }
+                runners[i].take().unwrap_or_else(|| unreachable!())
+            };
+            pb.inc(1);
             let result = track!(study.run());
             let _ = tx.send(result);
         });
     }
+    std::mem::drop(tx);
 
+    let (stop_tx, stop_rx) = mpsc::channel::<()>();
     thread::spawn(move || {
-        mpb.join_and_clear().unwrap_or_else(|e| panic!("{}", e));
+        mpb.join().unwrap_or_else(|e| panic!("{}", e));
+        std::mem::drop(stop_tx);
     });
 
     let stdout = std::io::stdout();
@@ -173,6 +190,9 @@ fn handle_run_command(opt: RunOpt) -> Result<()> {
             }
         }
     }
+    pb.finish_with_message("done");
+
+    let _ = stop_rx.recv();
 
     Ok(())
 }

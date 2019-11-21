@@ -1,12 +1,14 @@
 //! Domain of parameter and objective values.
 use crate::{ErrorKind, Result};
+use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std;
+use std::hash::{Hash, Hasher};
 
 /// Domain.
 ///
 /// A `Domain` instance consists of a vector of `Variable`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Domain(Vec<Variable>);
 impl Domain {
     /// Makes a new `Domain` instance.
@@ -151,7 +153,7 @@ impl VariableBuilder {
 }
 
 /// A variable in a domain.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Variable {
     name: String,
     range: Range,
@@ -213,6 +215,23 @@ impl Range {
     }
 }
 impl Eq for Range {}
+impl Hash for Range {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Continuous { low, high } => {
+                OrderedFloat(*low).hash(state);
+                OrderedFloat(*high).hash(state);
+            }
+            Self::Discrete { low, high } => {
+                low.hash(state);
+                high.hash(state);
+            }
+            Self::Categorical { choices } => {
+                choices.hash(state);
+            }
+        }
+    }
+}
 
 /// Evaluation condition.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -238,3 +257,10 @@ impl Condition {
     }
 }
 impl Eq for Condition {}
+impl Hash for Condition {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let Condition::Eq { target, value } = self;
+        target.hash(state);
+        OrderedFloat(*value).hash(state);
+    }
+}

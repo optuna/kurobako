@@ -72,7 +72,7 @@ impl Solver for RandomSolver {
         Ok(AskedTrial {
             id: idg.generate(),
             params: Params::new(params),
-            next_step: Some(self.problem.steps.last_step()),
+            next_step: Some(self.problem.steps.last()),
         })
     }
 

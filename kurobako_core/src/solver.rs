@@ -59,7 +59,7 @@ impl SolverSpecBuilder {
 }
 
 /// Solver specification.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SolverSpec {
     /// The name of this solver.
     pub name: String,

@@ -71,7 +71,7 @@ impl ProblemFactory for FcnetProblemFactory {
             .param(domain::var("n_units_1").discrete(0, 6))
             .param(domain::var("n_units_2").discrete(0, 6))
             .value(domain::var("Validation MSE").continuous(0.0, f64::INFINITY))
-            .steps(1..100);
+            .steps(1..=100);
 
         track!(spec.finish())
     }
