@@ -2,20 +2,21 @@
 extern crate trackable;
 
 use kurobako::problem::KurobakoProblemRecipe;
+use kurobako::ranking::{RankingOpt, SolverRanking};
 use kurobako::runner::{Runner, RunnerOpt};
 use kurobako::solver::KurobakoSolverRecipe;
 use kurobako::study::{StudiesRecipe, StudyRecipe};
+use kurobako_core::json;
 use kurobako_core::Error;
+use std::io;
 use structopt::StructOpt;
 
 // use kurobako::exam::ExamRecipe;
-// use kurobako::markdown::MarkdownWriter;
 // use kurobako::multi_exam::MultiExamRecipe;
 // use kurobako::plot::PlotOptions;
 // use kurobako::plot_scatter::PlotScatterOptions;
 // use kurobako::problem_suites::{KurobakoProblemSuite, ProblemSuite};
 // use kurobako::record::{BenchmarkRecord, StudyRecord};
-// use kurobako::stats::ranking::{SolverRanking, SolverRankingOptions};
 // use kurobako::variable::Variable;
 // use kurobako_core::{Error, Result};
 // use std::path::PathBuf;
@@ -39,20 +40,14 @@ enum Opt {
     Study(StudyRecipe),
     Studies(StudiesRecipe),
     Run(RunnerOpt),
+    Ranking(RankingOpt),
     // ProblemSuite(KurobakoProblemSuite),
     // Exam(ExamRecipe),
     // MultiExam(MultiExamRecipe),
-    // Stats(StatsOpt),
     // Plot(PlotOpt),
     // PlotScatter(PlotScatterOpt),
     // Var(Variable),
 }
-
-// #[derive(Debug, StructOpt)]
-// #[structopt(rename_all = "kebab-case")]
-// enum StatsOpt {
-//     Ranking(SolverRankingOptions),
-// }
 
 // #[derive(Debug, StructOpt)]
 // #[structopt(rename_all = "kebab-case")]
@@ -100,6 +95,11 @@ fn main() -> trackable::result::TopLevelResult {
         }
         Opt::Run(opt) => {
             track!(Runner::new(opt).run())?;
+        }
+        Opt::Ranking(opt) => {
+            let studies = track!(json::load(io::stdin().lock()))?;
+            let ranking = SolverRanking::new(studies, opt);
+            track!(ranking.output(io::stdout().lock()))?;
         }
     }
 

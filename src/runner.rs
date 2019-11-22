@@ -3,7 +3,7 @@ use crate::record::{StudyRecord, StudyRecordBuilder, TrialRecordBuilder};
 use crate::solver::KurobakoSolverRecipe;
 use crate::study::{Scheduling, StudyRecipe};
 use crate::time::ElapsedSeconds;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
 use kurobako_core::problem::{
     BoxEvaluator, BoxProblem, Evaluator as _, Problem as _, ProblemFactory as _, ProblemSpec,
 };
@@ -73,8 +73,9 @@ pub struct Runner {
 }
 impl Runner {
     pub fn new(opt: RunnerOpt) -> Self {
+        let mpb = MultiProgress::with_draw_target(ProgressDrawTarget::stderr_with_hz(1));
         Self {
-            mpb: MultiProgress::new(),
+            mpb,
             opt,
             cancel: Cancel::new(),
         }

@@ -191,13 +191,31 @@ pub enum Distribution {
     LogUniform,
 }
 
+fn is_not_finite(x: &f64) -> bool {
+    !x.is_finite()
+}
+
+fn neg_infinity() -> f64 {
+    std::f64::NEG_INFINITY
+}
+
+fn infinity() -> f64 {
+    std::f64::INFINITY
+}
+
 /// Variable range.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[allow(missing_docs)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Range {
     /// Continuous numerical range: `[low..high)`.
-    Continuous { low: f64, high: f64 },
+    Continuous {
+        #[serde(skip_serializing_if = "is_not_finite", default = "neg_infinity")]
+        low: f64,
+
+        #[serde(skip_serializing_if = "is_not_finite", default = "infinity")]
+        high: f64,
+    },
 
     /// Discrete numerical range: `[low..high)`.
     Discrete { low: i64, high: i64 },
