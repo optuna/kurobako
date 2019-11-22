@@ -1,5 +1,5 @@
 use crate::problem::KurobakoProblemRecipe;
-use crate::record::{StudyRecordBuilder, TrialRecordBuilder};
+use crate::record::{StudyRecord, StudyRecordBuilder, TrialRecordBuilder};
 use crate::solver::KurobakoSolverRecipe;
 use crate::study::{Scheduling, StudyRecipe};
 use crate::time::ElapsedSeconds;
@@ -17,6 +17,7 @@ use rand;
 use rand::seq::SliceRandom;
 use serde_json;
 use std::collections::HashMap;
+use std::io::Write as _;
 use std::num::NonZeroUsize;
 use std::sync::atomic::{self, AtomicUsize};
 use std::sync::{Arc, Mutex};
@@ -121,12 +122,15 @@ impl Runner {
                     };
 
                     let result = track!(runner.run());
-                    let result = track!(result.and_then(|record| serde_json::to_writer(
-                        std::io::stdout().lock(),
-                        &record
-                    )
-                    .map_err(Error::from)));
-                    println!();
+
+                    fn output(record: StudyRecord) -> Result<()> {
+                        let stdout = std::io::stdout();
+                        let mut stdout = stdout.lock();
+                        track!(serde_json::to_writer(&mut stdout, &record).map_err(Error::from))?;
+                        track!(writeln!(stdout).map_err(Error::from))?;
+                        Ok(())
+                    }
+                    let result = track!(result.and_then(output));
                     pb.inc(1);
 
                     if let Err(e) = result {
@@ -229,7 +233,7 @@ impl StudyRunner {
         })
     }
 
-    fn run(mut self) -> Result<()> {
+    fn run(mut self) -> Result<StudyRecord> {
         self.pb.reset_elapsed();
 
         while self.pb.position() < self.study_steps {
@@ -271,12 +275,8 @@ impl StudyRunner {
             }
         }
 
-        Ok(())
-    }
-}
-impl Drop for StudyRunner {
-    fn drop(&mut self) {
         self.pb.finish_and_clear();
+        Ok(self.study_record.finish())
     }
 }
 

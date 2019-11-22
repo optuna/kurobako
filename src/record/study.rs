@@ -1,4 +1,4 @@
-use crate::record::{TrialRecord, TrialRecordBuilder};
+use crate::record::{EvaluationRecord, TrialRecord, TrialRecordBuilder};
 use crate::study::StudyRecipe;
 use crate::time::DateTime;
 use chrono::Local;
@@ -6,7 +6,7 @@ use kurobako_core::problem::ProblemSpec;
 use kurobako_core::solver::SolverSpec;
 use kurobako_core::trial::TrialId;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[derive(Debug)]
 pub struct StudyRecordBuilder {
@@ -14,7 +14,7 @@ pub struct StudyRecordBuilder {
     solver: SolverSpec,
     problem: ProblemSpec,
     start_time: DateTime,
-    trials: HashMap<TrialId, TrialRecord>,
+    trials: BTreeMap<TrialId, TrialRecord>,
 }
 impl StudyRecordBuilder {
     pub fn new(recipe: StudyRecipe, solver: SolverSpec, problem: ProblemSpec) -> Self {
@@ -23,12 +23,24 @@ impl StudyRecordBuilder {
             solver,
             problem,
             start_time: Local::now(),
-            trials: HashMap::new(),
+            trials: BTreeMap::new(),
         }
     }
 
     pub fn add_trial(&mut self, trial: TrialRecordBuilder) {
-        panic!()
+        let t = self.trials.entry(trial.id).or_insert_with(|| TrialRecord {
+            thread_id: trial.thread_id,
+            params: trial.params.clone(),
+            evaluations: Vec::new(),
+        });
+        t.evaluations.push(EvaluationRecord {
+            values: trial.values,
+            start_step: trial.start_step,
+            end_step: trial.end_step,
+            ask_elapsed: trial.ask_elapsed,
+            tell_elapsed: trial.tell_elapsed,
+            evaluate_elapsed: trial.evaluate_elapsed,
+        });
     }
 
     pub fn finish(self) -> StudyRecord {
@@ -38,6 +50,7 @@ impl StudyRecordBuilder {
             problem: self.problem,
             start_time: self.start_time,
             end_time: Local::now(),
+            trials: self.trials.into_iter().map(|(_, v)| v).collect(),
         }
     }
 }
@@ -49,8 +62,7 @@ pub struct StudyRecord {
     pub problem: ProblemSpec,
     pub start_time: DateTime,
     pub end_time: DateTime,
-    // pub unevaluable_trials: usize,
-    // pub trials: Vec<TrialRecord>,
+    pub trials: Vec<TrialRecord>,
 }
 impl StudyRecord {}
 
