@@ -209,8 +209,10 @@ impl StudyRunner {
         ));
         pb.set_style(pb_style.clone());
 
+        let mut recipe = study.clone();
+        recipe.seed = Some(random_seed);
         let study_record =
-            StudyRecordBuilder::new(study.clone(), solver_spec.clone(), problem_spec.clone());
+            StudyRecordBuilder::new(recipe, solver_spec.clone(), problem_spec.clone());
         let threads = EvaluationThreads::new(study, rng.clone());
         Ok(Self {
             solver,
