@@ -1,3 +1,9 @@
+pub use self::study::{StudyRecord, StudyRecordBuilder};
+pub use self::trial::{EvaluationRecord, TrialRecord, TrialRecordBuilder};
+
+mod study;
+mod trial;
+
 // use kurobako_core::json::JsonValue;
 // use kurobako_core::{Error, Result};
 // use serde_json;
@@ -5,14 +11,11 @@
 // use std::io::BufReader;
 // use std::path::Path;
 
-pub use self::study::StudyRecord;
-
 // pub use self::benchmark::{BenchmarkRecord, ProblemRecord, SolverRecord};
 // pub use self::study::{Id, RecipeAndSpec, StudyRecord};
 // pub use self::trial::{AskRecord, EvaluateRecord, TellRecord, TrialRecord};
 
 // mod benchmark;
-mod study;
 // mod trial;
 
 // pub fn load_studies<P: AsRef<Path>>(dir: P) -> Result<Vec<StudyRecord>> {

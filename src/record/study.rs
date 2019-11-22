@@ -1,3 +1,59 @@
+use crate::record::{TrialRecord, TrialRecordBuilder};
+use crate::study::StudyRecipe;
+use crate::time::DateTime;
+use chrono::Local;
+use kurobako_core::problem::ProblemSpec;
+use kurobako_core::solver::SolverSpec;
+use kurobako_core::trial::TrialId;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+#[derive(Debug)]
+pub struct StudyRecordBuilder {
+    recipe: StudyRecipe,
+    solver: SolverSpec,
+    problem: ProblemSpec,
+    start_time: DateTime,
+    trials: HashMap<TrialId, TrialRecord>,
+}
+impl StudyRecordBuilder {
+    pub fn new(recipe: StudyRecipe, solver: SolverSpec, problem: ProblemSpec) -> Self {
+        Self {
+            recipe,
+            solver,
+            problem,
+            start_time: Local::now(),
+            trials: HashMap::new(),
+        }
+    }
+
+    pub fn add_trial(&mut self, trial: TrialRecordBuilder) {
+        panic!()
+    }
+
+    pub fn finish(self) -> StudyRecord {
+        StudyRecord {
+            recipe: self.recipe,
+            solver: self.solver,
+            problem: self.problem,
+            start_time: self.start_time,
+            end_time: Local::now(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StudyRecord {
+    pub recipe: StudyRecipe,
+    pub solver: SolverSpec,
+    pub problem: ProblemSpec,
+    pub start_time: DateTime,
+    pub end_time: DateTime,
+    // pub unevaluable_trials: usize,
+    // pub trials: Vec<TrialRecord>,
+}
+impl StudyRecord {}
+
 // use super::{JsonValue, TrialRecord};
 // use crate::runner::StudyRunnerOptions;
 // use crate::time::DateTime;
@@ -7,7 +63,6 @@
 // use kurobako_core::solver::{SolverRecipe, SolverSpec};
 // use kurobako_core::{Error, Result};
 // use rustats::fundamental::average;
-use serde::{Deserialize, Serialize};
 // use serde_json;
 // use std::collections::HashMap;
 // use yamakan::observation::ObsId;
@@ -43,21 +98,6 @@ use serde::{Deserialize, Serialize};
 //     pub recipe: &'a JsonValue,
 // }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StudyRecord {
-    // pub solver: RecipeAndSpec<SolverSpec>,
-// pub problem: RecipeAndSpec<ProblemSpec>,
-// pub runner: StudyRunnerOptions,
-// pub start_time: DateTime,
-// pub end_time: DateTime,
-// pub unevaluable_trials: usize,
-// pub trials: Vec<TrialRecord>,
-}
-impl StudyRecord {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
 //     pub fn new<O, P>(
 //         solver_recipe: &O,
 //         solver_spec: SolverSpec,

@@ -1,7 +1,8 @@
 use crate::problem::KurobakoProblemRecipe;
-use crate::record::StudyRecord;
+use crate::record::{StudyRecordBuilder, TrialRecordBuilder};
 use crate::solver::KurobakoSolverRecipe;
 use crate::study::{Scheduling, StudyRecipe};
+use crate::time::ElapsedSeconds;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use kurobako_core::problem::{
     BoxEvaluator, BoxProblem, Evaluator as _, Problem as _, ProblemFactory as _, ProblemSpec,
@@ -173,7 +174,7 @@ struct StudyRunner {
     solver_spec: SolverSpec,
     problem: BoxProblem,
     problem_spec: ProblemSpec,
-    study_record: StudyRecord,
+    study_record: StudyRecordBuilder,
     rng: ArcRng,
     pb: ProgressBar,
     cancel: Cancel,
@@ -208,7 +209,8 @@ impl StudyRunner {
         ));
         pb.set_style(pb_style.clone());
 
-        let study_record = StudyRecord::new();
+        let study_record =
+            StudyRecordBuilder::new(study.clone(), solver_spec.clone(), problem_spec.clone());
         let threads = EvaluationThreads::new(study, rng.clone());
         Ok(Self {
             solver,
@@ -229,15 +231,38 @@ impl StudyRunner {
         self.pb.reset_elapsed();
 
         while self.pb.position() < self.study_steps {
-            let asked_trial = track!(self.solver.ask(&mut self.idg))?;
-            let thread = track!(self.threads.assign(&asked_trial, &self.problem))?;
-            if let Some(next_step) = asked_trial.next_step {
-                let (elapsed_steps, evaluated_trial) =
-                    track!(thread.evaluate(asked_trial.id, next_step, &self.problem_spec))?;
-                self.pb.inc(elapsed_steps);
+            let start_step = self.pb.position();
 
-                if self.pb.position() < self.study_steps {
-                    track!(self.solver.tell(evaluated_trial))?;
+            let (asked_trial, ask_elapsed) =
+                ElapsedSeconds::try_time(|| track!(self.solver.ask(&mut self.idg)))?;
+            let thread = track!(self.threads.assign(&asked_trial, &self.problem))?;
+            let thread_id = thread.thread_id;
+
+            if let Some(next_step) = asked_trial.next_step {
+                let problem_spec = &self.problem_spec;
+                let ((elapsed_steps, evaluated_trial), evaluate_elapsed) =
+                    ElapsedSeconds::try_time(|| {
+                        track!(thread.evaluate(asked_trial.id, next_step, problem_spec))
+                    })?;
+                self.pb.inc(elapsed_steps);
+                let end_step = self.pb.position();
+
+                if end_step < self.study_steps {
+                    let ((), tell_elapsed) = ElapsedSeconds::try_time(|| {
+                        track!(self.solver.tell(evaluated_trial.clone()))
+                    })?;
+
+                    self.study_record.add_trial(TrialRecordBuilder {
+                        id: asked_trial.id,
+                        thread_id,
+                        params: asked_trial.params,
+                        values: evaluated_trial.values,
+                        start_step,
+                        end_step,
+                        ask_elapsed,
+                        tell_elapsed,
+                        evaluate_elapsed,
+                    });
                 }
             } else {
                 thread.prune(asked_trial.id);
