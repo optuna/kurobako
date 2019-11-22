@@ -110,10 +110,11 @@ impl Problem for FcnetProblem {
             UNITS[params[8] as usize]
         );
 
+        let sample_index = track!(self.rng.with_lock(|rng| rng.gen::<usize>() % 4))?;
         Ok(FcnetEvaluator {
             file: Arc::clone(&self.file),
             key: format!("/{}/valid_mse", key),
-            sample_index: track!(self.rng.with_lock(|rng| rng.gen()))?,
+            sample_index,
         })
     }
 }

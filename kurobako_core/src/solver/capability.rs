@@ -80,4 +80,5 @@ pub enum Capability {
     Categorical,
     Conditional,
     MultiObjective,
+    // TODO: Concurrency (next ask before telling the previous result can happen)
 }

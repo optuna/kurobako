@@ -21,7 +21,6 @@ kurobako_problems = { path = "kurobako_problems", version = "0.1" }
 kurobako_solvers = { path = "kurobako_solvers", version = "0.1" }
 lazy_static = "1"
 rand = "0.7"
-rand_distr = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 structopt = "0.3"

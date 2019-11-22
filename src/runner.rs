@@ -3,14 +3,19 @@ use crate::record::StudyRecord;
 use crate::solver::KurobakoSolverRecipe;
 use crate::study::{Scheduling, StudyRecipe};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use kurobako_core::problem::{BoxProblem, ProblemFactory as _, ProblemSpec};
+use kurobako_core::problem::{
+    BoxEvaluator, BoxProblem, Evaluator as _, Problem as _, ProblemFactory as _, ProblemSpec,
+};
 use kurobako_core::registry::FactoryRegistry;
 use kurobako_core::rng::ArcRng;
-use kurobako_core::solver::{BoxSolver, SolverFactory as _, SolverSpec};
+use kurobako_core::solver::{BoxSolver, Solver as _, SolverFactory as _, SolverSpec};
+use kurobako_core::trial::{AskedTrial, EvaluatedTrial, IdGen, TrialId};
 use kurobako_core::{Error, ErrorKind, Result};
 use lazy_static::lazy_static;
 use rand;
+use rand::seq::SliceRandom;
 use serde_json;
+use std::collections::HashMap;
 use std::num::NonZeroUsize;
 use std::sync::atomic::{self, AtomicUsize};
 use std::sync::{Arc, Mutex};
@@ -120,6 +125,7 @@ impl Runner {
                         &record
                     )
                     .map_err(Error::from)));
+                    println!();
                     pb.inc(1);
 
                     if let Err(e) = result {
@@ -171,10 +177,13 @@ struct StudyRunner {
     rng: ArcRng,
     pb: ProgressBar,
     cancel: Cancel,
-    threads: TrialThreads,
+    idg: IdGen,
+    threads: EvaluationThreads,
+    study_steps: u64,
 }
 impl StudyRunner {
     fn new(study: &StudyRecipe, mpb: &MultiProgress, cancel: Cancel) -> Result<Self> {
+        // TODO: check capabilities
         let registry = track!(REGISTRY.lock().map_err(Error::from))?;
 
         let random_seed = study.seed.unwrap_or_else(rand::random);
@@ -190,7 +199,8 @@ impl StudyRunner {
         let solver_spec = track!(solver_factory.specification())?;
         let solver = track!(solver_factory.create_solver(rng.clone(), &problem_spec))?;
 
-        let pb = mpb.add(ProgressBar::new(problem_spec.steps.last() * study.budget));
+        let study_steps = problem_spec.steps.last() * study.budget;
+        let pb = mpb.add(ProgressBar::new(study_steps));
         let pb_style = ProgressStyle::default_bar().template(&format!(
             "(STUDY) [{{elapsed_precise}}] [STEPS {{pos:>6}}/{{len}} \
              {{percent:>3}}%] [ETA {{eta:>3}}] {:?} {:?}",
@@ -199,6 +209,7 @@ impl StudyRunner {
         pb.set_style(pb_style.clone());
 
         let study_record = StudyRecord::new();
+        let threads = EvaluationThreads::new(study, rng.clone());
         Ok(Self {
             solver,
             solver_spec,
@@ -208,12 +219,30 @@ impl StudyRunner {
             rng,
             pb,
             cancel,
-            threads: TrialThreads::new(study),
+            idg: IdGen::new(),
+            threads,
+            study_steps,
         })
     }
 
     fn run(mut self) -> Result<()> {
         self.pb.reset_elapsed();
+
+        while self.pb.position() < self.study_steps {
+            let asked_trial = track!(self.solver.ask(&mut self.idg))?;
+            let thread = track!(self.threads.assign(&asked_trial, &self.problem))?;
+            if let Some(next_step) = asked_trial.next_step {
+                let (elapsed_steps, evaluated_trial) =
+                    track!(thread.evaluate(asked_trial.id, next_step, &self.problem_spec))?;
+                self.pb.inc(elapsed_steps);
+
+                if self.pb.position() < self.study_steps {
+                    track!(self.solver.tell(evaluated_trial))?;
+                }
+            } else {
+                thread.prune(asked_trial.id);
+            }
+        }
 
         Ok(())
     }
@@ -225,319 +254,136 @@ impl Drop for StudyRunner {
 }
 
 #[derive(Debug)]
-struct TrialThreads {
-    threads: Vec<TrialThread>,
+struct EvaluationThreads {
+    threads: Vec<EvaluationThread>,
     scheduling: Scheduling,
+    rng: ArcRng,
 }
-impl TrialThreads {
-    fn new(recipe: &StudyRecipe) -> Self {
+impl EvaluationThreads {
+    fn new(recipe: &StudyRecipe, rng: ArcRng) -> Self {
         Self {
             threads: (0..recipe.concurrency.get())
-                .map(TrialThread::new)
+                .map(EvaluationThread::new)
                 .collect(),
             scheduling: recipe.scheduling,
+            rng,
         }
+    }
+
+    fn assign(
+        &mut self,
+        trial: &AskedTrial,
+        problem: &BoxProblem,
+    ) -> Result<&mut EvaluationThread> {
+        if self
+            .threads
+            .iter()
+            .find(|t| t.runnings.contains_key(&trial.id))
+            .is_some()
+        {
+            let thread = self
+                .threads
+                .iter_mut()
+                .find(|t| t.runnings.contains_key(&trial.id))
+                .unwrap_or_else(|| unreachable!());
+            Ok(thread)
+        } else {
+            match self.scheduling {
+                Scheduling::Random => track!(self.assign_random(trial, problem)),
+                Scheduling::Fair => track!(self.assign_fair(trial, problem)),
+            }
+        }
+    }
+
+    fn assign_random(
+        &mut self,
+        trial: &AskedTrial,
+        problem: &BoxProblem,
+    ) -> Result<&mut EvaluationThread> {
+        let thread = track_assert_some!(self.threads.choose_mut(&mut self.rng), ErrorKind::Bug);
+        let state = track!(EvaluatorState::new(problem, trial))?;
+        thread.runnings.insert(trial.id, state);
+        Ok(thread)
+    }
+
+    fn assign_fair(
+        &mut self,
+        trial: &AskedTrial,
+        problem: &BoxProblem,
+    ) -> Result<&mut EvaluationThread> {
+        self.threads.sort_by_key(|t| t.elapsed_steps);
+        let thread = track_assert_some!(self.threads.first_mut(), ErrorKind::Bug);
+        let state = track!(EvaluatorState::new(problem, trial))?;
+        thread.runnings.insert(trial.id, state);
+        Ok(thread)
     }
 }
 
 #[derive(Debug)]
-struct TrialThread {
-    id: usize,
+struct EvaluationThread {
+    thread_id: usize,
+    runnings: HashMap<TrialId, EvaluatorState>,
+    elapsed_steps: u64,
 }
-impl TrialThread {
-    fn new(id: usize) -> Self {
-        Self { id }
+impl EvaluationThread {
+    fn new(thread_id: usize) -> Self {
+        Self {
+            thread_id,
+            runnings: HashMap::new(),
+            elapsed_steps: 0,
+        }
+    }
+
+    fn prune(&mut self, trial_id: TrialId) {
+        self.runnings.remove(&trial_id);
+    }
+
+    fn evaluate(
+        &mut self,
+        trial_id: TrialId,
+        next_step: u64,
+        problem_spec: &ProblemSpec,
+    ) -> Result<(u64, EvaluatedTrial)> {
+        let mut state = track_assert_some!(self.runnings.remove(&trial_id), ErrorKind::Bug);
+
+        let next_step = track_assert_some!(
+            problem_spec
+                .steps
+                .iter()
+                .skip_while(|&s| s < next_step)
+                .nth(0),
+            ErrorKind::Bug
+        );
+        let (current_step, values) = track!(state.evaluator.evaluate(next_step))?;
+        track_assert!(state.current_step <= current_step, ErrorKind::Bug);
+        let elapsed_steps = current_step - state.current_step;
+        self.elapsed_steps += elapsed_steps;
+
+        state.current_step = current_step;
+        if state.current_step < problem_spec.steps.last() && !values.is_empty() {
+            self.runnings.insert(trial_id, state);
+        }
+
+        let evaluated = EvaluatedTrial {
+            id: trial_id,
+            values,
+            current_step,
+        };
+        Ok((elapsed_steps, evaluated))
     }
 }
 
-// #[derive(Debug)]
-// pub struct StudyRunner<S, P>
-// where
-//     P: Problem,
-// {
-//     rng: ThreadRng,
-//     solver: S,
-//     problem: P,
-//     study_record: StudyRecord,
-//     pub study_budget: Budget, // TODO
-//     scheduler: TrialThreadScheduler<P::Evaluator>,
-// }
-// impl<S, P> StudyRunner<S, P>
-// where
-//     S: Solver,
-//     P: Problem,
-// {
-//     pub fn new<SR, PR>(
-//         solver_recipe: &SR,
-//         problem_recipe: &PR,
-//         options: &StudyRunnerOptions,
-//     ) -> Result<Self>
-//     where
-//         SR: SolverRecipe<Solver = S>,
-//         PR: ProblemRecipe<Problem = P>,
-//     {
-//         let problem = track!(problem_recipe.create_problem())?;
-//         let problem_spec = problem.specification();
-
-//         let solver = track!(solver_recipe.create_solver(problem_spec.clone()))?;
-//         let solver_spec = solver.specification();
-
-//         let study_budget =
-//             Budget::new(options.budget as u64 * problem_spec.evaluation_expense.get());
-
-//         let study_record = track!(StudyRecord::new(
-//             solver_recipe,
-//             solver_spec,
-//             problem_recipe,
-//             problem_spec,
-//             options.clone()
-//         ))?;
-
-//         Ok(Self {
-//             rng: rand::thread_rng(),
-//             solver,
-//             problem,
-//             study_record,
-//             study_budget,
-//             scheduler: TrialThreadScheduler::new(options),
-//         })
-//     }
-
-//     pub fn run(mut self) -> Result<StudyRecord> {
-//         while !self.study_budget.is_consumed() {
-//             while let Some(mut thread) = self.scheduler.pop_idle_thread() {
-//                 let trial = track!(self.ask_trial())?;
-//                 thread.trial = Some(trial);
-//                 self.scheduler.threads.push(thread);
-//             }
-
-//             track!(self.evaluate_trial())?;
-//         }
-
-//         self.study_record.finish();
-//         Ok(self.study_record)
-//     }
-
-//     // TODO
-//     pub fn run_once(&mut self, budget: &mut Budget) -> Result<()> {
-//         track_assert!(!self.study_budget.is_consumed(), ErrorKind::Bug);
-
-//         while !self.study_budget.is_consumed() && !budget.is_consumed() {
-//             while let Some(mut thread) = self.scheduler.pop_idle_thread() {
-//                 let trial = track!(self.ask_trial())?;
-//                 thread.trial = Some(trial);
-//                 self.scheduler.threads.push(thread);
-//             }
-
-//             let before = self.study_budget.consumption;
-//             track!(self.evaluate_trial())?;
-//             let after = self.study_budget.consumption;
-//             budget.consumption += after - before;
-//         }
-
-//         if self.study_budget.is_consumed() {
-//             self.study_record.finish();
-//         }
-//         Ok(())
-//     }
-
-//     pub fn study(&self) -> &StudyRecord {
-//         &self.study_record
-//     }
-
-//     fn ask_trial(&mut self) -> Result<TrialState<P::Evaluator>> {
-//         loop {
-//             let (result, elapsed) = ElapsedSeconds::time(|| {
-//                 track!(self.solver.ask(&mut self.rng, unsafe { &mut ID_GEN }))
-//             });
-//             let mut obs = result?;
-//             obs.param.budget_mut().amount = self.next_evaluation_point(obs.param.budget().amount);
-
-//             let evaluator = if let Some(pending) = self.scheduler.pendings.remove(&obs.id) {
-//                 pending.evaluator
-//             } else if self.scheduler.cancelled.contains(&obs.id) {
-//                 trace!(
-//                     "{:?} has been cancelled: budget={:?}",
-//                     obs.id,
-//                     obs.param.budget()
-//                 );
-//                 continue;
-//             } else {
-//                 track!(self.problem.create_evaluator(obs.id))?
-//             };
-
-//             let params = obs.param.get().clone();
-//             return Ok(TrialState {
-//                 obs,
-//                 evaluator,
-//                 ask: AskRecord { params, elapsed },
-//             });
-//         }
-//     }
-
-//     fn evaluate_trial(&mut self) -> Result<()> {
-//         self.scheduler.threads.sort_by_key(|t| t.priority());
-
-//         let thread = &mut self.scheduler.threads[0];
-//         let mut trial = track_assert_some!(thread.trial.take(), ErrorKind::Bug);
-//         let mut trial_budget = trial.obs.param.budget();
-
-//         trace!("Thread[{}]: budget={:?}", thread.id, trial_budget);
-
-//         let (result, elapsed) = ElapsedSeconds::time(|| {
-//             track!(trial
-//                 .evaluator
-//                 .evaluate(trial.obs.param.get(), &mut trial_budget))
-//         });
-//         let expense = trial_budget.consumption - trial.obs.param.budget().consumption;
-
-//         match result {
-//             Ok(values) => {
-//                 self.study_budget.consumption += expense;
-//                 thread.budget_consumption += expense;
-//                 *trial.obs.param.budget_mut() = trial_budget;
-//                 let evaluate = EvaluateRecord {
-//                     values: values.clone(),
-//                     elapsed,
-//                     expense,
-//                 };
-
-//                 let obs = trial.obs.clone().map_value(|()| values);
-//                 let solver = &mut self.solver;
-//                 let (result, elapsed) = ElapsedSeconds::time(|| track!(solver.tell(obs)));
-//                 result?;
-//                 let tell = TellRecord { elapsed };
-
-//                 self.study_record.trials.push(TrialRecord {
-//                     thread_id: thread.id,
-//                     obs_id: trial.obs.id,
-//                     ask: trial.ask,
-//                     evaluate,
-//                     tell,
-//                 });
-
-//                 if trial_budget.consumption < self.trial_max_budget() {
-//                     track_assert!(trial_budget.is_consumed(), ErrorKind::Other; trial_budget);
-//                     let pending = Pending {
-//                         evaluator: trial.evaluator,
-//                         seqno: self.study_budget.consumption,
-//                     };
-//                     self.scheduler.pendings.insert(trial.obs.id, pending);
-//                     if let Some(max_pendings) = self.study_record.runner.max_pendings {
-//                         if max_pendings < self.scheduler.pendings.len() {
-//                             let id = self
-//                                 .scheduler
-//                                 .pendings
-//                                 .iter()
-//                                 .map(|t| (t.1.seqno, *t.0))
-//                                 .min()
-//                                 .unwrap_or_else(|| unreachable!())
-//                                 .1;
-//                             self.scheduler.pendings.remove(&id);
-//                             self.scheduler.cancelled.insert(id);
-//                         }
-//                     }
-//                 }
-//             }
-//             Err(e) => {
-//                 if *e.kind() == ErrorKind::UnevaluableParams {
-//                     self.study_record.unevaluable_trials += 1;
-//                     warn!(
-//                         "Unevaluable parameters ({}): {}",
-//                         self.study_record.unevaluable_trials, e
-//                     );
-//                     track_assert!(
-//                         self.study_record.unevaluable_trials < 10000,
-//                         ErrorKind::Other
-//                     );
-//                 } else {
-//                     return Err(e);
-//                 }
-//             }
-//         }
-//         Ok(())
-//     }
-
-//     fn trial_max_budget(&self) -> u64 {
-//         self.study_record.problem.spec.evaluation_expense.get()
-//     }
-
-//     fn next_evaluation_point(&self, candidate: u64) -> u64 {
-//         use std::cmp;
-
-//         if self.study_record.runner.steps.is_empty() {
-//             candidate
-//         } else {
-//             self.study_record
-//                 .runner
-//                 .steps
-//                 .iter()
-//                 .cloned()
-//                 .rev()
-//                 .take_while(|p| candidate <= *p)
-//                 .last()
-//                 .map(|n| cmp::min(n, self.trial_max_budget()))
-//                 .unwrap_or_else(|| self.trial_max_budget())
-//         }
-//     }
-// }
-
-// #[derive(Debug)]
-// struct TrialThreadScheduler<E> {
-//     threads: Vec<TrialThread<E>>,
-//     pendings: HashMap<ObsId, Pending<E>>,
-//     cancelled: HashSet<ObsId>,
-// }
-// impl<E> TrialThreadScheduler<E> {
-//     fn new(options: &StudyRunnerOptions) -> Self {
-//         Self {
-//             threads: (0..options.concurrency).map(TrialThread::new).collect(),
-//             pendings: HashMap::new(),
-//             cancelled: HashSet::new(),
-//         }
-//     }
-
-//     fn pop_idle_thread(&mut self) -> Option<TrialThread<E>> {
-//         for i in 0..self.threads.len() {
-//             if self.threads[i].trial.is_none() {
-//                 return Some(self.threads.swap_remove(i));
-//             }
-//         }
-//         None
-//     }
-// }
-
-// #[derive(Debug)]
-// struct TrialState<E> {
-//     obs: UnobservedObs,
-//     evaluator: E,
-//     ask: AskRecord,
-// }
-
-// #[derive(Debug)]
-// struct TrialThread<E> {
-//     id: usize,
-//     budget_consumption: u64,
-//     trial: Option<TrialState<E>>,
-// }
-// impl<E> TrialThread<E> {
-//     fn new(id: usize) -> Self {
-//         Self {
-//             id,
-//             budget_consumption: 0,
-//             trial: None,
-//         }
-//     }
-
-//     fn priority(&self) -> u64 {
-//         self.trial.as_ref().map_or(std::u64::MAX, |t| {
-//             t.obs.param.budget().amount + self.budget_consumption
-//         })
-//     }
-// }
-
-// #[derive(Debug)]
-// struct Pending<E> {
-//     evaluator: E,
-//     seqno: u64,
-// }
+#[derive(Debug)]
+struct EvaluatorState {
+    evaluator: BoxEvaluator,
+    current_step: u64,
+}
+impl EvaluatorState {
+    fn new(problem: &BoxProblem, trial: &AskedTrial) -> Result<Self> {
+        let evaluator = track!(problem.create_evaluator(trial.params.clone()))?;
+        Ok(Self {
+            evaluator,
+            current_step: 0,
+        })
+    }
+}

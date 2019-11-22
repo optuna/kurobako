@@ -32,6 +32,7 @@ pub struct StudyRecipe {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Scheduling {
     Random,
     Fair,
