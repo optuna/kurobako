@@ -75,6 +75,25 @@ impl Reporter {
             env!("CARGO_PKG_VERSION"),
             env!("CARGO_PKG_VERSION"),
         )))?;
+        track!(list.item(&format!(
+            "Number of Solvers: {}",
+            track!(self.solvers())?.count()
+        )))?;
+        track!(list.item(&format!(
+            "Number of Problems: {}",
+            track!(self.problems())?.count()
+        )))?;
+        let metrics = self
+            .opt
+            .metrics
+            .iter()
+            .map(|m| match m {
+                Metric::BestValue => "best value",
+                Metric::Auc => "AUC",
+                Metric::ElapsedTime => "elapsed time",
+            })
+            .collect::<Vec<_>>();
+        track!(list.item(&format!("Metrics Precedence: `{}`", metrics.join(" -> "))))?;
         track_writeln!(writer.inner_mut())?;
 
         track_writeln!(
@@ -89,7 +108,6 @@ impl Reporter {
         {
             let mut writer = track!(writer.heading("Table of Contents"))?;
             let mut list = writer.list().numbered();
-            track!(list.item("[Settings](#settings)"))?;
             track!(list.item("[Overall Results](#overall-results)"))?;
             track!(list.item("[Individual Results](#individual-results)"))?;
             track!(list.item("[Solvers](#solvers)"))?;
@@ -98,47 +116,12 @@ impl Reporter {
             track_writeln!(writer.inner_mut())?;
         }
 
-        track!(self.report_settings(&mut writer))?;
         track!(self.report_overall_results(&mut writer))?;
         track!(self.report_individual_results(&mut writer))?;
         track!(self.report_solvers(&mut writer))?;
         track!(self.report_problems(&mut writer))?;
         track!(self.report_studies(&mut writer))?;
 
-        Ok(())
-    }
-
-    pub fn report_settings<W: Write>(&self, writer: &mut MarkdownWriter<W>) -> Result<()> {
-        let mut writer = track!(writer.heading("Settings"))?;
-        {
-            let mut writer = track!(writer.heading("Metrics Precedence"))?;
-            let mut list = writer.list().numbered();
-            for m in &self.opt.metrics {
-                let m = match m {
-                    Metric::BestValue => "best value",
-                    Metric::Auc => "AUC",
-                    Metric::ElapsedTime => "elapsed time",
-                };
-                track!(list.item(m))?;
-            }
-            track_writeln!(writer.inner_mut())?;
-        }
-        {
-            let mut writer = track!(writer.heading("Solver List"))?;
-            let mut list = writer.list().numbered();
-            for (id, solver) in track!(self.solvers())? {
-                track!(list.item(&format!("[{}](#id-{})", solver.spec.name, id)))?;
-            }
-            track_writeln!(writer.inner_mut())?;
-        }
-        {
-            let mut writer = track!(writer.heading("Problem List"))?;
-            let mut list = writer.list().numbered();
-            for (id, problem) in track!(self.problems())? {
-                track!(list.item(&format!("[{}](#id-{})", problem.spec.name, id)))?;
-            }
-            track_writeln!(writer.inner_mut())?;
-        }
         Ok(())
     }
 
@@ -182,10 +165,12 @@ impl Reporter {
                 .push(study)
         }
 
-        for (problem_id, contest) in contests {
+        for (problem_no, (problem_id, contest)) in contests.into_iter().enumerate() {
             let mut writer = track!(writer.heading(&format!(
-                "Problem: [{}](#id-{})",
-                contest.problem.spec.name, problem_id
+                "({}) Problem: [{}](#id-{})",
+                problem_no + 1,
+                contest.problem.spec.name,
+                problem_id
             )))?;
 
             // FIXME: Reduce redundant calculation.
