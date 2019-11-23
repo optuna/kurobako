@@ -242,6 +242,8 @@ impl StudyRunner {
 
             let (asked_trial, ask_elapsed) =
                 ElapsedSeconds::try_time(|| track!(self.solver.ask(&mut self.idg)))?;
+
+            // TODO: Fix scheduling implementation correctly.
             let thread = track!(self.threads.assign(&asked_trial, &self.problem))?;
             let thread_id = thread.thread_id;
 

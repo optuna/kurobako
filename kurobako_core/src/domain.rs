@@ -224,6 +224,24 @@ pub enum Range {
     Categorical { choices: Vec<String> },
 }
 impl Range {
+    /// Returns the inclusive lower bound of this range.
+    pub fn low(&self) -> f64 {
+        match self {
+            Self::Continuous { low, .. } => *low,
+            Self::Discrete { low, .. } => *low as f64,
+            Self::Categorical { .. } => 0.0,
+        }
+    }
+
+    /// Returns the exclusive upper bound of this range.
+    pub fn high(&self) -> f64 {
+        match self {
+            Self::Continuous { high, .. } => *high,
+            Self::Discrete { high, .. } => *high as f64,
+            Self::Categorical { choices } => choices.len() as f64,
+        }
+    }
+
     fn contains(&self, v: f64) -> bool {
         match self {
             Self::Continuous { low, high } => *low <= v && v < *high,

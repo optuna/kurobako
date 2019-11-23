@@ -21,9 +21,7 @@ impl ElapsedSeconds {
     }
 
     pub fn to_duration(&self) -> Duration {
-        let secs = self.0 as u64;
-        let nanos = (self.0.fract() * 1_000_000_000.0) as u32;
-        Duration::new(secs, nanos)
+        Duration::from_secs_f64(self.0)
     }
 
     pub fn time<F, T>(f: F) -> (T, Self)
@@ -46,8 +44,6 @@ impl ElapsedSeconds {
 }
 impl From<Duration> for ElapsedSeconds {
     fn from(f: Duration) -> Self {
-        let secs = f.as_secs() as f64;
-        let micros = f.as_micros() as f64;
-        Self(secs + micros / 1_000_000.0)
+        Self(f.as_secs_f64())
     }
 }
