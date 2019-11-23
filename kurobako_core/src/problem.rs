@@ -291,10 +291,32 @@ impl fmt::Debug for BoxEvaluator {
 
 /// Evaluable steps of a problem.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct EvaluableSteps(Vec<u64>);
+pub struct EvaluableSteps(EvaluableStepsInner);
 impl EvaluableSteps {
     /// Makes a new `EvaluableSteps` instance.
     pub fn new(steps: Vec<u64>) -> Result<Self> {
+        track!(EvaluableStepsInner::new(steps)).map(Self)
+    }
+
+    /// Returns the last evaluation step.
+    pub fn last(&self) -> u64 {
+        self.0.last()
+    }
+
+    /// Returns an iterator that iterates over all the steps.
+    pub fn iter<'a>(&'a self) -> impl 'a + Iterator<Item = u64> {
+        self.0.iter()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(untagged)]
+enum EvaluableStepsInner {
+    Max(u64),
+    Steps(Vec<u64>),
+}
+impl EvaluableStepsInner {
+    fn new(steps: Vec<u64>) -> Result<Self> {
         track_assert!(!steps.is_empty(), ErrorKind::InvalidInput);
         track_assert!(steps[0] > 0, ErrorKind::InvalidInput);
 
@@ -302,16 +324,25 @@ impl EvaluableSteps {
             track_assert!(a < b, ErrorKind::InvalidInput);
         }
 
-        Ok(Self(steps))
+        let last = steps[steps.len() - 1];
+        if last == steps.len() as u64 {
+            Ok(Self::Max(last))
+        } else {
+            Ok(Self::Steps(steps))
+        }
     }
 
-    /// Returns the last evaluation step.
-    pub fn last(&self) -> u64 {
-        self.0[self.0.len() - 1]
+    fn last(&self) -> u64 {
+        match self {
+            Self::Max(n) => *n,
+            Self::Steps(ns) => ns[ns.len() - 1],
+        }
     }
 
-    /// Returns an iterator that iterates over all the steps.
-    pub fn iter<'a>(&'a self) -> impl 'a + Iterator<Item = u64> {
-        self.0.iter().copied()
+    fn iter<'a>(&'a self) -> impl 'a + Iterator<Item = u64> {
+        match self {
+            Self::Max(n) => itertools::Either::Left(0..=*n),
+            Self::Steps(ns) => itertools::Either::Right(ns.iter().copied()),
+        }
     }
 }

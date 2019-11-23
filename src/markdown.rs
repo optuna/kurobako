@@ -35,6 +35,13 @@ impl<'a, W: Write> MarkdownWriter<'a, W> {
         track_writeln!(self.writer)
     }
 
+    pub fn code_block(&mut self, lang: &str, code: &str) -> Result<()> {
+        track_writeln!(self.writer, "```{}", lang)?;
+        track_writeln!(self.writer, "{}", code)?;
+        track_writeln!(self.writer, "```")?;
+        Ok(())
+    }
+
     pub fn list(&mut self) -> ListWriter<&mut W> {
         ListWriter::new(&mut self.writer)
     }
@@ -55,6 +62,11 @@ impl<W: Write> ListWriter<W> {
         }
     }
 
+    pub fn numbered(mut self) -> Self {
+        self.number = Some(1);
+        self
+    }
+
     pub fn item(&mut self, s: &str) -> Result<()> {
         for _ in 0..self.level {
             track_write!(self.writer, "  ")?;
@@ -66,14 +78,6 @@ impl<W: Write> ListWriter<W> {
             track_writeln!(self.writer, "- {}", s)?;
         }
         Ok(())
-    }
-
-    pub fn numbered_list(&mut self) -> ListWriter<&mut W> {
-        ListWriter {
-            writer: &mut self.writer,
-            level: self.level + 1,
-            number: Some(1),
-        }
     }
 
     pub fn list(&mut self) -> ListWriter<&mut W> {

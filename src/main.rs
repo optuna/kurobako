@@ -102,8 +102,8 @@ fn main() -> trackable::result::TopLevelResult {
             let reporter = Reporter::new(studies, opt);
             let stdout = io::stdout();
             let mut stdout = stdout.lock();
-            let writer = MarkdownWriter::new(&mut stdout);
-            track!(reporter.report_all(writer))?;
+            let mut writer = MarkdownWriter::new(&mut stdout);
+            track!(reporter.report_all(&mut writer))?;
         }
     }
 
