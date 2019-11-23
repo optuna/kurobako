@@ -29,8 +29,9 @@ macro_rules! track_writeln {
 // pub mod variable;
 pub mod markdown;
 pub mod problem;
-pub mod ranking;
+// pub mod ranking; TODO: delete
 pub mod record;
+pub mod report;
 pub mod runner;
 pub mod solver;
 pub mod study;

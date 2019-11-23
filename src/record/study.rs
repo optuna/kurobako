@@ -1,12 +1,19 @@
-use crate::record::{EvaluationRecord, TrialRecord, TrialRecordBuilder};
-use crate::study::StudyRecipe;
+use crate::record::{
+    EvaluationRecord, ProblemRecord, SolverRecord, TrialRecord, TrialRecordBuilder,
+};
+use crate::study::{Scheduling, StudyRecipe};
 use crate::time::DateTime;
 use chrono::Local;
 use kurobako_core::problem::ProblemSpec;
 use kurobako_core::solver::SolverSpec;
 use kurobako_core::trial::TrialId;
+use kurobako_core::{Error, Result};
 use serde::{Deserialize, Serialize};
+use serde_json;
+use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
+use std::num::NonZeroUsize;
 
 #[derive(Debug)]
 pub struct StudyRecordBuilder {
@@ -45,11 +52,20 @@ impl StudyRecordBuilder {
 
     pub fn finish(self) -> StudyRecord {
         StudyRecord {
-            recipe: self.recipe,
-            solver: self.solver,
-            problem: self.problem,
             start_time: self.start_time,
             end_time: Local::now(),
+            budget: self.recipe.budget,
+            seed: self.recipe.seed.unwrap_or_else(|| unreachable!()),
+            concurrency: self.recipe.concurrency,
+            scheduling: self.recipe.scheduling,
+            solver: SolverRecord {
+                recipe: self.recipe.solver,
+                spec: self.solver,
+            },
+            problem: ProblemRecord {
+                recipe: self.recipe.problem,
+                spec: self.problem,
+            },
             trials: self.trials.into_iter().map(|(_, v)| v).collect(),
         }
     }
@@ -57,14 +73,42 @@ impl StudyRecordBuilder {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StudyRecord {
-    pub recipe: StudyRecipe,
-    pub solver: SolverSpec,
-    pub problem: ProblemSpec,
     pub start_time: DateTime,
     pub end_time: DateTime,
+    pub seed: u64,
+    pub budget: u64,
+    pub concurrency: NonZeroUsize,
+    pub scheduling: Scheduling,
+    pub solver: SolverRecord,
+    pub problem: ProblemRecord,
     pub trials: Vec<TrialRecord>,
 }
-impl StudyRecord {}
+impl StudyRecord {
+    pub fn id(&self) -> Result<String> {
+        let mut hasher = Sha256::new();
+        hasher.input(&track!(
+            serde_json::to_vec(&self.budget).map_err(Error::from)
+        )?);
+        hasher.input(&track!(
+            serde_json::to_vec(&self.concurrency).map_err(Error::from)
+        )?);
+        hasher.input(&track!(
+            serde_json::to_vec(&self.scheduling).map_err(Error::from)
+        )?);
+        hasher.input(&track!(
+            serde_json::to_vec(&self.solver).map_err(Error::from)
+        )?);
+        hasher.input(&track!(
+            serde_json::to_vec(&self.problem).map_err(Error::from)
+        )?);
+
+        let mut id = String::with_capacity(64);
+        for b in hasher.result().as_slice() {
+            track_write!(&mut id, "{:02x}", b)?;
+        }
+        Ok(id)
+    }
+}
 
 // use super::{JsonValue, TrialRecord};
 // use crate::runner::StudyRunnerOptions;

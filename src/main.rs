@@ -1,8 +1,9 @@
 #[macro_use]
 extern crate trackable;
 
+use kurobako::markdown::MarkdownWriter;
 use kurobako::problem::KurobakoProblemRecipe;
-use kurobako::ranking::{RankingOpt, SolverRanking};
+use kurobako::report::{ReportOpt, Reporter};
 use kurobako::runner::{Runner, RunnerOpt};
 use kurobako::solver::KurobakoSolverRecipe;
 use kurobako::study::{StudiesRecipe, StudyRecipe};
@@ -40,7 +41,7 @@ enum Opt {
     Study(StudyRecipe),
     Studies(StudiesRecipe),
     Run(RunnerOpt),
-    Ranking(RankingOpt),
+    Report(ReportOpt),
     // ProblemSuite(KurobakoProblemSuite),
     // Exam(ExamRecipe),
     // MultiExam(MultiExamRecipe),
@@ -96,10 +97,13 @@ fn main() -> trackable::result::TopLevelResult {
         Opt::Run(opt) => {
             track!(Runner::new(opt).run())?;
         }
-        Opt::Ranking(opt) => {
+        Opt::Report(opt) => {
             let studies = track!(json::load(io::stdin().lock()))?;
-            let ranking = SolverRanking::new(studies, opt);
-            track!(ranking.output(io::stdout().lock()))?;
+            let reporter = Reporter::new(studies, opt);
+            let stdout = io::stdout();
+            let mut stdout = stdout.lock();
+            let writer = MarkdownWriter::new(&mut stdout);
+            track!(reporter.report_all(writer))?;
         }
     }
 

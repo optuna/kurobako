@@ -79,6 +79,11 @@ impl SolverRanking {
                 track!(list.item(m))?;
             }
         }
+
+        track!(list.item("Problems:"))?;
+        {
+            // let mut list = list.list();
+        }
         track!(writer.newline())?;
 
         Ok(())

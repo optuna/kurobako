@@ -2,27 +2,27 @@ use kurobako_core::Result;
 use std::io::Write;
 
 #[derive(Debug)]
-pub struct MarkdownWriter<W> {
-    writer: W,
+pub struct MarkdownWriter<'a, W> {
+    writer: &'a mut W,
     level: usize,
 }
-impl<W: Write> MarkdownWriter<W> {
-    pub fn new(writer: W) -> Self {
+impl<'a, W: Write> MarkdownWriter<'a, W> {
+    pub fn new(writer: &'a mut W) -> Self {
         Self::with_level(writer, 0)
     }
 
-    pub fn with_level(writer: W, level: usize) -> Self {
+    pub fn with_level(writer: &'a mut W, level: usize) -> Self {
         Self { writer, level }
     }
 
-    pub fn heading(&mut self, s: &str) -> Result<MarkdownWriter<&mut W>> {
+    pub fn heading(&mut self, s: &str) -> Result<MarkdownWriter<W>> {
         for _ in 0..=self.level {
             track_write!(self.writer, "#")?
         }
         track_writeln!(self.writer, " {}\n", s)?;
 
         Ok(MarkdownWriter {
-            writer: &mut self.writer,
+            writer: self.writer,
             level: self.level + 1,
         })
     }
@@ -73,6 +73,14 @@ impl<W: Write> ListWriter<W> {
             writer: &mut self.writer,
             level: self.level + 1,
             number: Some(1),
+        }
+    }
+
+    pub fn list(&mut self) -> ListWriter<&mut W> {
+        ListWriter {
+            writer: &mut self.writer,
+            level: self.level + 1,
+            number: None,
         }
     }
 }
