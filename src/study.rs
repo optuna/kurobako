@@ -3,6 +3,7 @@ use crate::solver::KurobakoSolverRecipe;
 use kurobako_core::json;
 use kurobako_core::{Error, ErrorKind, Result};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::num::NonZeroUsize;
 use std::str::FromStr;
 use structopt::StructOpt;
@@ -50,6 +51,14 @@ impl FromStr for Scheduling {
             "random" => Ok(Self::Random),
             "fair" => Ok(Self::Fair),
             _ => track_panic!(ErrorKind::InvalidInput, "Unknown scheduling type: {:?}", s),
+        }
+    }
+}
+impl fmt::Display for Scheduling {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Random => write!(f, "random"),
+            Self::Fair => write!(f, "fair"),
         }
     }
 }

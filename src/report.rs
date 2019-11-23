@@ -94,6 +94,7 @@ impl Reporter {
             track!(list.item("[Individual Results](#individual-results)"))?;
             track!(list.item("[Solvers](#solvers)"))?;
             track!(list.item("[Problems](#problems)"))?;
+            track!(list.item("[Studies](#studies)"))?;
             track_writeln!(writer.inner_mut())?;
         }
 
@@ -102,6 +103,7 @@ impl Reporter {
         track!(self.report_individual_results(&mut writer))?;
         track!(self.report_solvers(&mut writer))?;
         track!(self.report_problems(&mut writer))?;
+        track!(self.report_studies(&mut writer))?;
 
         Ok(())
     }
@@ -209,16 +211,21 @@ impl Reporter {
                 vec![
                     md::ColumnHeader::new("Ranking", md::Align::Right),
                     md::ColumnHeader::new("Solver", md::Align::Left),
-                    md::ColumnHeader::new("Budget", md::Align::Right),
-                    md::ColumnHeader::new("Repeats", md::Align::Right),
-                    md::ColumnHeader::new("Best: avg +- sd", md::Align::Right),
-                    md::ColumnHeader::new("AUC: avg +- sd)", md::Align::Right),
-                    md::ColumnHeader::new("Elapsed: avg +- sd", md::Align::Right),
+                    md::ColumnHeader::new("Best (avg +- sd)", md::Align::Right),
+                    md::ColumnHeader::new("AUC (avg +- sd)", md::Align::Right),
+                    md::ColumnHeader::new("Elapsed (avg +- sd)", md::Align::Right),
                 ]
                 .into_iter(),
             );
             for (ranking, solver_id) in rankings {
                 let c = &contest.competitors[solver_id];
+
+                let solver = format!(
+                    "[{}](#id-{}) ([study](#id-{}))",
+                    c.solver.spec.name,
+                    solver_id,
+                    track!(c.studies[0].id())?
+                );
 
                 let best_values = c.best_values().map(|x| x.0).collect::<Vec<_>>();
                 let best_value = format!(
@@ -246,9 +253,7 @@ impl Reporter {
                 table
                     .row()
                     .item(ranking)
-                    .item(format!("[{}](#id-{})", c.solver.spec.name, solver_id))
-                    .item(c.studies[0].budget)
-                    .item(c.studies.len())
+                    .item(solver)
                     .item(best_value)
                     .item(auc)
                     .item(elapsed_time);
@@ -292,6 +297,38 @@ impl Reporter {
             track_writeln!(writer.inner_mut(), "specification:")?;
             let json = track!(serde_json::to_string_pretty(&problem.spec).map_err(Error::from))?;
             track!(writer.code_block("json", &json))?;
+            track_writeln!(writer.inner_mut())?;
+        }
+        Ok(())
+    }
+
+    pub fn report_studies<W: Write>(&self, writer: &mut MarkdownWriter<W>) -> Result<()> {
+        let mut writer = track!(writer.heading("Studies"))?;
+        let mut studies = BTreeMap::<_, Vec<_>>::new();
+        for study in &self.studies {
+            let id = track!(study.id())?;
+            studies
+                .entry((&study.problem.spec.name, &study.solver.spec.name, id))
+                .or_default()
+                .push(study);
+        }
+        for ((problem_name, solver_name, id), studies) in studies {
+            let mut writer = track!(writer.heading(&format!("ID: {}", id)))?;
+            let mut list = writer.list();
+            track!(list.item(&format!(
+                "problem: [{}](id-{})",
+                problem_name,
+                track!(studies[0].problem.id())?
+            )))?;
+            track!(list.item(&format!(
+                "solver: [{}](id-{})",
+                solver_name,
+                track!(studies[0].solver.id())?
+            )))?;
+            track!(list.item(&format!("budget: {}", studies[0].budget)))?;
+            track!(list.item(&format!("repeats: {}", studies.len())))?;
+            track!(list.item(&format!("concurrency: {}", studies[0].concurrency)))?;
+            track!(list.item(&format!("scheduling: {}", studies[0].scheduling)))?;
             track_writeln!(writer.inner_mut())?;
         }
         Ok(())
