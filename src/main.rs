@@ -2,6 +2,7 @@
 extern crate trackable;
 
 use kurobako::markdown::MarkdownWriter;
+use kurobako::plot::PlotOpt;
 use kurobako::problem::KurobakoProblemRecipe;
 use kurobako::report::{ReportOpt, Reporter};
 use kurobako::runner::{Runner, RunnerOpt};
@@ -42,39 +43,12 @@ enum Opt {
     Studies(StudiesRecipe),
     Run(RunnerOpt),
     Report(ReportOpt),
+    Plot(PlotOpt),
     // ProblemSuite(KurobakoProblemSuite),
     // Exam(ExamRecipe),
     // MultiExam(MultiExamRecipe),
-    // Plot(PlotOpt),
-    // PlotScatter(PlotScatterOpt),
     // Var(Variable),
 }
-
-// #[derive(Debug, StructOpt)]
-// #[structopt(rename_all = "kebab-case")]
-// struct PlotOpt {
-//     #[structopt(long)]
-//     budget: Option<u64>,
-
-//     #[structopt(long, short = "o", default_value = "plot-result/")]
-//     output_dir: PathBuf,
-
-//     #[structopt(flatten)]
-//     inner: PlotOptions,
-// }
-
-// #[derive(Debug, StructOpt)]
-// #[structopt(rename_all = "kebab-case")]
-// struct PlotScatterOpt {
-//     #[structopt(long)]
-//     budget: Option<u64>,
-
-//     #[structopt(long, short = "o", default_value = "plot-result/")]
-//     output_dir: PathBuf,
-
-//     #[structopt(flatten)]
-//     inner: PlotScatterOptions,
-// }
 
 fn main() -> trackable::result::TopLevelResult {
     let opt = Opt::from_args();
@@ -105,6 +79,10 @@ fn main() -> trackable::result::TopLevelResult {
             let mut writer = MarkdownWriter::new(&mut stdout);
             track!(reporter.report_all(&mut writer))?;
         }
+        Opt::Plot(opt) => {
+            let studies = track!(json::load(io::stdin().lock()))?;
+            track!(opt.plot(&studies))?;
+        }
     }
 
     Ok(())
@@ -125,41 +103,7 @@ fn main() -> trackable::result::TopLevelResult {
 //                 println!();
 //             }
 //         }
-//         Opt::Stats(opt) => {
-//             handle_stats_command(opt)?;
-//         }
-//         Opt::Plot(opt) => {
-//             handle_plot_command(opt)?;
-//         }
-//         Opt::PlotScatter(opt) => {
-//             handle_plot_scatter_command(opt)?;
-//         }
 //     }
-//     Ok(())
-// }
-
-// fn handle_stats_command(opt: StatsOpt) -> Result<()> {
-//     let stdin = std::io::stdin();
-//     let mut studies = Vec::new();
-//     for study in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
-//         match track!(study.map_err(Error::from)) {
-//             Err(e) => {
-//                 eprintln!("{}", e);
-//             }
-//             Ok(study) => {
-//                 let study: StudyRecord = study;
-//                 studies.push(study);
-//             }
-//         }
-//     }
-
-//     match opt {
-//         StatsOpt::Ranking(opt) => {
-//             let ranking = SolverRanking::new(BenchmarkRecord::new(studies), opt);
-//             track!(ranking.write_markdown(MarkdownWriter::new(&mut std::io::stdout().lock())))?;
-//         }
-//     }
-
 //     Ok(())
 // }
 

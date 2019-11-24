@@ -111,6 +111,38 @@ impl StudyRecord {
         Ok(id)
     }
 
+    pub fn study_steps(&self) -> u64 {
+        self.problem.spec.steps.last() * self.budget
+    }
+
+    pub fn best_values(&self) -> BTreeMap<u64, f64> {
+        let mut best_values = BTreeMap::new();
+
+        let problem_steps = self.problem.spec.steps.last();
+        let mut trials = self
+            .trials
+            .iter()
+            .filter_map(|t| {
+                if let (Some(step), Some(value)) = (t.end_step(), t.value(problem_steps)) {
+                    Some((step, value))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        trials.sort_by_key(|t| t.0);
+
+        let mut min = std::f64::INFINITY;
+        for (step, value) in trials {
+            if value < min {
+                min = value;
+                best_values.insert(step, min);
+            }
+        }
+
+        best_values
+    }
+
     pub fn best_value(&self) -> Option<f64> {
         let problem_steps = self.problem.spec.steps.last();
         self.trials
@@ -168,7 +200,7 @@ impl StudyRecord {
         let study_steps = self.budget * problem_steps;
         auc += (current_min - global_min) * (study_steps - prev_step) as f64;
 
-        Some(auc)
+        Some(auc / problem_steps as f64)
     }
 
     pub fn solver_elapsed(&self) -> Duration {

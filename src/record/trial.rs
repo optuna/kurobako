@@ -70,7 +70,7 @@ pub struct EvaluationRecord {
     pub values: Values,
     pub start_step: u64,
     pub end_step: u64,
-    pub ask_elapsed: ElapsedSeconds,
+    pub ask_elapsed: ElapsedSeconds, // TODO: latency
     pub tell_elapsed: ElapsedSeconds,
     pub evaluate_elapsed: ElapsedSeconds,
 }
