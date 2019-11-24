@@ -127,6 +127,74 @@ impl Reporter {
 
     pub fn report_overall_results<W: Write>(&self, writer: &mut MarkdownWriter<W>) -> Result<()> {
         let mut writer = track!(writer.heading("Overall Results"))?;
+        track_writeln!(writer.inner_mut())?;
+
+        let contests = track!(self.contests())?;
+        let (solver_ids, solvers): (Vec<_>, Vec<_>) = track!(self.solvers())?.unzip();
+        let mut borda_ranking = Borda::new(solver_ids.iter());
+        let mut firsts_ranking = Firsts::new(solver_ids.iter());
+        let mut excluded_problems = Vec::new();
+        for (problem_id, contest) in contests {
+            if !solver_ids
+                .iter()
+                .all(|s| contest.competitors.contains_key(s))
+            {
+                excluded_problems.push((problem_id, contest.problem));
+                continue;
+            }
+
+            borda_ranking.compete(|&a, &b| {
+                let a = &contest.competitors[a];
+                let b = &contest.competitors[b];
+                self.compete(a, b, contest.auc_start_step)
+            });
+            firsts_ranking.compete(|&a, &b| {
+                let a = &contest.competitors[a];
+                let b = &contest.competitors[b];
+                self.compete(a, b, contest.auc_start_step)
+            });
+        }
+
+        let mut table = md::Table::new(
+            vec![
+                md::ColumnHeader::new("Solver", md::Align::Left),
+                md::ColumnHeader::new("Borda", md::Align::Right),
+                md::ColumnHeader::new("Firsts", md::Align::Right),
+            ]
+            .into_iter(),
+        );
+
+        for (((solver_id, solver), borda), firsts) in solver_ids
+            .iter()
+            .zip(solvers.iter())
+            .zip(borda_ranking.scores())
+            .zip(firsts_ranking.scores())
+        {
+            table
+                .row()
+                .item(format!("[{}](#id-{})", solver.spec.name, solver_id))
+                .item(borda)
+                .item(firsts);
+        }
+        track!(writer.write_table(&table))?;
+        track!(writer.newline())?;
+
+        if !excluded_problems.is_empty() {
+            let mut writer = track!(writer.heading("Note"))?;
+            track!(writer.newline())?;
+            track_writeln!(
+                writer.inner_mut(),
+                "The following problems aren't considered in the above \
+                 result because some of the solvers don't participate in the problems:"
+            )?;
+
+            let mut list = writer.list();
+            for (problem_id, problem) in excluded_problems {
+                track!(list.item(&format!("[{}](#id-{})", problem.spec.name, problem_id)))?;
+            }
+            track!(writer.newline())?;
+        }
+
         Ok(())
     }
 
@@ -137,34 +205,7 @@ impl Reporter {
         let mut writer = track!(writer.heading("Individual Results"))?;
         track_writeln!(writer.inner_mut())?;
 
-        let mut contests = BTreeMap::new();
-        for study in &self.studies {
-            let problem_id = track!(study.problem.id())?;
-            let contest = contests.entry(problem_id).or_insert_with(|| Contest {
-                problem: &study.problem,
-                competitors: BTreeMap::new(),
-                auc_start_step: study.problem.spec.steps.last(),
-            });
-            if let Some(trial) = study.first_complete_trial() {
-                if let Some(step) = trial.start_step() {
-                    if contest.auc_start_step < step {
-                        contest.auc_start_step = step;
-                    }
-                }
-            }
-
-            let solver_id = track!(study.solver.id())?;
-            contest
-                .competitors
-                .entry(solver_id)
-                .or_insert_with(|| Competitor {
-                    solver: &study.solver,
-                    studies: Vec::new(),
-                })
-                .studies
-                .push(study)
-        }
-
+        let contests = track!(self.contests())?;
         for (problem_no, (problem_id, contest)) in contests.into_iter().enumerate() {
             let mut writer = track!(writer.heading(&format!(
                 "({}) Problem: [{}](#id-{})",
@@ -368,6 +409,37 @@ impl Reporter {
             }
         }
         Ordering::Equal
+    }
+
+    fn contests(&self) -> Result<BTreeMap<String, Contest>> {
+        let mut contests = BTreeMap::new();
+        for study in &self.studies {
+            let problem_id = track!(study.problem.id())?;
+            let contest = contests.entry(problem_id).or_insert_with(|| Contest {
+                problem: &study.problem,
+                competitors: BTreeMap::new(),
+                auc_start_step: study.problem.spec.steps.last(),
+            });
+            if let Some(trial) = study.first_complete_trial() {
+                if let Some(step) = trial.start_step() {
+                    if contest.auc_start_step < step {
+                        contest.auc_start_step = step;
+                    }
+                }
+            }
+
+            let solver_id = track!(study.solver.id())?;
+            contest
+                .competitors
+                .entry(solver_id)
+                .or_insert_with(|| Competitor {
+                    solver: &study.solver,
+                    studies: Vec::new(),
+                })
+                .studies
+                .push(study)
+        }
+        Ok(contests)
     }
 }
 

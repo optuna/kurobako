@@ -1,4 +1,3 @@
-use kurobako_core::Result;
 use std::cmp::Ordering;
 use std::iter;
 
@@ -18,18 +17,17 @@ impl<T: Ord> Borda<T> {
         }
     }
 
-    pub fn try_compete<F>(&mut self, f: F) -> Result<()>
+    pub fn compete<F>(&mut self, f: F)
     where
-        F: Fn(&T, &T) -> Result<Ordering>,
+        F: Fn(&T, &T) -> Ordering,
     {
         for i in 0..self.items.len() {
             for j in (0..self.items.len()).filter(|&j| j != i) {
-                if track!(f(&self.items[i].0, &self.items[j].0))? == Ordering::Less {
+                if f(&self.items[i].0, &self.items[j].0) == Ordering::Less {
                     self.items[i].1 += 1;
                 }
             }
         }
-        Ok(())
     }
 
     pub fn scores<'a>(&'a self) -> impl 'a + Iterator<Item = Score> {
@@ -51,14 +49,14 @@ impl<T: Ord> Firsts<T> {
         }
     }
 
-    pub fn try_compete<F>(&mut self, f: F) -> Result<()>
+    pub fn compete<F>(&mut self, f: F)
     where
-        F: Fn(&T, &T) -> Result<Ordering>,
+        F: Fn(&T, &T) -> Ordering,
     {
         for i in 0..self.items.len() {
             let mut is_first = true;
             for j in (0..self.items.len()).filter(|&j| j != i) {
-                if track!(f(&self.items[i].0, &self.items[j].0))? == Ordering::Greater {
+                if f(&self.items[i].0, &self.items[j].0) == Ordering::Greater {
                     is_first = false;
                     break;
                 }
@@ -67,7 +65,6 @@ impl<T: Ord> Firsts<T> {
                 self.items[i].1 += 1;
             }
         }
-        Ok(())
     }
 
     pub fn scores<'a>(&'a self) -> impl 'a + Iterator<Item = Score> {
