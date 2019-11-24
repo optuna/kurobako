@@ -1,4 +1,3 @@
 /target
 **/*.rs.bk
-docker/kurobako
-plot-result/
+images/
