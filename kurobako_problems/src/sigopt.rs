@@ -33,7 +33,7 @@ impl ProblemRecipe for SigoptProblemRecipe {
     type Factory = SigoptProblemFactory;
 
     fn create_factory(&self, registry: &FactoryRegistry) -> Result<Self::Factory> {
-        let script = include_str!("../contrib/sigopt_problem.py");
+        let script = include_str!("../scripts/sigopt_problem.py");
         let mut args = vec![format!("{:?}", self.name)];
         if let Some(dim) = self.dim {
             args.extend_from_slice(&["--dim".to_owned(), dim.to_string()]);
