@@ -23,6 +23,7 @@ impl Capabilities {
             Capability::Categorical,
             Capability::Conditional,
             Capability::MultiObjective,
+            Capability::Concurrent,
         ]
         .iter()
         .copied()
@@ -80,5 +81,5 @@ pub enum Capability {
     Categorical,
     Conditional,
     MultiObjective,
-    // TODO: Concurrency (next ask before telling the previous result can happen)
+    Concurrency,
 }
