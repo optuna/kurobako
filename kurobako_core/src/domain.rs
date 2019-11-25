@@ -158,6 +158,7 @@ pub struct Variable {
     name: String,
     range: Range,
     distribution: Distribution,
+    #[serde(default)]
     conditions: Vec<Condition>,
 }
 impl Variable {

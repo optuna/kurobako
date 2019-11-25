@@ -25,11 +25,9 @@ pub enum ProblemMessage {
     },
     CreateEvaluatorReply,
     DropEvaluatorCast {
-        problem_id: u64,
         evaluator_id: u64,
     },
     EvaluateCall {
-        problem_id: u64,
         evaluator_id: u64,
         next_step: u64,
     },
