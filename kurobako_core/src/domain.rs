@@ -207,7 +207,7 @@ fn infinity() -> f64 {
 /// Variable range.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[allow(missing_docs)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Range {
     /// Continuous numerical range: `[low..high)`.
     Continuous {
