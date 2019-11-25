@@ -3,7 +3,6 @@
 # $ pip install git+https://github.com/sigopt/evalset.git
 import argparse
 from evalset import test_funcs
-import json
 from kurobako import problem
 import numpy as np
 from pkg_resources import get_distribution
@@ -32,9 +31,10 @@ class SigoptProblemFactory(problem.ProblemFactory):
                 args.name, args.dim, args.res)
 
         attrs = {
+            'version': get_distribution('evalset').version,
             'github': 'https://github.com/sigopt/evalset',
             'paper':
-            'A Strategy for Ranking Optimizers using Multiple Criteria'
+            'A Strategy for Ranking Optimizers using Multiple Criteria',
         }
 
         params = []
