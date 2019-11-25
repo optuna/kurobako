@@ -26,7 +26,6 @@ where
 
     /// Sends a message.
     pub fn send(&mut self, message: &T) -> Result<()> {
-        track!(write!(self.writer, "kurobako:").map_err(Error::from))?;
         track!(serde_json::to_writer(&mut self.writer, message).map_err(Error::from))?;
         track!(writeln!(self.writer).map_err(Error::from))?;
         track!(self.writer.flush().map_err(Error::from))?;
@@ -62,12 +61,7 @@ where
         let mut line = String::new();
         loop {
             track!(self.reader.read_line(&mut line).map_err(Error::from))?;
-            if !line.starts_with("kurobako:") {
-                eprintln!("{}", line);
-                continue;
-            }
-
-            let message = track!(serde_json::from_str(&line).map_err(Error::from))?;
+            let message = track!(serde_json::from_str(&line).map_err(Error::from); line)?;
             return Ok(message);
         }
     }
