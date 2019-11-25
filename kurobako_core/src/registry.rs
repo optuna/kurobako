@@ -6,7 +6,7 @@ use crate::{Error, Result};
 use serde_json;
 use std::collections::HashMap;
 use std::fmt;
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Mutex};
 
 /// Factory registry.
 #[derive(Debug)]
@@ -65,7 +65,7 @@ impl FactoryRegistry {
 struct ProblemFactoryRegistry {
     normalize_json: Box<dyn Fn(&JsonRecipe) -> Result<String> + Send>,
     create_factory: Box<dyn Fn(&str, &FactoryRegistry) -> Result<BoxProblemFactory> + Send>,
-    factories: Mutex<HashMap<String, Weak<Mutex<BoxProblemFactory>>>>,
+    factories: Mutex<HashMap<String, Arc<Mutex<BoxProblemFactory>>>>,
 }
 impl ProblemFactoryRegistry {
     fn new<T>() -> Self
@@ -96,14 +96,13 @@ impl ProblemFactoryRegistry {
         let json = track!((self.normalize_json)(recipe))?;
         let factory = track!(self.factories.lock().map_err(Error::from))?
             .get(&json)
-            .and_then(|s| s.upgrade());
+            .map(Arc::clone);
         if let Some(factory) = factory {
             Ok(factory)
         } else {
             let factory = track!((self.create_factory)(&json, registry); json)?;
             let factory = Arc::new(Mutex::new(factory));
-            track!(self.factories.lock().map_err(Error::from))?
-                .insert(json, Arc::downgrade(&factory));
+            track!(self.factories.lock().map_err(Error::from))?.insert(json, Arc::clone(&factory));
             Ok(factory)
         }
     }
@@ -117,7 +116,7 @@ impl fmt::Debug for ProblemFactoryRegistry {
 struct SolverFactoryRegistry {
     normalize_json: Box<dyn Fn(&JsonRecipe) -> Result<String> + Send>,
     create_factory: Box<dyn Fn(&str, &FactoryRegistry) -> Result<BoxSolverFactory> + Send>,
-    factories: Mutex<HashMap<String, Weak<Mutex<BoxSolverFactory>>>>,
+    factories: Mutex<HashMap<String, Arc<Mutex<BoxSolverFactory>>>>,
 }
 impl SolverFactoryRegistry {
     fn new<T>() -> Self
@@ -148,14 +147,13 @@ impl SolverFactoryRegistry {
         let json = track!((self.normalize_json)(recipe))?;
         let factory = track!(self.factories.lock().map_err(Error::from))?
             .get(&json)
-            .and_then(|s| s.upgrade());
+            .map(Arc::clone);
         if let Some(factory) = factory {
             Ok(factory)
         } else {
             let factory = track!((self.create_factory)(&json, registry); json)?;
             let factory = Arc::new(Mutex::new(factory));
-            track!(self.factories.lock().map_err(Error::from))?
-                .insert(json, Arc::downgrade(&factory));
+            track!(self.factories.lock().map_err(Error::from))?.insert(json, Arc::clone(&factory));
             Ok(factory)
         }
     }
