@@ -354,7 +354,9 @@ impl Reporter {
             track!(list.item(&format!("budget: {}", studies[0].budget)))?;
             track!(list.item(&format!("repeats: {}", studies.len())))?;
             track!(list.item(&format!("concurrency: {}", studies[0].concurrency)))?;
-            track!(list.item(&format!("scheduling: {}", studies[0].scheduling)))?;
+            if studies[0].concurrency.get() > 1 {
+                track!(list.item(&format!("scheduling: {}", studies[0].scheduling)))?;
+            }
             track_writeln!(writer.inner_mut())?;
         }
         Ok(())

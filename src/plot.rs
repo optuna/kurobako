@@ -28,8 +28,10 @@ fn execute_gnuplot(script: &str) -> Result<()> {
         .args(&["-e", script])
         .output()
         .map_err(Error::from))?;
-    if let Ok(err) = String::from_utf8(output.stderr) {
-        track_panic!(ErrorKind::Other, "Gnuplot error: {}", err);
+    if !output.status.success() {
+        if let Ok(err) = String::from_utf8(output.stderr) {
+            track_panic!(ErrorKind::Other, "Gnuplot error: {}", err);
+        }
     }
     Ok(())
 }
