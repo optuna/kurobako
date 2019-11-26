@@ -29,6 +29,7 @@ pub enum SolverMessage {
         next_trial_id: u64,
     },
     TellCall {
+        solver_id: u64,
         trial: EvaluatedTrial,
     },
     TellReply,
