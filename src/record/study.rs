@@ -19,9 +19,9 @@ use std::time::Duration;
 
 #[derive(Debug)]
 pub struct StudyRecordBuilder {
-    recipe: StudyRecipe,
-    solver: SolverSpec,
-    problem: ProblemSpec,
+    pub recipe: StudyRecipe, // TODO: private
+    pub solver: SolverSpec,
+    pub problem: ProblemSpec,
     start_time: DateTime,
     trials: BTreeMap<TrialId, TrialRecord>,
 }

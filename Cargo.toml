@@ -19,7 +19,6 @@ indicatif = "0.13"
 kurobako_core = { path = "kurobako_core", version = "0.1" }
 kurobako_problems = { path = "kurobako_problems", version = "0.1" }
 kurobako_solvers = { path = "kurobako_solvers", version = "0.1" }
-lazy_static = "1"
 rand = "0.7"
 rustats = "0.1"
 serde = { version = "1", features = ["derive"] }

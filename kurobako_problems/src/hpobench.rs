@@ -51,10 +51,10 @@ impl ProblemFactory for HpobenchProblemFactory {
             ErrorKind::InvalidInput
         );
         let name = match name {
-            "fcnet_naval_propulsion_data" => "FC-Net (naval propulsion)",
-            "fcnet_parkinsons_telemonitoring_data" => "FC-Net (parkinsons telemonitoring)",
-            "fcnet_protein_structure_data" => "FC-Net (protein structure)",
-            "fcnet_slice_localization_data" => "FC-Net (slice localization)",
+            "fcnet_naval_propulsion_data" => "HPO-Bench-Naval",
+            "fcnet_parkinsons_telemonitoring_data" => "HPO-Bench-Parkinson",
+            "fcnet_protein_structure_data" => "HPO-Bench-Protein",
+            "fcnet_slice_localization_data" => "HPO-Bench-Slice",
             _ => name,
         };
 

@@ -12,7 +12,6 @@ use kurobako_core::rng::ArcRng;
 use kurobako_core::solver::{BoxSolver, Solver as _, SolverFactory as _, SolverSpec};
 use kurobako_core::trial::{AskedTrial, EvaluatedTrial, IdGen, TrialId};
 use kurobako_core::{Error, ErrorKind, Result};
-use lazy_static::lazy_static;
 use rand;
 use rand::seq::SliceRandom;
 use serde_json;
@@ -22,11 +21,12 @@ use std::num::NonZeroUsize;
 use std::sync::atomic::{self, AtomicUsize};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::thread_local;
 use structopt::StructOpt;
 use trackable::error::ErrorKindExt;
 
-lazy_static! {
-    static ref REGISTRY: Mutex<FactoryRegistry> = Mutex::new(FactoryRegistry::new::<
+thread_local! {
+    pub static REGISTRY: Mutex<FactoryRegistry> = Mutex::new(FactoryRegistry::new::<
         KurobakoProblemRecipe,
         KurobakoSolverRecipe,
     >());
@@ -190,51 +190,74 @@ struct StudyRunner {
 impl StudyRunner {
     fn new(study: &StudyRecipe, mpb: &MultiProgress, cancel: Cancel) -> Result<Self> {
         // TODO: check capabilities
-        let registry = track!(REGISTRY.lock().map_err(Error::from))?;
+        REGISTRY.with(|registry| {
+            let registry = track!(registry.lock().map_err(Error::from))?;
 
-        let random_seed = study.seed.unwrap_or_else(rand::random);
-        let rng = ArcRng::new(random_seed);
+            let random_seed = study.seed.unwrap_or_else(rand::random);
+            let rng = ArcRng::new(random_seed);
 
-        let problem_factory = track!(registry.get_or_create_problem_factory(&study.problem))?;
-        let problem_factory = track!(problem_factory.lock().map_err(Error::from))?;
-        let problem_spec = track!(problem_factory.specification())?;
-        let problem = track!(problem_factory.create_problem(rng.clone()))?;
+            let problem_factory = track!(registry.get_or_create_problem_factory(&study.problem))?;
+            let problem_factory = track!(problem_factory.lock().map_err(Error::from))?;
+            let problem_spec = track!(problem_factory.specification())?;
+            let problem = track!(problem_factory.create_problem(rng.clone()))?;
 
-        let solver_factory = track!(registry.get_or_create_solver_factory(&study.solver))?;
-        let solver_factory = track!(solver_factory.lock().map_err(Error::from))?;
-        let solver_spec = track!(solver_factory.specification())?;
-        let solver = track!(solver_factory.create_solver(rng.clone(), &problem_spec))?;
+            let solver_factory = track!(registry.get_or_create_solver_factory(&study.solver))?;
+            let solver_factory = track!(solver_factory.lock().map_err(Error::from))?;
+            let solver_spec = track!(solver_factory.specification())?;
+            let solver = track!(solver_factory.create_solver(rng.clone(), &problem_spec))?;
 
-        let study_steps = problem_spec.steps.last() * study.budget;
-        let pb = mpb.add(ProgressBar::new(study_steps));
-        let pb_style = ProgressStyle::default_bar().template(&format!(
-            "(STUDY) [{{elapsed_precise}}] [STEPS {{pos:>6}}/{{len}} \
-             {{percent:>3}}%] [ETA {{eta:>3}}] {:?} {:?}",
-            solver_spec.name, problem_spec.name
-        ));
-        pb.set_style(pb_style.clone());
+            let study_steps = problem_spec.steps.last() * study.budget;
+            let pb = mpb.add(ProgressBar::new(study_steps));
+            let pb_style = ProgressStyle::default_bar().template(&format!(
+                "(STUDY) [{{elapsed_precise}}] [STEPS {{pos:>6}}/{{len}} \
+                 {{percent:>3}}%] [ETA {{eta:>3}}] {:?} {:?}",
+                solver_spec.name, problem_spec.name
+            ));
+            pb.set_style(pb_style.clone());
 
-        let mut recipe = study.clone();
-        recipe.seed = Some(random_seed);
-        let study_record =
-            StudyRecordBuilder::new(recipe, solver_spec.clone(), problem_spec.clone());
-        let threads = EvaluationThreads::new(study, rng.clone());
-        Ok(Self {
-            solver,
-            solver_spec,
-            problem,
-            problem_spec,
-            study_record,
-            rng,
-            pb,
-            cancel,
-            idg: IdGen::new(),
-            threads,
-            study_steps,
+            let mut recipe = study.clone();
+            recipe.seed = Some(random_seed);
+            let study_record =
+                StudyRecordBuilder::new(recipe, solver_spec.clone(), problem_spec.clone());
+            let threads = EvaluationThreads::new(study, rng.clone());
+            Ok(Self {
+                solver,
+                solver_spec,
+                problem,
+                problem_spec,
+                study_record,
+                rng,
+                pb,
+                cancel,
+                idg: IdGen::new(),
+                threads,
+                study_steps,
+            })
         })
     }
 
     fn run(mut self) -> Result<StudyRecord> {
+        // TODO: refactor redundant code
+        REGISTRY.with::<_, Result<()>>(|registry| {
+            let registry = track!(registry.lock().map_err(Error::from))?;
+
+            self.rng = ArcRng::new(self.study_record.recipe.seed.unwrap());
+
+            let problem_factory =
+                track!(registry.get_or_create_problem_factory(&self.study_record.recipe.problem))?;
+            let problem_factory = track!(problem_factory.lock().map_err(Error::from))?;
+            self.problem_spec = track!(problem_factory.specification())?;
+            self.problem = track!(problem_factory.create_problem(self.rng.clone()))?;
+
+            let solver_factory =
+                track!(registry.get_or_create_solver_factory(&self.study_record.recipe.solver))?;
+            let solver_factory = track!(solver_factory.lock().map_err(Error::from))?;
+            self.solver_spec = track!(solver_factory.specification())?;
+            self.solver =
+                track!(solver_factory.create_solver(self.rng.clone(), &self.problem_spec))?;
+            Ok(())
+        })?;
+
         self.pb.reset_elapsed();
 
         while self.pb.position() < self.study_steps {
