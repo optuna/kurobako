@@ -38,7 +38,6 @@ mod defaults {
     define!(tpe_startup_trials, is_tpe_startup_trials, usize, 10);
     define!(tpe_ei_candidates, is_tpe_ei_candidates, usize, 24);
     define!(tpe_prior_weight, is_tpe_prior_weight, f64, 1.0);
-    define!(tpe_gamma_factor, is_tpe_gamma_factor, f64, 0.25);
     define!(
         skopt_base_estimator,
         is_skopt_base_estimator,
@@ -90,11 +89,6 @@ pub struct OptunaSolverRecipe {
     #[serde(default = "defaults::tpe_prior_weight")]
     pub tpe_prior_weight: f64,
 
-    #[structopt(long, default_value = "0.25")]
-    #[serde(skip_serializing_if = "defaults::is_tpe_gamma_factor")]
-    #[serde(default = "defaults::tpe_gamma_factor")]
-    pub tpe_gamma_factor: f64,
-
     #[structopt(
         long,
         default_value = "GP",
@@ -107,7 +101,7 @@ pub struct OptunaSolverRecipe {
     #[structopt(
         long,
         default_value = "median",
-        possible_values = &["median", "asha", "none"]
+        possible_values = &["median", "asha", "nop", "none"]
     )]
     #[serde(skip_serializing_if = "defaults::is_pruner")]
     #[serde(default = "defaults::pruner")]
@@ -157,11 +151,6 @@ impl OptunaSolverRecipe {
             "--tpe-prior-weight",
             &self.tpe_prior_weight.to_string(),
         );
-        add_arg(
-            &mut args,
-            "--tpe-gamma-factor",
-            &self.tpe_gamma_factor.to_string(),
-        );
         add_arg(&mut args, "--pruner", &self.pruner);
         add_arg(
             &mut args,
@@ -194,7 +183,7 @@ impl SolverRecipe for OptunaSolverRecipe {
     type Factory = OptunaSolverFactory;
 
     fn create_factory(&self, registry: &FactoryRegistry) -> Result<Self::Factory> {
-        let script = include_str!("../contrib/optuna_solver.py");
+        let script = include_str!("../scripts/optuna_solver.py");
         let args = self.build_args();
         let recipe = EmbeddedScriptSolverRecipe {
             script: script.to_owned(),

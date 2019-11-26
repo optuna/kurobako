@@ -81,5 +81,5 @@ pub enum Capability {
     Categorical,
     Conditional,
     MultiObjective,
-    Concurrency,
+    Concurrent,
 }

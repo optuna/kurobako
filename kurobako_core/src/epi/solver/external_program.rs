@@ -140,7 +140,10 @@ impl Solver for ExternalProgramSolver {
     }
 
     fn tell(&mut self, trial: EvaluatedTrial) -> Result<()> {
-        let m = SolverMessage::TellCall { trial };
+        let m = SolverMessage::TellCall {
+            solver_id: self.solver_id,
+            trial,
+        };
         let mut tx = track!(self.tx.lock().map_err(Error::from))?;
         track!(tx.send(&m))?;
 
