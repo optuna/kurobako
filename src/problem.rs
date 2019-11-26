@@ -6,7 +6,7 @@ use kurobako_core::problem::{
 use kurobako_core::registry::FactoryRegistry;
 use kurobako_core::rng::ArcRng;
 use kurobako_core::Result;
-use kurobako_problems::{fcnet, nasbench, sigopt};
+use kurobako_problems::{hpobench, nasbench, sigopt};
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
@@ -40,7 +40,7 @@ enum InnerRecipe {
     Command(ExternalProgramProblemRecipe),
     Sigopt(sigopt::SigoptProblemRecipe),
     Nasbench(nasbench::NasbenchProblemRecipe),
-    Fcnet(fcnet::FcnetProblemRecipe),
+    Hpobench(hpobench::HpobenchProblemRecipe),
 }
 impl ProblemRecipe for InnerRecipe {
     type Factory = BoxProblemFactory;
@@ -50,7 +50,7 @@ impl ProblemRecipe for InnerRecipe {
             Self::Command(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
             Self::Sigopt(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
             Self::Nasbench(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
-            Self::Fcnet(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
+            Self::Hpobench(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
         }
     }
 }

@@ -60,8 +60,12 @@ impl ProblemFactory for NasbenchProblemFactory {
 
     fn specification(&self) -> Result<ProblemSpec> {
         let spec = ProblemSpecBuilder::new(&format!("NASBench ({:?})", self.encoding))
-            .attr("Paper", "https://arxiv.org/abs/1902.09635")
-            .attr("GitHub", "https://github.com/automl/nas_benchmarks")
+            .attr(
+                "paper",
+                "Ying, Chris, et al. \"Nas-bench-101: Towards reproducible \
+                 neural architecture search.\" arXiv preprint arXiv:1902.09635 (2019).",
+            )
+            .attr("github", "https://github.com/automl/nas_benchmarks")
             .params(self.encoding.params())
             .value(domain::var("1.0 - Validation Accuracy").continuous(0.0, 1.0))
             .steps(vec![4, 12, 36, 108]);

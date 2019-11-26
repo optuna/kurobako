@@ -17,33 +17,33 @@ use std::sync::{Arc, Mutex};
 use structopt::StructOpt;
 use trackable::error::ErrorKindExt as _;
 
-/// Recipe of `FcnetProblem`.
+/// Recipe of `HpobenchProblem`.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
-pub struct FcnetProblemRecipe {
+pub struct HpobenchProblemRecipe {
     /// Path of the FC-Net dataset.
     pub dataset: PathBuf,
 }
-impl ProblemRecipe for FcnetProblemRecipe {
-    type Factory = FcnetProblemFactory;
+impl ProblemRecipe for HpobenchProblemRecipe {
+    type Factory = HpobenchProblemFactory;
 
     fn create_factory(&self, _registry: &FactoryRegistry) -> Result<Self::Factory> {
         let file = track!(Hdf5File::open_file(&self.dataset).map_err(into_error))?;
-        Ok(FcnetProblemFactory {
+        Ok(HpobenchProblemFactory {
             file: Arc::new(Mutex::new(file)),
             path: self.dataset.clone(),
         })
     }
 }
 
-/// Factory of `FcnetProblem`.
+/// Factory of `HpobenchProblem`.
 #[derive(Debug)]
-pub struct FcnetProblemFactory {
+pub struct HpobenchProblemFactory {
     file: Arc<Mutex<Hdf5File>>,
     path: PathBuf,
 }
-impl ProblemFactory for FcnetProblemFactory {
-    type Problem = FcnetProblem;
+impl ProblemFactory for HpobenchProblemFactory {
+    type Problem = HpobenchProblem;
 
     fn specification(&self) -> Result<ProblemSpec> {
         let name = track_assert_some!(
@@ -59,8 +59,13 @@ impl ProblemFactory for FcnetProblemFactory {
         };
 
         let spec = ProblemSpecBuilder::new(name)
-            .attr("Paper", "https://arxiv.org/abs/1905.04970")
-            .attr("GitHub", "https://github.com/automl/nas_benchmarks")
+            .attr(
+                "paper",
+                "Klein, Aaron, and Frank Hutter. \"Tabular Benchmarks \
+                 for Joint Architecture and Hyperparameter Optimization.\" \
+                 arXiv preprint arXiv:1905.04970 (2019).",
+            )
+            .attr("github", "https://github.com/automl/nas_benchmarks")
             .param(domain::var("activation_fn_1").categorical(&["tanh", "relu"]))
             .param(domain::var("activation_fn_2").categorical(&["tanh", "relu"]))
             .param(domain::var("batch_size").discrete(0, 4))
@@ -77,7 +82,7 @@ impl ProblemFactory for FcnetProblemFactory {
     }
 
     fn create_problem(&self, rng: ArcRng) -> Result<Self::Problem> {
-        Ok(FcnetProblem {
+        Ok(HpobenchProblem {
             file: Arc::clone(&self.file),
             rng,
         })
@@ -86,12 +91,12 @@ impl ProblemFactory for FcnetProblemFactory {
 
 /// FC-Net problem.
 #[derive(Debug)]
-pub struct FcnetProblem {
+pub struct HpobenchProblem {
     file: Arc<Mutex<Hdf5File>>,
     rng: ArcRng,
 }
-impl Problem for FcnetProblem {
-    type Evaluator = FcnetEvaluator;
+impl Problem for HpobenchProblem {
+    type Evaluator = HpobenchEvaluator;
 
     fn create_evaluator(&self, params: Params) -> Result<Self::Evaluator> {
         const UNITS: [usize; 6] = [16, 32, 64, 128, 256, 512];
@@ -111,7 +116,7 @@ impl Problem for FcnetProblem {
         );
 
         let sample_index = track!(self.rng.with_lock(|rng| rng.gen::<usize>() % 4))?;
-        Ok(FcnetEvaluator {
+        Ok(HpobenchEvaluator {
             file: Arc::clone(&self.file),
             key: format!("/{}/valid_mse", key),
             sample_index,
@@ -119,14 +124,14 @@ impl Problem for FcnetProblem {
     }
 }
 
-/// Evaluator of `FcnetProblem`.
+/// Evaluator of `HpobenchProblem`.
 #[derive(Debug)]
-pub struct FcnetEvaluator {
+pub struct HpobenchEvaluator {
     file: Arc<Mutex<Hdf5File>>,
     key: String,
     sample_index: usize,
 }
-impl Evaluator for FcnetEvaluator {
+impl Evaluator for HpobenchEvaluator {
     fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
         let mut file = track!(self.file.lock().map_err(Error::from))?;
         let data = track!(file.get_object(&self.key).map_err(into_error))?;

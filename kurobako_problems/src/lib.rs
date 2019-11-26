@@ -4,6 +4,6 @@
 #[macro_use]
 extern crate trackable;
 
-pub mod fcnet; // TODO: s/fcnet/hpobench/
+pub mod hpobench;
 pub mod nasbench;
 pub mod sigopt;

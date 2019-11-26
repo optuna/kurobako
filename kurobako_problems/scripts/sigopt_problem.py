@@ -34,7 +34,7 @@ class SigoptProblemFactory(problem.ProblemFactory):
             'version': get_distribution('evalset').version,
             'github': 'https://github.com/sigopt/evalset',
             'paper':
-            'A Strategy for Ranking Optimizers using Multiple Criteria',
+            'Dewancker, Ian, et al. "A strategy for ranking optimization methods using multiple criteria." Workshop on Automatic Machine Learning. 2016.'
         }
 
         params = []
