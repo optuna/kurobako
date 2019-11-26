@@ -126,7 +126,7 @@ impl<'a> Problem<'a> {
             self.problem_id
         ));
         s += &format!(
-            "set key bmargin; set terminal pngcairo size {},{}; set output {:?};",
+            "set terminal pngcairo size {},{}; set output {:?};",
             self.opt.width, self.opt.height, output
         );
 
