@@ -111,7 +111,7 @@ impl ProblemSpec {
         }
 
         for v in self.params_domain.variables() {
-            if !v.conditions().is_empty() {
+            if v.constraint().is_some() {
                 c.add_capability(Capability::Conditional);
             }
 

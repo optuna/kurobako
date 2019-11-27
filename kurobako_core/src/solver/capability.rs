@@ -79,7 +79,12 @@ pub enum Capability {
     LogUniformContinuous,
     LogUniformDiscrete,
     Categorical,
+
+    /// Conditional search space.
+    ///
+    /// If a problem has one or more constrainted parameters, the search space of the problem is conditional.
     Conditional,
+
     MultiObjective,
     Concurrent,
 }

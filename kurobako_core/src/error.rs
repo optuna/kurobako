@@ -1,3 +1,4 @@
+use rlua;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use trackable::error::{ErrorKind as TrackableErrorKind, ErrorKindExt};
@@ -33,6 +34,11 @@ impl From<serde_json::error::Error> for Error {
         } else {
             ErrorKind::InvalidInput.cause(f).into()
         }
+    }
+}
+impl From<rlua::Error> for Error {
+    fn from(f: rlua::Error) -> Self {
+        ErrorKind::Other.cause(f).into()
     }
 }
 

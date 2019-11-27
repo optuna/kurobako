@@ -1,5 +1,5 @@
 //! Domain of parameter and objective values.
-use crate::{ErrorKind, Result};
+use crate::{Error, ErrorKind, Result};
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std;
@@ -26,10 +26,6 @@ impl Domain {
                 v.name
             );
 
-            for c in &v.conditions {
-                track!(c.validate(&vars))?;
-            }
-
             vars.push(v);
         }
         Ok(Self(vars))
@@ -54,7 +50,7 @@ pub struct VariableBuilder {
     name: String,
     range: Range,
     distribution: Distribution,
-    conditions: Vec<Condition>,
+    constraint: Option<Constraint>,
 }
 impl VariableBuilder {
     /// Makes a new `VariableBuilder` with the given variable name.
@@ -66,7 +62,7 @@ impl VariableBuilder {
                 high: std::f64::INFINITY,
             },
             distribution: Distribution::Uniform,
-            conditions: Vec::new(),
+            constraint: None,
         }
     }
 
@@ -115,9 +111,9 @@ impl VariableBuilder {
         self.categorical(&["false", "true"])
     }
 
-    /// Adds an evaluation condition to this variable.
-    pub fn condition(mut self, condition: Condition) -> Self {
-        self.conditions.push(condition);
+    /// Sets the evaluation constraint to this variable.
+    pub fn constraint(mut self, constraint: Constraint) -> Self {
+        self.constraint = Some(constraint);
         self
     }
 
@@ -147,7 +143,7 @@ impl VariableBuilder {
             name: self.name,
             range: self.range,
             distribution: self.distribution,
-            conditions: self.conditions,
+            constraint: self.constraint,
         })
     }
 }
@@ -159,7 +155,7 @@ pub struct Variable {
     range: Range,
     distribution: Distribution,
     #[serde(default)]
-    conditions: Vec<Condition>,
+    constraint: Option<Constraint>,
 }
 impl Variable {
     /// Returns the name of this variable.
@@ -177,9 +173,9 @@ impl Variable {
         self.distribution
     }
 
-    /// Returns the conditions required to evaluate this variable.
-    pub fn conditions(&self) -> &[Condition] {
-        &self.conditions
+    /// Returns the constraint required to evaluate this variable.
+    pub fn constraint(&self) -> Option<&Constraint> {
+        self.constraint.as_ref()
     }
 }
 
@@ -244,7 +240,8 @@ impl Range {
         }
     }
 
-    fn contains(&self, v: f64) -> bool {
+    /// Returns `true` if the given value is contained in this range.
+    pub fn contains(&self, v: f64) -> bool {
         match self {
             Self::Continuous { low, high } => *low <= v && v < *high,
             Self::Discrete { low, high } => *low as f64 <= v && v < *high as f64,
@@ -285,35 +282,68 @@ impl Hash for Range {
     }
 }
 
-/// Evaluation condition.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[allow(missing_docs)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum Condition {
-    /// This condition holds if the value of the variable named `target` is equal to `value`.
-    Eq { target: String, value: f64 },
+/// Evaluation constraint.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct Constraint {
+    lua_script: String,
 }
-impl Condition {
-    fn validate(&self, preceding_variables: &[Variable]) -> Result<()> {
-        let Condition::Eq { target, value } = self;
+impl Constraint {
+    /// Makes a new `Constraint` instance.
+    ///
+    /// `lua_script` is the Lua script code that represents the constraint.
+    /// In this script, you can access the variables that are located before
+    /// the constrainted variable as global variables.
+    /// This script must return a boolean value.
+    pub fn new(lua_script: &str) -> Self {
+        Self {
+            lua_script: lua_script.to_owned(),
+        }
+    }
 
-        for v in preceding_variables {
-            if target != &v.name {
-                continue;
+    /// Returns `Ok(true)` if this constraint is satisfied, otherwise `Ok(false)` or an error.
+    pub fn is_satisfied(&self, vars: &[Variable], vals: &[f64]) -> Result<bool> {
+        use rlua::Lua;
+
+        let lua = Lua::new();
+        lua.context(|lua_ctx| {
+            let globals = lua_ctx.globals();
+
+            for (var, &val) in vars.iter().zip(vals.iter()) {
+                if let Range::Categorical { choices } = &var.range {
+                    let val = choices[val as usize].as_str();
+                    track!(globals.set(var.name.as_str(), val).map_err(Error::from))?;
+                } else {
+                    track!(globals.set(var.name.as_str(), val).map_err(Error::from))?;
+                }
             }
 
-            track_assert!(v.range.contains(*value), ErrorKind::InvalidInput; self);
-        }
-
-        track_panic!(ErrorKind::InvalidInput; self);
+            lua_ctx.load(&self.lua_script).eval().map_err(Error::from)
+        })
     }
 }
-impl Eq for Condition {}
-#[allow(clippy::derive_hash_xor_eq)]
-impl Hash for Condition {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        let Condition::Eq { target, value } = self;
-        target.hash(state);
-        OrderedFloat(*value).hash(state);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use trackable;
+
+    #[test]
+    fn constraint_test() -> trackable::result::TopLevelResult {
+        let vars = vec![
+            var("a").continuous(-10.0, 10.0).finish()?,
+            var("b").discrete(0, 5).finish()?,
+            var("c").categorical(&["foo", "bar", "baz"]).finish()?,
+        ];
+
+        let constraint = Constraint::new("(a + b) < 2");
+        assert!(track!(constraint.is_satisfied(&vars, &[0.2, 1.0]))?);
+        assert!(!track!(constraint.is_satisfied(&vars, &[1.1, 1.0]))?);
+
+        let constraint = Constraint::new("c == \"bar\"");
+        assert!(track!(constraint.is_satisfied(&vars, &[0.2, 1.0, 1.0]))?);
+        assert!(!track!(constraint.is_satisfied(&vars, &[0.2, 1.0, 0.0]))?);
+        assert!(!track!(constraint.is_satisfied(&vars, &[0.2, 1.0, 2.0]))?);
+
+        Ok(())
     }
 }
