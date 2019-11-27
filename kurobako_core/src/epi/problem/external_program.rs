@@ -114,7 +114,7 @@ impl Problem for ExternalProgramProblem {
         let m = ProblemMessage::CreateEvaluatorCall {
             problem_id: self.problem_id,
             evaluator_id,
-            params: params.into(),
+            params,
         };
         let mut tx = track!(self.tx.lock().map_err(Error::from))?;
         track!(tx.send(&m))?;

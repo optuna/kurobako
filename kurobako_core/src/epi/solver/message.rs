@@ -1,4 +1,3 @@
-use crate::epi::ParamsForTransfer;
 use crate::problem::ProblemSpec;
 use crate::solver::SolverSpec;
 use crate::trial::{EvaluatedTrial, NextTrial};
@@ -26,7 +25,7 @@ pub enum SolverMessage {
         next_trial_id: u64,
     },
     AskReply {
-        trial: NextTrial<ParamsForTransfer>,
+        trial: NextTrial,
         next_trial_id: u64,
     },
     TellCall {

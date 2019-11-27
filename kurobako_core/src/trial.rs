@@ -22,12 +22,12 @@ impl TrialId {
 
 /// A trial that has a parameter set to be evaluated.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NextTrial<P = Params> {
+pub struct NextTrial {
     /// The identifier of this trial.
     pub id: TrialId,
 
     /// The parameters to be evaluated.
-    pub params: P,
+    pub params: Params,
 
     /// The next evaluation step.
     ///
@@ -35,7 +35,7 @@ pub struct NextTrial<P = Params> {
     /// If this is `None`, it means that this trial doesn't need to be evaluated anymore.
     pub next_step: Option<u64>,
 }
-impl NextTrial<Params> {
+impl NextTrial {
     /// Makes an `EvaluatedTrial` instance with the given values and step.
     pub fn evaluated(&self, values: Values, current_step: u64) -> EvaluatedTrial {
         EvaluatedTrial {
@@ -95,7 +95,7 @@ impl IdGen {
 /// Note that if a parameter is conditional and the condition didn't hold,
 /// the value of the parameter is set to NaN.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct Params(Vec<f64>);
+pub struct Params(#[serde(with = "nullable_f64_vec")] Vec<f64>);
 impl Params {
     /// Makes a new `Params` instance.
     pub const fn new(params: Vec<f64>) -> Self {
@@ -168,5 +168,31 @@ impl Deref for Values {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+mod nullable_f64_vec {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::f64::NAN;
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<f64>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let v: Vec<Option<f64>> = Deserialize::deserialize(deserializer)?;
+        Ok(v.into_iter()
+            .map(|v| if let Some(v) = v { v } else { NAN })
+            .collect())
+    }
+
+    pub fn serialize<S>(v: &Vec<f64>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let v = v
+            .iter()
+            .map(|v| if v.is_finite() { Some(*v) } else { None })
+            .collect::<Vec<_>>();
+        v.serialize(serializer)
     }
 }

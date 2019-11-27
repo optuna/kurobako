@@ -1,6 +1,5 @@
-use crate::epi::ParamsForTransfer;
 use crate::problem::ProblemSpec;
-use crate::trial::Values;
+use crate::trial::{Params, Values};
 use crate::ErrorKind;
 use serde::{Deserialize, Serialize};
 
@@ -22,7 +21,7 @@ pub enum ProblemMessage {
     CreateEvaluatorCall {
         problem_id: u64,
         evaluator_id: u64,
-        params: ParamsForTransfer,
+        params: Params,
     },
     CreateEvaluatorReply,
     DropEvaluatorCast {

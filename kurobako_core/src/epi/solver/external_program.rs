@@ -125,11 +125,6 @@ impl Solver for ExternalProgramSolver {
                     idg.generate();
                 }
 
-                let trial = NextTrial {
-                    id: trial.id,
-                    params: trial.params.into(),
-                    next_step: trial.next_step,
-                };
                 Ok(trial)
             }
             SolverMessage::ErrorReply { kind, message } => {
