@@ -6,7 +6,7 @@ use kurobako_core::rng::{ArcRng, Rng};
 use kurobako_core::solver::{
     Capabilities, Solver, SolverFactory, SolverRecipe, SolverSpec, SolverSpecBuilder,
 };
-use kurobako_core::trial::{AskedTrial, EvaluatedTrial, IdGen, Params};
+use kurobako_core::trial::{EvaluatedTrial, IdGen, NextTrial, Params};
 use kurobako_core::Result;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
@@ -53,7 +53,7 @@ pub struct RandomSolver {
     problem: ProblemSpec,
 }
 impl Solver for RandomSolver {
-    fn ask(&mut self, idg: &mut IdGen) -> Result<AskedTrial> {
+    fn ask(&mut self, idg: &mut IdGen) -> Result<NextTrial> {
         let mut params = Vec::new();
         for p in self.problem.params_domain.variables() {
             let param = match p.range() {
@@ -74,7 +74,7 @@ impl Solver for RandomSolver {
             params.push(param);
         }
 
-        Ok(AskedTrial {
+        Ok(NextTrial {
             id: idg.generate(),
             params: Params::new(params),
             next_step: Some(self.problem.steps.last()),

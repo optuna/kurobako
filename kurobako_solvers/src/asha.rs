@@ -11,7 +11,7 @@ use kurobako_core::solver::{
     BoxSolver, BoxSolverFactory, Capability, Solver, SolverFactory, SolverRecipe, SolverSpec,
     SolverSpecBuilder,
 };
-use kurobako_core::trial::{AskedTrial, EvaluatedTrial, IdGen, TrialId, Values};
+use kurobako_core::trial::{EvaluatedTrial, IdGen, NextTrial, TrialId, Values};
 use kurobako_core::{Error, ErrorKind, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -132,11 +132,11 @@ impl SolverFactory for AshaSolverFactory {
 pub struct AshaSolver {
     optimizer: AshaOptimizer<OrderedFloat<f64>, BaseOptimizer>,
     rng: ArcRng,
-    trials: HashMap<TrialId, AskedTrial>,
+    trials: HashMap<TrialId, NextTrial>,
     max_budget: u64,
 }
 impl Solver for AshaSolver {
-    fn ask(&mut self, idg: &mut IdGen) -> Result<AskedTrial> {
+    fn ask(&mut self, idg: &mut IdGen) -> Result<NextTrial> {
         let mut idg = YamakanIdGen(idg);
         let obs = track!(self
             .optimizer
@@ -197,7 +197,7 @@ impl BaseOptimizer {
     }
 }
 impl Optimizer for BaseOptimizer {
-    type Param = AskedTrial;
+    type Param = NextTrial;
     type Value = Ranked<OrderedFloat<f64>>;
 
     #[allow(clippy::map_entry)]

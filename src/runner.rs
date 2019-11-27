@@ -10,7 +10,7 @@ use kurobako_core::problem::{
 use kurobako_core::registry::FactoryRegistry;
 use kurobako_core::rng::ArcRng;
 use kurobako_core::solver::{BoxSolver, Solver as _, SolverFactory as _, SolverSpec};
-use kurobako_core::trial::{AskedTrial, EvaluatedTrial, IdGen, TrialId};
+use kurobako_core::trial::{EvaluatedTrial, IdGen, NextTrial, TrialId};
 use kurobako_core::{Error, ErrorKind, Result};
 use rand;
 use rand::seq::SliceRandom;
@@ -321,11 +321,7 @@ impl EvaluationThreads {
         }
     }
 
-    fn assign(
-        &mut self,
-        trial: &AskedTrial,
-        problem: &BoxProblem,
-    ) -> Result<&mut EvaluationThread> {
+    fn assign(&mut self, trial: &NextTrial, problem: &BoxProblem) -> Result<&mut EvaluationThread> {
         if self
             .threads
             .iter()
@@ -347,7 +343,7 @@ impl EvaluationThreads {
 
     fn assign_random(
         &mut self,
-        trial: &AskedTrial,
+        trial: &NextTrial,
         problem: &BoxProblem,
     ) -> Result<&mut EvaluationThread> {
         let thread = track_assert_some!(self.threads.choose_mut(&mut self.rng), ErrorKind::Bug);
@@ -358,7 +354,7 @@ impl EvaluationThreads {
 
     fn assign_fair(
         &mut self,
-        trial: &AskedTrial,
+        trial: &NextTrial,
         problem: &BoxProblem,
     ) -> Result<&mut EvaluationThread> {
         self.threads.sort_by_key(|t| t.elapsed_steps);
@@ -429,7 +425,7 @@ struct EvaluatorState {
     current_step: u64,
 }
 impl EvaluatorState {
-    fn new(problem: &BoxProblem, trial: &AskedTrial) -> Result<Self> {
+    fn new(problem: &BoxProblem, trial: &NextTrial) -> Result<Self> {
         let evaluator = track!(problem.create_evaluator(trial.params.clone()))?;
         Ok(Self {
             evaluator,

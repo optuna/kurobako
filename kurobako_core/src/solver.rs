@@ -2,7 +2,7 @@
 use crate::problem::ProblemSpec;
 use crate::registry::FactoryRegistry;
 use crate::rng::ArcRng;
-use crate::trial::{AskedTrial, EvaluatedTrial, IdGen};
+use crate::trial::{EvaluatedTrial, IdGen, NextTrial};
 use crate::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -154,7 +154,7 @@ impl fmt::Debug for BoxSolverFactory {
 /// Solver.
 pub trait Solver: Send {
     /// Asks the next trial to be evaluated.
-    fn ask(&mut self, idg: &mut IdGen) -> Result<AskedTrial>;
+    fn ask(&mut self, idg: &mut IdGen) -> Result<NextTrial>;
 
     /// Tells the evaluation result of a trial.
     fn tell(&mut self, trial: EvaluatedTrial) -> Result<()>;
@@ -172,7 +172,7 @@ impl BoxSolver {
     }
 }
 impl Solver for BoxSolver {
-    fn ask(&mut self, idg: &mut IdGen) -> Result<AskedTrial> {
+    fn ask(&mut self, idg: &mut IdGen) -> Result<NextTrial> {
         track!(self.0.ask(idg))
     }
 

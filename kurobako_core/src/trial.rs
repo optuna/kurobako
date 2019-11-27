@@ -22,12 +22,12 @@ impl TrialId {
 
 /// A trial that has a parameter set to be evaluated.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AskedTrial {
+pub struct NextTrial<P = Params> {
     /// The identifier of this trial.
     pub id: TrialId,
 
     /// The parameters to be evaluated.
-    pub params: Params,
+    pub params: P,
 
     /// The next evaluation step.
     ///
@@ -35,7 +35,7 @@ pub struct AskedTrial {
     /// If this is `None`, it means that this trial doesn't need to be evaluated anymore.
     pub next_step: Option<u64>,
 }
-impl AskedTrial {
+impl NextTrial<Params> {
     /// Makes an `EvaluatedTrial` instance with the given values and step.
     pub fn evaluated(&self, values: Values, current_step: u64) -> EvaluatedTrial {
         EvaluatedTrial {

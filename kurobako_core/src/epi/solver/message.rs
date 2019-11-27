@@ -1,6 +1,7 @@
+use crate::epi::ParamsForTransfer;
 use crate::problem::ProblemSpec;
 use crate::solver::SolverSpec;
-use crate::trial::{AskedTrial, EvaluatedTrial};
+use crate::trial::{EvaluatedTrial, NextTrial};
 use crate::ErrorKind;
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +26,7 @@ pub enum SolverMessage {
         next_trial_id: u64,
     },
     AskReply {
-        trial: AskedTrial,
+        trial: NextTrial<ParamsForTransfer>,
         next_trial_id: u64,
     },
     TellCall {

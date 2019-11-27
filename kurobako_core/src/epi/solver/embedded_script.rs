@@ -5,7 +5,7 @@ use crate::problem::ProblemSpec;
 use crate::registry::FactoryRegistry;
 use crate::rng::ArcRng;
 use crate::solver::{Solver, SolverFactory, SolverRecipe, SolverSpec};
-use crate::trial::{AskedTrial, EvaluatedTrial, IdGen};
+use crate::trial::{EvaluatedTrial, IdGen, NextTrial};
 use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use std::io::Write as _;
@@ -74,7 +74,7 @@ pub struct EmbeddedScriptSolver {
     inner: ExternalProgramSolver,
 }
 impl Solver for EmbeddedScriptSolver {
-    fn ask(&mut self, idg: &mut IdGen) -> Result<AskedTrial> {
+    fn ask(&mut self, idg: &mut IdGen) -> Result<NextTrial> {
         track!(self.inner.ask(idg))
     }
 

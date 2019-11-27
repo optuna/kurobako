@@ -309,6 +309,10 @@ impl Constraint {
             let globals = lua_ctx.globals();
 
             for (var, &val) in vars.iter().zip(vals.iter()) {
+                if !val.is_finite() {
+                    continue;
+                }
+
                 if let Range::Categorical { choices } = &var.range {
                     let val = choices[val as usize].as_str();
                     track!(globals.set(var.name.as_str(), val).map_err(Error::from))?;

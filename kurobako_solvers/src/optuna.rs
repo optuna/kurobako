@@ -6,7 +6,7 @@ use kurobako_core::problem::ProblemSpec;
 use kurobako_core::registry::FactoryRegistry;
 use kurobako_core::rng::ArcRng;
 use kurobako_core::solver::{Solver, SolverFactory, SolverRecipe, SolverSpec};
-use kurobako_core::trial::{AskedTrial, EvaluatedTrial, IdGen};
+use kurobako_core::trial::{EvaluatedTrial, IdGen, NextTrial};
 use kurobako_core::Result;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
@@ -220,7 +220,7 @@ pub struct OptunaSolver {
     inner: EmbeddedScriptSolver,
 }
 impl Solver for OptunaSolver {
-    fn ask(&mut self, idg: &mut IdGen) -> Result<AskedTrial> {
+    fn ask(&mut self, idg: &mut IdGen) -> Result<NextTrial> {
         track!(self.inner.ask(idg))
     }
 
