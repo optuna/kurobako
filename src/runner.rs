@@ -211,7 +211,7 @@ impl StudyRunner {
                  {{percent:>3}}%] [ETA {{eta:>3}}] {:?} {:?}",
                 solver_spec.name, problem_spec.name
             ));
-            pb.set_style(pb_style.clone());
+            pb.set_style(pb_style);
 
             let mut recipe = study.clone();
             recipe.seed = Some(random_seed);

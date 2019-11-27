@@ -1,6 +1,7 @@
 use crate::time::ElapsedSeconds;
 use kurobako_core::trial::{Params, TrialId, Values};
 use serde::{Deserialize, Serialize};
+use std::cmp;
 use std::time::Duration;
 
 #[derive(Debug)]
@@ -27,14 +28,18 @@ impl TrialRecord {
         let mut current_step = 0;
         for eval in &self.evaluations {
             current_step += eval.elapsed_steps();
-            if current_step == step {
-                if eval.values.len() == 1 {
-                    return Some(eval.values[0]);
-                } else {
+            match current_step.cmp(&step) {
+                cmp::Ordering::Equal => {
+                    if eval.values.len() == 1 {
+                        return Some(eval.values[0]);
+                    } else {
+                        break;
+                    }
+                }
+                cmp::Ordering::Greater => {
                     break;
                 }
-            } else if current_step > step {
-                break;
+                _ => {}
             }
         }
         None
