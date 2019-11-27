@@ -263,7 +263,7 @@ dependencies = [
  "chrono 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "indicatif 0.13.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "kurobako_core 0.1.3",
- "kurobako_problems 0.1.1",
+ "kurobako_problems 0.1.2",
  "kurobako_solvers 0.1.0",
  "rand 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustats 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -292,7 +292,7 @@ dependencies = [
 
 [[package]]
 name = "kurobako_problems"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "hdf5file 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "kurobako_core 0.1.3",
