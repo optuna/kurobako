@@ -200,6 +200,7 @@ impl Optimizer for BaseOptimizer {
     type Param = AskedTrial;
     type Value = Ranked<OrderedFloat<f64>>;
 
+    #[allow(clippy::map_entry)]
     fn ask<R: Rng, G: yamakan::IdGen>(
         &mut self,
         _rng: R,

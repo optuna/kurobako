@@ -131,7 +131,7 @@ impl VariableBuilder {
                 track_assert!(low < high, ErrorKind::InvalidInput; self)
             }
             Range::Categorical { choices } => {
-                track_assert!(choices.len() > 0, ErrorKind::InvalidInput; self)
+                track_assert!(!choices.is_empty(), ErrorKind::InvalidInput; self)
             }
         }
 
@@ -192,6 +192,7 @@ pub enum Distribution {
     LogUniform,
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn is_not_finite(x: &f64) -> bool {
     !x.is_finite()
 }
@@ -205,7 +206,7 @@ fn infinity() -> f64 {
 }
 
 /// Variable range.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(missing_docs)]
 #[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Range {
@@ -248,6 +249,20 @@ impl Range {
             Self::Continuous { low, high } => *low <= v && v < *high,
             Self::Discrete { low, high } => *low as f64 <= v && v < *high as f64,
             Self::Categorical { choices } => 0.0 <= v && v < choices.len() as f64,
+        }
+    }
+}
+impl PartialEq for Range {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Continuous { low: l0, high: h0 }, Self::Continuous { low: l1, high: h1 }) => {
+                OrderedFloat(*l0) == OrderedFloat(*l1) && OrderedFloat(*h0) == OrderedFloat(*h1)
+            }
+            (Self::Discrete { low: l0, high: h0 }, Self::Discrete { low: l1, high: h1 }) => {
+                l0 == l1 && h0 == h1
+            }
+            (Self::Categorical { choices: c0 }, Self::Categorical { choices: c1 }) => c0 == c1,
+            _ => false,
         }
     }
 }
@@ -294,6 +309,7 @@ impl Condition {
     }
 }
 impl Eq for Condition {}
+#[allow(clippy::derive_hash_xor_eq)]
 impl Hash for Condition {
     fn hash<H: Hasher>(&self, state: &mut H) {
         let Condition::Eq { target, value } = self;

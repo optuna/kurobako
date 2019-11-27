@@ -213,14 +213,14 @@ impl<'a> Problem<'a> {
         self.opt
             .xmin
             .map(|v| v.to_string())
-            .unwrap_or("".to_string())
+            .unwrap_or_else(|| "".to_string())
     }
 
     fn xmax(&self) -> String {
         self.opt
             .xmax
             .map(|v| v.to_string())
-            .unwrap_or("".to_string())
+            .unwrap_or_else(|| "".to_string())
     }
 
     fn generate_data(&self) -> Result<TempPath> {

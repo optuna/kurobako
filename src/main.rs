@@ -36,6 +36,7 @@ macro_rules! print_json {
 
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
+#[allow(clippy::large_enum_variant)]
 enum Opt {
     Solver(KurobakoSolverRecipe),
     Problem(KurobakoProblemRecipe),

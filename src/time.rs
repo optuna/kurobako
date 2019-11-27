@@ -16,11 +16,11 @@ impl ElapsedSeconds {
         Self(0.0)
     }
 
-    pub const fn get(&self) -> f64 {
+    pub const fn get(self) -> f64 {
         self.0
     }
 
-    pub fn to_duration(&self) -> Duration {
+    pub fn to_duration(self) -> Duration {
         Duration::from_secs_f64(self.0)
     }
 

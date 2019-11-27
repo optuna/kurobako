@@ -54,6 +54,7 @@ impl<'a, W: Write> MarkdownWriter<'a, W> {
             .map(|h| h.name.len())
             .collect::<Vec<_>>();
 
+        #[allow(clippy::needless_range_loop)]
         for col in 0..table.headers.len() {
             for row in &table.rows {
                 if let Some(item) = row.items.get(col) {

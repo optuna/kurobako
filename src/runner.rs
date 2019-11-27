@@ -163,11 +163,9 @@ impl Runner {
 
     fn create_pb(&self, recipes: &[StudyRecipe]) -> ProgressBar {
         let pb = self.mpb.add(ProgressBar::new(recipes.len() as u64));
-        let template = format!(
-            "(ALL) [{{elapsed_precise}}] [STUDIES \
-             {{pos:>6}}/{{len}} {{percent:>3}}%] [ETA {{eta:>3}}] {{msg}}",
-        );
-        let style = ProgressStyle::default_bar().template(&template);
+        let template = "(ALL) [{{elapsed_precise}}] [STUDIES \
+                        {{pos:>6}}/{{len}} {{percent:>3}}%] [ETA {{eta:>3}}] {{msg}}";
+        let style = ProgressStyle::default_bar().template(template);
         pb.set_style(style);
         pb
     }
@@ -331,8 +329,7 @@ impl EvaluationThreads {
         if self
             .threads
             .iter()
-            .find(|t| t.runnings.contains_key(&trial.id))
-            .is_some()
+            .any(|t| t.runnings.contains_key(&trial.id))
         {
             let thread = self
                 .threads

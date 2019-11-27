@@ -59,11 +59,9 @@ where
     /// Receives a message.
     pub fn recv(&mut self) -> Result<T> {
         let mut line = String::new();
-        loop {
-            track!(self.reader.read_line(&mut line).map_err(Error::from))?;
-            let message = track!(serde_json::from_str(&line).map_err(Error::from); line)?;
-            return Ok(message);
-        }
+        track!(self.reader.read_line(&mut line).map_err(Error::from))?;
+        let message = track!(serde_json::from_str(&line).map_err(Error::from); line)?;
+        Ok(message)
     }
 }
 impl<T, R: Read> fmt::Debug for MessageReceiver<T, R> {

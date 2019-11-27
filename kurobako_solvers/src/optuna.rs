@@ -16,13 +16,15 @@ fn add_arg(args: &mut Vec<String>, key: &str, val: &str) {
     args.push(val.to_owned());
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn is_false(b: &bool) -> bool {
-    *b == false
+    !(*b)
 }
 
 mod defaults {
     macro_rules! define {
         ($val_fn:ident, $pred_fn:ident, $type:ty, $val:expr) => {
+            #[allow(clippy::ptr_arg, clippy::float_cmp)]
             pub fn $pred_fn(x: &$type) -> bool {
                 x == &$val
             }

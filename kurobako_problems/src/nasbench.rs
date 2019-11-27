@@ -171,7 +171,7 @@ pub enum Encoding {
 impl Encoding {
     const POSSIBLE_VALUES: [&'static str; 3] = ["A", "B", "C"];
 
-    fn params(&self) -> Vec<VariableBuilder> {
+    fn params(self) -> Vec<VariableBuilder> {
         match self {
             Encoding::A => Self::params_a(),
             Encoding::B => Self::params_b(),
@@ -218,7 +218,7 @@ impl Encoding {
         params
     }
 
-    fn ops_and_edges(&self, params: &[f64]) -> Result<(Vec<Op>, HashSet<usize>)> {
+    fn ops_and_edges(self, params: &[f64]) -> Result<(Vec<Op>, HashSet<usize>)> {
         let mut ops = vec![Op::Input];
         for p in &params[0..5] {
             let op = match *p as u8 {
@@ -235,7 +235,7 @@ impl Encoding {
         Ok((ops, edges))
     }
 
-    fn edges(&self, params: &[f64]) -> Result<HashSet<usize>> {
+    fn edges(self, params: &[f64]) -> Result<HashSet<usize>> {
         match self {
             Encoding::A => track!(Self::edges_a(params)),
             Encoding::B => track!(Self::edges_b(params)),
@@ -246,7 +246,7 @@ impl Encoding {
     fn edges_a(params: &[f64]) -> Result<HashSet<usize>> {
         let mut edges = HashSet::new();
         for (i, p) in params.iter().enumerate() {
-            if *p == 1.0 {
+            if (*p - 1.0).abs() < std::f64::EPSILON {
                 edges.insert(i);
             }
         }
