@@ -31,8 +31,12 @@ class SigoptProblemFactory(problem.ProblemFactory):
                 args.name, args.dim, args.res)
 
         attrs = {
-            'version': get_distribution('evalset').version,
-            'github': 'https://github.com/sigopt/evalset',
+            'version':
+            'evalset={}, kurobako-py={}'.format(
+                get_distribution('evalset').version,
+                get_distribution('kurobako').version),
+            'github':
+            'https://github.com/sigopt/evalset',
             'paper':
             'Dewancker, Ian, et al. "A strategy for ranking optimization methods using multiple criteria." Workshop on Automatic Machine Learning. 2016.'
         }

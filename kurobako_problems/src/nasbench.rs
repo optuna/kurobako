@@ -61,6 +61,10 @@ impl ProblemFactory for NasbenchProblemFactory {
     fn specification(&self) -> Result<ProblemSpec> {
         let spec = ProblemSpecBuilder::new(&format!("NASBench ({:?})", self.encoding))
             .attr(
+                "version",
+                &format!("kurobako={}", env!("CARGO_PKG_VERSION")),
+            )
+            .attr(
                 "paper",
                 "Ying, Chris, et al. \"Nas-bench-101: Towards reproducible \
                  neural architecture search.\" arXiv preprint arXiv:1902.09635 (2019).",

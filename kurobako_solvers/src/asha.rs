@@ -81,7 +81,15 @@ impl SolverFactory for AshaSolverFactory {
             .remove_capability(Capability::MultiObjective);
 
         let spec = SolverSpecBuilder::new(&format!("ASHA with {}", base.name))
-            .attr("paper", "https://arxiv.org/abs/1810.05934")
+            .attr(
+                "version",
+                &format!("kurobako={}", env!("CARGO_PKG_VERSION")),
+            )
+            .attr(
+                "paper",
+                "Li, Liam, et al. \"Massively parallel hyperparameter tuning.\" \
+                 arXiv preprint arXiv:1810.05934 (2018).",
+            )
             .capabilities(base.capabilities);
         Ok(spec.finish())
     }

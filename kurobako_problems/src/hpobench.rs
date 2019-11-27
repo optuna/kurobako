@@ -60,6 +60,10 @@ impl ProblemFactory for HpobenchProblemFactory {
 
         let spec = ProblemSpecBuilder::new(name)
             .attr(
+                "version",
+                &format!("kurobako={}", env!("CARGO_PKG_VERSION")),
+            )
+            .attr(
                 "paper",
                 "Klein, Aaron, and Frank Hutter. \"Tabular Benchmarks \
                  for Joint Architecture and Hyperparameter Optimization.\" \
