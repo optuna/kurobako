@@ -10,8 +10,7 @@ readme = "README.md"
 license = "MIT"
 
 [badges]
-travis-ci = {repository = "sile/kurobako"}
-codecov = {repository = "sile/kurobako"}
+coveralls = {repository = "sile/kurobako"}
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
