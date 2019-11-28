@@ -163,8 +163,8 @@ impl Runner {
 
     fn create_pb(&self, recipes: &[StudyRecipe]) -> ProgressBar {
         let pb = self.mpb.add(ProgressBar::new(recipes.len() as u64));
-        let template = "(ALL) [{{elapsed_precise}}] [STUDIES \
-                        {{pos:>6}}/{{len}} {{percent:>3}}%] [ETA {{eta:>3}}] {{msg}}";
+        let template =
+            "(ALL) [{elapsed_precise}] [STUDIES {pos:>6}/{len} {percent:>3}%] [ETA {eta:>3}] {msg}";
         let style = ProgressStyle::default_bar().template(template);
         pb.set_style(style);
         pb
