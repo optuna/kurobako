@@ -32,7 +32,7 @@ impl SolverFactory for RandomSolverFactory {
         let spec = SolverSpecBuilder::new("Random")
             .attr(
                 "version",
-                &format!("kurobako={}", env!("CARGO_PKG_VERSION")),
+                &format!("kurobako_solvers={}", env!("CARGO_PKG_VERSION")),
             )
             .capabilities(Capabilities::all());
         Ok(spec.finish())

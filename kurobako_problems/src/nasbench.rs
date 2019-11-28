@@ -62,7 +62,7 @@ impl ProblemFactory for NasbenchProblemFactory {
         let spec = ProblemSpecBuilder::new(&format!("NASBench ({:?})", self.encoding))
             .attr(
                 "version",
-                &format!("kurobako={}", env!("CARGO_PKG_VERSION")),
+                &format!("kurobako_problems={}", env!("CARGO_PKG_VERSION")),
             )
             .attr(
                 "paper",

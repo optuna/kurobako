@@ -61,7 +61,7 @@ impl ProblemFactory for HpobenchProblemFactory {
         let spec = ProblemSpecBuilder::new(name)
             .attr(
                 "version",
-                &format!("kurobako={}", env!("CARGO_PKG_VERSION")),
+                &format!("kurobako_problems={}", env!("CARGO_PKG_VERSION")),
             )
             .attr(
                 "paper",
