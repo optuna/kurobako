@@ -185,7 +185,7 @@ mod nullable_f64_vec {
             .collect())
     }
 
-    pub fn serialize<S>(v: &Vec<f64>, serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(v: &[f64], serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
