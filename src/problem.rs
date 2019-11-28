@@ -36,6 +36,7 @@ impl ProblemRecipe for KurobakoProblemRecipe {
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
+#[serde(rename_all = "snake_case")]
 enum InnerRecipe {
     Command(ExternalProgramProblemRecipe),
     Sigopt(sigopt::SigoptProblemRecipe),

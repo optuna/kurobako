@@ -35,6 +35,7 @@ impl SolverRecipe for KurobakoSolverRecipe {
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
+#[serde(rename_all = "snake_case")]
 enum InnerRecipe {
     Command(epi::solver::ExternalProgramSolverRecipe),
     Random(random::RandomSolverRecipe),
