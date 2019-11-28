@@ -10,3 +10,29 @@ kurobako
 A black-box optimization benchmark framework.
 
 "kurobako" is a Japanese translation of "black box".
+
+
+Installation
+------------
+
+### Precompiled binaries
+
+Precompiled binaries for Linux are available in the [releases] page.
+
+```console
+$ curl -L https://github.com/sile/kurobako/releases/download/${VERSION}/kurobako-${VERSION}.linux -o kurobako
+$ chmod +x kurobako
+$ ./kurobako -h
+```
+
+[releases]: https://github.com/sile/kurobako/releases
+
+### Using Cargo
+
+If you have already installed [Cargo][cargo], you can install `kurobako` by executing the following command:
+
+```console
+$ cargo install kurobako
+```
+
+[cargo]: https://doc.rust-lang.org/cargo/
