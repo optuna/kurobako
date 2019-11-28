@@ -20,7 +20,7 @@ Installation
 Precompiled binaries for Linux are available in the [releases] page.
 
 ```console
-$ curl -L https://github.com/sile/kurobako/releases/download/${VERSION}/kurobako-${VERSION}.linux -o kurobako
+$ curl -L https://github.com/sile/kurobako/releases/download/${VERSION}/kurobako-${VERSION}.linux-amd64 -o kurobako
 $ chmod +x kurobako
 $ ./kurobako -h
 ```
