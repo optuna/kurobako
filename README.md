@@ -17,7 +17,7 @@ Features:
     - Conditional
   - Constrainted problems
   - Multi-objective problems
-- Simulating a concurrent environment in which an optimization process is executed by multiple workers simultaneously.
+- Simulating a concurrent environment in which an optimization process is executed by multiple workers simultaneously
 - Generating a text-based report (Markdown) from benchmarking results
 - Plotting images from benchmarking results
 - Reproducible 
@@ -48,6 +48,27 @@ $ cargo install kurobako
 ```
 
 [cargo]: https://doc.rust-lang.org/cargo/
+
+
+Usage Example
+--------------
+
+```console
+foo
+```
+
+Build-in Solvers and Problems
+-----------------------------
+
+Solvers:
+- Random Search
+- [ASHA](https://arxiv.org/abs/1810.05934)
+- [Optuna](https://github.com/optuna/optuna)
+
+Problems:
+- [NASBench](https://github.com/automl/nas_benchmarks)
+- [HPOBench](https://github.com/automl/nas_benchmarks)
+- [sigopt/evalset](https://github.com/sigopt/evalset)
 
 
 What is "kurobako"?
