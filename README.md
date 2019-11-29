@@ -71,8 +71,8 @@ Problems:
 - [sigopt/evalset](https://github.com/sigopt/evalset)
 
 
-What is "kurobako"?
---------------------
+Where does the name come from?
+-----------------------------------
 
 "kurobako" is a Japanese translation of "black box".
 
