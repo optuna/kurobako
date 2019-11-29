@@ -17,11 +17,10 @@ Features:
     - Conditional
   - Constrainted problems
   - Multi-objective problems
-- Simulating a concurrent environment in which an optimization process is executed by multiple workers simultaneously
-- Generating a text-based report (Markdown) from benchmarking results
-- Plotting images from benchmarking results
-- Reproducible 
+- Generating a markdown report and PNG plots from benchmarking results
 - Easy to add user-defined optimization problems and solvers
+- Simulating a concurrent environment in which an optimization process is executed by multiple workers simultaneously
+- Reproducible 
 
 
 Installation
@@ -54,7 +53,27 @@ Usage Example
 --------------
 
 ```console
-foo
+// Define solver.
+$ kurobako solver random | tee solver.json
+{"random":{}}
+
+// Define problem.
+$ curl -OL http://ml4aad.org/wp-content/uploads/2019/01/fcnet_tabular_benchmarks.tar.gz
+$ tar xf fcnet_tabular_benchmarks.tar.gz && cd fcnet_tabular_benchmarks/
+$ kurobako problem hpobench fcnet_protein_structure_data.hdf5 | tee problem.json
+{"hpobench":{"dataset":"fcnet_protein_structure_data.hdf5"}}
+
+// Run benchmark.
+$ kurobako studies --solvers $(cat solver.json) --problems $(cat problem.json) | kurobako run > result.json
+(ALL) [00:00:01] [STUDIES     10/10 100%] [ETA  0s] done
+
+// Report the benchmark result.
+$ cat result.json | kurobako report
+...abbrev...
+
+// Plot the benchmark result.
+$ cat result.json | kurobako plot curve
+(PLOT) [00:00:01] [1/1 100%] [ETA  0s] done (dir="images/curve/")
 ```
 
 Build-in Solvers and Problems
