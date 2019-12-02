@@ -10,7 +10,6 @@ pub mod curve;
 pub enum PlotOpt {
     /// Optimization curve.
     Curve(self::curve::PlotCurveOpt),
-    Latency,
     Slice,
 }
 impl PlotOpt {
@@ -18,7 +17,6 @@ impl PlotOpt {
         match self {
             Self::Curve(opt) => track!(opt.plot(studies)),
             Self::Slice => unimplemented!(),
-            Self::Latency => unimplemented!(),
         }
     }
 }

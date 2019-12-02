@@ -12,7 +12,8 @@ use kurobako_core::{Error, Result};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use sha2::{Digest, Sha256};
-use std::collections::BTreeMap;
+use std::cmp::Ordering;
+use std::collections::{BTreeMap, BinaryHeap};
 use std::fmt::Write as _;
 use std::num::NonZeroUsize;
 use std::time::Duration;
@@ -141,6 +142,76 @@ impl StudyRecord {
         }
 
         best_values
+    }
+
+    pub fn elapsed_times(&self, include_evaluate_time: bool) -> BTreeMap<u64, f64> {
+        let mut times = BTreeMap::new();
+        let mut elapsed = 0.0;
+        for e in self.evaluations() {
+            elapsed += e.ask_elapsed.get() + e.tell_elapsed.get();
+            if include_evaluate_time {
+                elapsed += e.evaluate_elapsed.get();
+            }
+            times.insert(e.end_step, elapsed);
+        }
+        times
+    }
+
+    pub fn evaluations<'a>(&'a self) -> impl 'a + Iterator<Item = &'a EvaluationRecord> {
+        struct Entry<'a> {
+            trial: &'a TrialRecord,
+            index: usize,
+        }
+        impl<'a> Entry<'a> {
+            fn step(&self) -> u64 {
+                self.trial.evaluations[self.index].end_step
+            }
+        }
+        impl<'a> PartialEq for Entry<'a> {
+            fn eq(&self, other: &Self) -> bool {
+                self.step() == other.step()
+            }
+        }
+        impl<'a> Eq for Entry<'a> {}
+        impl<'a> PartialOrd for Entry<'a> {
+            fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+                other.step().partial_cmp(&self.step())
+            }
+        }
+        impl<'a> Ord for Entry<'a> {
+            fn cmp(&self, other: &Self) -> Ordering {
+                other.step().cmp(&self.step())
+            }
+        }
+
+        let queue = self
+            .trials
+            .iter()
+            .filter(|t| !t.evaluations.is_empty())
+            .map(|trial| Entry { trial, index: 0 })
+            .collect::<BinaryHeap<_>>();
+
+        struct Iter<'a> {
+            queue: BinaryHeap<Entry<'a>>,
+        }
+        impl<'a> Iterator for Iter<'a> {
+            type Item = &'a EvaluationRecord;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                if let Some(mut entry) = self.queue.pop() {
+                    let item = &entry.trial.evaluations[entry.index];
+                    entry.index += 1;
+                    if entry.index < entry.trial.evaluations.len() {
+                        self.queue.push(entry);
+                    }
+                    Some(item)
+                } else {
+                    None
+                }
+            }
+        }
+
+        Iter { queue }
     }
 
     pub fn best_value(&self) -> Option<f64> {

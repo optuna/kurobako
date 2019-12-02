@@ -2,14 +2,39 @@ use super::{execute_gnuplot, normalize_filename};
 use crate::record::{ProblemRecord, StudyRecord};
 use indicatif::{ProgressBar, ProgressStyle};
 use kurobako_core::num::OrderedFloat;
-use kurobako_core::{Error, Result};
+use kurobako_core::{Error, ErrorKind, Result};
 use rustats::fundamental::{average, stddev};
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::Write as _;
 use std::path::PathBuf;
+use std::str::FromStr;
 use structopt::StructOpt;
 use tempfile::{NamedTempFile, TempPath};
+
+#[derive(Debug, StructOpt, PartialEq, Eq)]
+#[structopt(rename_all = "kebab-case")]
+pub enum Metric {
+    BestValue,
+    ElapsedTime,
+    SolverElapsedTime,
+}
+impl Metric {
+    const POSSIBLE_VALUES: &'static [&'static str] =
+        &["best-value", "elapsed-time", "solver-elapsed-time"];
+}
+impl FromStr for Metric {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "best-value" => Ok(Metric::BestValue),
+            "elapsed-time" => Ok(Metric::ElapsedTime),
+            "solver-elapsed-time" => Ok(Metric::SolverElapsedTime),
+            _ => track_panic!(ErrorKind::InvalidInput, "Unknown metric name: {:?}", s),
+        }
+    }
+}
 
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
@@ -36,7 +61,17 @@ pub struct PlotCurveOpt {
     pub xmax: Option<f64>,
 
     #[structopt(long)]
+    pub ylogscale: bool,
+
+    #[structopt(long)]
     pub errorbar: bool,
+
+    #[structopt(
+        long,
+        default_value = "best-value",
+        possible_values = Metric::POSSIBLE_VALUES
+    )]
+    pub metric: Metric,
 }
 impl PlotCurveOpt {
     pub fn plot(&self, studies: &[StudyRecord]) -> Result<()> {
@@ -93,7 +128,7 @@ impl<'a> Problem<'a> {
             problem,
             solvers: solvers
                 .into_iter()
-                .map(|(k, v)| (k, Solver::new(v)))
+                .map(|(k, v)| (k, Solver::new(v, opt)))
                 .collect(),
             opt,
         })
@@ -114,11 +149,22 @@ impl<'a> Problem<'a> {
     }
 
     fn make_gnuplot_script(&self, data_path: &TempPath) -> Result<String> {
+        let ylabel = match self.opt.metric {
+            Metric::BestValue => self.problem.spec.values_domain.variables()[0].name(),
+            Metric::ElapsedTime => "Elapsed Seconds (Ask + Evaluate + Tell)",
+            Metric::SolverElapsedTime => "Elapsed Seconds (Ask + Tell)",
+        };
+
         let mut s = format!(
             "set title {:?} noenhanced; set ylabel {:?} noenhanced; set xlabel \"Budget\"; set grid;",
             self.problem.spec.name,
-            self.problem.spec.values_domain.variables()[0].name()
+            ylabel
         );
+        s += "set datafile missing \"NaN\";";
+
+        if self.opt.ylogscale {
+            s += "set logscale y;"
+        }
 
         let output = self.opt.output_dir.join(format!(
             "{}-{}.png",
@@ -175,37 +221,41 @@ impl<'a> Problem<'a> {
     fn ymax(&self) -> String {
         if let Some(y) = self.opt.ymax {
             y.to_string()
-        } else {
+        } else if self.opt.metric == Metric::BestValue {
             let max_step = self
                 .solvers
                 .values()
-                .map(|s| s.values.len())
+                .map(|s| s.ys.len())
                 .max()
                 .unwrap_or_else(|| unreachable!());
             let step = max_step / 10;
             if let Some(y) = self
                 .solvers
                 .values()
-                .filter_map(|s| s.value(step).map(|v| OrderedFloat(v.avg)))
+                .filter_map(|s| s.y(step).map(|v| OrderedFloat(v.avg)))
                 .max()
             {
                 y.0.to_string()
             } else {
                 "".to_string()
             }
+        } else {
+            "".to_string()
         }
     }
 
     fn ymin(&self) -> String {
         if let Some(y) = self.opt.ymin {
             y.to_string()
-        } else {
+        } else if self.opt.metric == Metric::BestValue {
             let y = self.problem.spec.values_domain.variables()[0].range().low();
             if y.is_finite() {
                 y.to_string()
             } else {
                 "".to_string()
             }
+        } else {
+            "".to_string()
         }
     }
 
@@ -234,15 +284,15 @@ impl<'a> Problem<'a> {
         let max_step = self
             .solvers
             .values()
-            .map(|s| s.values.len())
+            .map(|s| s.ys.len())
             .max()
             .unwrap_or_else(|| unreachable!());
         for step in 0..max_step {
             for s in self.solvers.values() {
-                if let Some(v) = s.value(step) {
+                if let Some(v) = s.y(step) {
                     track_write!(temp_file, "{} {} ", v.avg, v.sd)?;
                 } else {
-                    track_write!(temp_file, "  ")?;
+                    track_write!(temp_file, "NaN NaN ")?;
                 }
             }
             track_writeln!(temp_file)?;
@@ -254,35 +304,37 @@ impl<'a> Problem<'a> {
 
 #[derive(Debug)]
 struct Solver {
-    values: Vec<Option<Value>>,
+    ys: Vec<Option<Value>>,
 }
 impl Solver {
-    fn new(studies: Vec<&StudyRecord>) -> Self {
-        let study_best_values = studies
+    fn new(studies: Vec<&StudyRecord>, opt: &PlotCurveOpt) -> Self {
+        let study_metrics = studies
             .iter()
-            .map(|study| study.best_values())
+            .map(|study| match opt.metric {
+                Metric::BestValue => study.best_values(),
+                Metric::ElapsedTime => study.elapsed_times(true),
+                Metric::SolverElapsedTime => study.elapsed_times(false),
+            })
             .collect::<Vec<_>>();
-        let mut best_value_stats = vec![None];
+        let mut ys = vec![None];
         for step in 1..studies[0].study_steps() {
-            let values = study_best_values
+            let values = study_metrics
                 .iter()
                 .filter_map(|x| x.range(..=step).last().map(|v| *v.1))
                 .collect::<Vec<_>>();
             if values.is_empty() {
-                best_value_stats.push(None);
+                ys.push(None);
             } else {
                 let avg = average(values.iter().copied());
                 let sd = stddev(values.into_iter());
-                best_value_stats.push(Some(Value { avg, sd }));
+                ys.push(Some(Value { avg, sd }));
             }
         }
-        Self {
-            values: best_value_stats,
-        }
+        Self { ys }
     }
 
-    fn value(&self, step: usize) -> Option<&Value> {
-        self.values.get(step).and_then(|v| v.as_ref())
+    fn y(&self, step: usize) -> Option<&Value> {
+        self.ys.get(step).and_then(|v| v.as_ref())
     }
 }
 
