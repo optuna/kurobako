@@ -4,19 +4,20 @@ use std::process::Command;
 use structopt::StructOpt;
 
 pub mod curve;
+pub mod slice;
 
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub enum PlotOpt {
     /// Optimization curve.
     Curve(self::curve::PlotCurveOpt),
-    Slice,
+    Slice(self::slice::PlotSliceOpt),
 }
 impl PlotOpt {
     pub fn plot(&self, studies: &[StudyRecord]) -> Result<()> {
         match self {
             Self::Curve(opt) => track!(opt.plot(studies)),
-            Self::Slice => unimplemented!(),
+            Self::Slice(opt) => track!(opt.plot(studies)),
         }
     }
 }
