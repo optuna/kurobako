@@ -22,7 +22,6 @@ macro_rules! track_writeln {
 // pub mod exam;
 // pub mod homonym;
 // pub mod multi_exam;
-// pub mod variable;
 pub mod markdown;
 pub mod plot;
 pub mod problem;
@@ -33,3 +32,4 @@ pub mod runner;
 pub mod solver;
 pub mod study;
 pub mod time;
+pub mod variable;

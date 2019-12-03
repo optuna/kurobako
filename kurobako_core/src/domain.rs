@@ -4,6 +4,7 @@ use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std;
 use std::hash::{Hash, Hasher};
+use structopt::StructOpt;
 
 /// Domain.
 ///
@@ -111,6 +112,12 @@ impl VariableBuilder {
         self.categorical(&["false", "true"])
     }
 
+    /// Sets the range of this variable.
+    pub fn range(mut self, range: Range) -> Self {
+        self.range = range;
+        self
+    }
+
     /// Sets the evaluation constraint to this variable.
     pub fn constraint(mut self, constraint: Constraint) -> Self {
         self.constraint = Some(constraint);
@@ -202,9 +209,10 @@ fn infinity() -> f64 {
 }
 
 /// Variable range.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, StructOpt)]
 #[allow(missing_docs)]
 #[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
+#[structopt(rename_all = "kebab-case")]
 pub enum Range {
     /// Continuous numerical range: `[low..high)`.
     Continuous {

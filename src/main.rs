@@ -9,19 +9,11 @@ use kurobako::report::{ReportOpt, Reporter};
 use kurobako::runner::{Runner, RunnerOpt};
 use kurobako::solver::KurobakoSolverRecipe;
 use kurobako::study::{StudiesRecipe, StudyRecipe};
+use kurobako::variable::Var;
 use kurobako_core::json;
 use kurobako_core::Error;
 use std::io;
 use structopt::StructOpt;
-
-// use kurobako::exam::ExamRecipe;
-// use kurobako::multi_exam::MultiExamRecipe;
-// use kurobako::plot::PlotOptions;
-// use kurobako::plot_scatter::PlotScatterOptions;
-// use kurobako::record::{BenchmarkRecord, StudyRecord};
-// use kurobako::variable::Variable;
-// use kurobako_core::{Error, Result};
-// use std::path::PathBuf;
 
 macro_rules! print_json {
     ($x:expr) => {
@@ -46,9 +38,9 @@ enum Opt {
     Run(RunnerOpt),
     Report(ReportOpt),
     Plot(PlotOpt),
+    Var(Var),
     // Exam(ExamRecipe),
     // MultiExam(MultiExamRecipe),
-    // Var(Variable),
 }
 
 fn main() -> trackable::result::TopLevelResult {
@@ -74,6 +66,9 @@ fn main() -> trackable::result::TopLevelResult {
                 print_json!(y);
             }
         }
+        Opt::Var(x) => {
+            print_json!(x);
+        }
         Opt::Run(opt) => {
             track!(Runner::new(opt).run())?;
         }
@@ -98,9 +93,6 @@ fn main() -> trackable::result::TopLevelResult {
 //             track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?
 //         }
 //         Opt::MultiExam(p) => {
-//             track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?
-//         }
-//         Opt::Var(p) => {
 //             track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?
 //         }
 //     }
