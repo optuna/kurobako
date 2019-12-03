@@ -1,50 +1,35 @@
 use crate::problem::KurobakoProblemRecipe;
-use kurobako_core::problem::ProblemRecipe;
-use kurobako_problems::sigopt::{Name, SigoptProblemRecipe};
-use kurobako_problems::synthetic::{self, mfb};
-use kurobako_problems::{fc_net, nasbench};
-use serde::{Deserialize, Serialize};
+use kurobako_problems::hpobench;
+use kurobako_problems::sigopt;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
-pub trait ProblemSuite {
-    type ProblemRecipe: ProblemRecipe;
-
-    fn problem_specs(&self) -> Box<dyn Iterator<Item = Self::ProblemRecipe>>;
-}
-
-#[derive(Debug, StructOpt, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
-pub enum KurobakoProblemSuite {
+pub enum ProblemSuite {
     Sigopt(SigoptProblemSuite),
-    Nasbench { dataset_path: PathBuf },
-    FcNet { dataset_dir: PathBuf },
-    Mfb,
+    Hpobench(HpobenchProblemSuite),
 }
-impl ProblemSuite for KurobakoProblemSuite {
-    type ProblemRecipe = KurobakoProblemRecipe;
-
-    fn problem_specs(&self) -> Box<dyn Iterator<Item = Self::ProblemRecipe>> {
+impl ProblemSuite {
+    pub fn recipes(&self) -> Box<dyn Iterator<Item = KurobakoProblemRecipe>> {
         match self {
-            KurobakoProblemSuite::Sigopt(p) => {
-                Box::new(p.problem_specs().map(KurobakoProblemRecipe::Sigopt))
-            }
-            KurobakoProblemSuite::Nasbench { dataset_path } => {
-                let recipe = |encoding| nasbench::NasbenchProblemRecipe {
-                    dataset_path: dataset_path.clone(),
-                    encoding,
-                };
-                let recipes = vec![
-                    recipe(nasbench::Encoding::A),
-                    recipe(nasbench::Encoding::B),
-                    recipe(nasbench::Encoding::C),
-                ];
-                Box::new(recipes.into_iter().map(KurobakoProblemRecipe::Nasbench))
-            }
-            KurobakoProblemSuite::FcNet { dataset_dir } => {
-                let recipe = |name| fc_net::FcNetProblemRecipe {
-                    dataset_path: dataset_dir.join(name),
+            Self::Sigopt(s) => s.recipes(),
+            Self::Hpobench(s) => s.recipes(),
+        }
+    }
+}
+
+#[derive(Debug, StructOpt)]
+#[structopt(rename_all = "kebab-case")]
+pub enum HpobenchProblemSuite {
+    Fcnet { dataset_dir: PathBuf },
+}
+impl HpobenchProblemSuite {
+    fn recipes(&self) -> Box<dyn Iterator<Item = KurobakoProblemRecipe>> {
+        match self {
+            Self::Fcnet { dataset_dir } => {
+                let recipe = |name| hpobench::HpobenchProblemRecipe {
+                    dataset: dataset_dir.join(name),
                 };
                 let recipes = vec![
                     recipe("fcnet_naval_propulsion_data.hdf5"),
@@ -52,36 +37,24 @@ impl ProblemSuite for KurobakoProblemSuite {
                     recipe("fcnet_protein_structure_data.hdf5"),
                     recipe("fcnet_slice_localization_data.hdf5"),
                 ];
-                Box::new(recipes.into_iter().map(KurobakoProblemRecipe::FcNet))
+                Box::new(recipes.into_iter().map(KurobakoProblemRecipe::from))
             }
-            KurobakoProblemSuite::Mfb => Box::new((1..=13).map(|n| {
-                KurobakoProblemRecipe::Synthetic(synthetic::SyntheticProblemRecipe::Mfb(
-                    mfb::MfbProblemRecipe {
-                        problem_number: n,
-                        dimensions: 8,
-                        fidelity_levels: 100,
-                    },
-                ))
-            })),
         }
     }
 }
 
-#[derive(Debug, StructOpt, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub enum SigoptProblemSuite {
     Nonparametric,
     Auc,
 }
-impl ProblemSuite for SigoptProblemSuite {
-    type ProblemRecipe = SigoptProblemRecipe;
+impl SigoptProblemSuite {
+    fn recipes(&self) -> Box<dyn Iterator<Item = KurobakoProblemRecipe>> {
+        use kurobako_problems::sigopt::Name::{self, *};
 
-    fn problem_specs(&self) -> Box<dyn Iterator<Item = Self::ProblemRecipe>> {
-        use kurobako_problems::sigopt::Name::*;
-
-        fn recipe(name: Name, dim: u32, res: Option<f64>) -> SigoptProblemRecipe {
-            SigoptProblemRecipe {
+        fn recipe(name: Name, dim: u32, res: Option<f64>) -> sigopt::SigoptProblemRecipe {
+            sigopt::SigoptProblemRecipe {
                 name,
                 dim: Some(dim),
                 res,
@@ -187,6 +160,6 @@ impl ProblemSuite for SigoptProblemSuite {
                 recipe(YaoLiu, 5, None),
             ],
         };
-        Box::new(specs.into_iter())
+        Box::new(specs.into_iter().map(KurobakoProblemRecipe::from))
     }
 }

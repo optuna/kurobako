@@ -33,6 +33,22 @@ impl ProblemRecipe for KurobakoProblemRecipe {
         })
     }
 }
+impl From<hpobench::HpobenchProblemRecipe> for KurobakoProblemRecipe {
+    fn from(f: hpobench::HpobenchProblemRecipe) -> Self {
+        Self {
+            name: None,
+            inner: InnerRecipe::Hpobench(f),
+        }
+    }
+}
+impl From<sigopt::SigoptProblemRecipe> for KurobakoProblemRecipe {
+    fn from(f: sigopt::SigoptProblemRecipe) -> Self {
+        Self {
+            name: None,
+            inner: InnerRecipe::Sigopt(f),
+        }
+    }
+}
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]

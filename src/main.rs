@@ -4,6 +4,7 @@ extern crate trackable;
 use kurobako::markdown::MarkdownWriter;
 use kurobako::plot::PlotOpt;
 use kurobako::problem::KurobakoProblemRecipe;
+use kurobako::problem_suites::ProblemSuite;
 use kurobako::report::{ReportOpt, Reporter};
 use kurobako::runner::{Runner, RunnerOpt};
 use kurobako::solver::KurobakoSolverRecipe;
@@ -17,7 +18,6 @@ use structopt::StructOpt;
 // use kurobako::multi_exam::MultiExamRecipe;
 // use kurobako::plot::PlotOptions;
 // use kurobako::plot_scatter::PlotScatterOptions;
-// use kurobako::problem_suites::{KurobakoProblemSuite, ProblemSuite};
 // use kurobako::record::{BenchmarkRecord, StudyRecord};
 // use kurobako::variable::Variable;
 // use kurobako_core::{Error, Result};
@@ -40,12 +40,12 @@ macro_rules! print_json {
 enum Opt {
     Solver(KurobakoSolverRecipe),
     Problem(KurobakoProblemRecipe),
+    ProblemSuite(ProblemSuite),
     Study(StudyRecipe),
     Studies(StudiesRecipe),
     Run(RunnerOpt),
     Report(ReportOpt),
     Plot(PlotOpt),
-    // ProblemSuite(KurobakoProblemSuite),
     // Exam(ExamRecipe),
     // MultiExam(MultiExamRecipe),
     // Var(Variable),
@@ -60,6 +60,11 @@ fn main() -> trackable::result::TopLevelResult {
         }
         Opt::Problem(x) => {
             print_json!(x);
+        }
+        Opt::ProblemSuite(p) => {
+            for p in p.recipes() {
+                print_json!(p);
+            }
         }
         Opt::Study(x) => {
             print_json!(x);
@@ -98,66 +103,6 @@ fn main() -> trackable::result::TopLevelResult {
 //         Opt::Var(p) => {
 //             track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?
 //         }
-//         Opt::ProblemSuite(p) => {
-//             for p in p.problem_specs() {
-//                 track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?;
-//                 println!();
-//             }
-//         }
 //     }
-//     Ok(())
-// }
-
-// fn handle_plot_command(opt: PlotOpt) -> Result<()> {
-//     use std::fs;
-
-//     track!(fs::create_dir_all(&opt.output_dir).map_err(Error::from); opt.output_dir)?;
-
-//     let stdin = std::io::stdin();
-//     let mut studies = Vec::new();
-//     for study in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
-//         match track!(study.map_err(Error::from)) {
-//             Err(e) => {
-//                 eprintln!("{}", e);
-//             }
-//             Ok(study) => {
-//                 let study: StudyRecord = study;
-//                 // TODO
-//                 // if let Some(budget) = opt.budget {
-//                 //     study.limit_budget(budget);
-//                 // }
-//                 studies.push(study);
-//             }
-//         }
-//     }
-
-//     track!(opt.inner.plot_problems(&studies, opt.output_dir))?;
-//     Ok(())
-// }
-
-// fn handle_plot_scatter_command(opt: PlotScatterOpt) -> Result<()> {
-//     use std::fs;
-
-//     track!(fs::create_dir_all(&opt.output_dir).map_err(Error::from); opt.output_dir)?;
-
-//     let stdin = std::io::stdin();
-//     let mut studies = Vec::new();
-//     for study in serde_json::Deserializer::from_reader(stdin.lock()).into_iter() {
-//         match track!(study.map_err(Error::from)) {
-//             Err(e) => {
-//                 eprintln!("{}", e);
-//             }
-//             Ok(study) => {
-//                 let study: StudyRecord = study;
-//                 // TODO
-//                 // if let Some(budget) = opt.budget {
-//                 //     study.limit_budget(budget);
-//                 // }
-//                 studies.push(study);
-//             }
-//         }
-//     }
-
-//     track!(opt.inner.plot_problems(&studies, opt.output_dir))?;
 //     Ok(())
 // }
