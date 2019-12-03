@@ -10,6 +10,8 @@ use kurobako_problems::{hpobench, nasbench, sigopt};
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
+mod study;
+
 /// Problem recipe.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
