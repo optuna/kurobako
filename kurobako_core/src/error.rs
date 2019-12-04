@@ -22,6 +22,11 @@ impl From<std::fmt::Error> for Error {
         ErrorKind::InvalidInput.cause(f).into()
     }
 }
+impl From<std::num::ParseIntError> for Error {
+    fn from(f: std::num::ParseIntError) -> Self {
+        ErrorKind::InvalidInput.cause(f).into()
+    }
+}
 impl<T> From<std::sync::PoisonError<T>> for Error {
     fn from(f: std::sync::PoisonError<T>) -> Self {
         ErrorKind::Other.cause(f.to_string()).into()

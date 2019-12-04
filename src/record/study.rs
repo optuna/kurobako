@@ -7,7 +7,7 @@ use chrono::Local;
 use kurobako_core::num::OrderedFloat;
 use kurobako_core::problem::ProblemSpec;
 use kurobako_core::solver::SolverSpec;
-use kurobako_core::trial::TrialId;
+use kurobako_core::trial::{Params, TrialId, Values};
 use kurobako_core::{Error, Result};
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -25,6 +25,7 @@ pub struct StudyRecordBuilder {
     pub problem: ProblemSpec,
     start_time: DateTime,
     trials: BTreeMap<TrialId, TrialRecord>,
+    pareto_frontier: BTreeMap<TrialId, (Params, Values)>,
 }
 impl StudyRecordBuilder {
     pub fn new(recipe: StudyRecipe, solver: SolverSpec, problem: ProblemSpec) -> Self {
@@ -34,6 +35,7 @@ impl StudyRecordBuilder {
             problem,
             start_time: Local::now(),
             trials: BTreeMap::new(),
+            pareto_frontier: BTreeMap::new(),
         }
     }
 
@@ -43,14 +45,34 @@ impl StudyRecordBuilder {
             params: trial.params.clone(),
             evaluations: Vec::new(),
         });
+
         t.evaluations.push(EvaluationRecord {
-            values: trial.values,
+            values: trial.values.clone(),
             start_step: trial.start_step,
             end_step: trial.end_step,
             ask_elapsed: trial.ask_elapsed,
             tell_elapsed: trial.tell_elapsed,
             evaluate_elapsed: trial.evaluate_elapsed,
         });
+
+        if t.steps() == self.problem.steps.last() {
+            let is_dominated = self
+                .pareto_frontier
+                .values()
+                .any(|(_, vs)| vs.partial_cmp(&trial.values) == Some(Ordering::Less));
+            if !is_dominated {
+                self.pareto_frontier
+                    .insert(trial.id, (trial.params, trial.values));
+            }
+        }
+    }
+
+    pub fn pareto_frontier<'a>(
+        &'a self,
+    ) -> impl 'a + Iterator<Item = (TrialId, &'a Params, &'a Values)> {
+        self.pareto_frontier
+            .iter()
+            .map(|(&id, (params, values))| (id, params, values))
     }
 
     pub fn finish(self) -> StudyRecord {

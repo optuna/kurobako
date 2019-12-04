@@ -10,6 +10,7 @@ use kurobako_core::problem::{
 use kurobako_core::registry::FactoryRegistry;
 use kurobako_core::rng::ArcRng;
 use kurobako_core::solver::{BoxSolver, Solver as _, SolverFactory as _, SolverSpec};
+use kurobako_core::trial::Values;
 use kurobako_core::trial::{EvaluatedTrial, IdGen, NextTrial, TrialId};
 use kurobako_core::{Error, ErrorKind, Result};
 use rand;
@@ -37,6 +38,9 @@ thread_local! {
 pub struct RunnerOpt {
     #[structopt(long, default_value = "1")]
     pub parallelism: NonZeroUsize,
+
+    #[structopt(long, short = "q")]
+    pub quiet: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -73,7 +77,12 @@ pub struct Runner {
 }
 impl Runner {
     pub fn new(opt: RunnerOpt) -> Self {
-        let mpb = MultiProgress::with_draw_target(ProgressDrawTarget::stderr_with_hz(1));
+        let target = if opt.quiet {
+            ProgressDrawTarget::hidden()
+        } else {
+            ProgressDrawTarget::stderr_with_hz(1)
+        };
+        let mpb = MultiProgress::with_draw_target(target);
         Self {
             mpb,
             opt,
@@ -172,7 +181,7 @@ impl Runner {
 }
 
 #[derive(Debug)]
-struct StudyRunner {
+pub struct StudyRunner {
     solver: BoxSolver,
     solver_spec: SolverSpec,
     problem: BoxProblem,
@@ -186,6 +195,13 @@ struct StudyRunner {
     study_steps: u64,
 }
 impl StudyRunner {
+    // TODO
+    pub fn new2(study: &StudyRecipe) -> Result<(Self, MultiProgress)> {
+        let mpb = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
+        let this = track!(Self::new(study, &mpb, Cancel::new()))?;
+        Ok((this, mpb))
+    }
+
     fn new(study: &StudyRecipe, mpb: &MultiProgress, cancel: Cancel) -> Result<Self> {
         // TODO: check capabilities
         REGISTRY.with(|registry| {
@@ -234,7 +250,7 @@ impl StudyRunner {
         })
     }
 
-    fn run(mut self) -> Result<StudyRecord> {
+    pub fn run_init(&mut self) -> Result<()> {
         // TODO: refactor redundant code
         REGISTRY.with::<_, Result<()>>(|registry| {
             let registry = track!(registry.lock().map_err(Error::from))?;
@@ -258,45 +274,69 @@ impl StudyRunner {
 
         self.pb.reset_elapsed();
 
-        while self.pb.position() < self.study_steps {
-            let start_step = self.pb.position();
+        Ok(())
+    }
 
-            let (asked_trial, ask_elapsed) =
-                ElapsedSeconds::try_time(|| track!(self.solver.ask(&mut self.idg)))?;
+    pub fn run_once(&mut self) -> Result<()> {
+        let start_step = self.pb.position();
 
-            // TODO: Fix scheduling implementation correctly.
-            let thread = track!(self.threads.assign(&asked_trial, &self.problem))?;
-            let thread_id = thread.thread_id;
+        let (asked_trial, ask_elapsed) =
+            ElapsedSeconds::try_time(|| track!(self.solver.ask(&mut self.idg)))?;
 
-            if let Some(next_step) = asked_trial.next_step {
-                let problem_spec = &self.problem_spec;
-                let ((elapsed_steps, evaluated_trial), evaluate_elapsed) =
-                    ElapsedSeconds::try_time(|| {
-                        track!(thread.evaluate(asked_trial.id, next_step, problem_spec))
-                    })?;
-                self.pb.inc(elapsed_steps);
-                let end_step = self.pb.position();
+        // TODO: Fix scheduling implementation correctly.
+        let thread = track!(self.threads.assign(&asked_trial, &self.problem))?;
+        let thread_id = thread.thread_id;
 
-                if end_step < self.study_steps {
-                    let ((), tell_elapsed) = ElapsedSeconds::try_time(|| {
-                        track!(self.solver.tell(evaluated_trial.clone()))
-                    })?;
+        if let Some(next_step) = asked_trial.next_step {
+            let problem_spec = &self.problem_spec;
+            let ((elapsed_steps, evaluated_trial), evaluate_elapsed) =
+                ElapsedSeconds::try_time(|| {
+                    track!(thread.evaluate(asked_trial.id, next_step, problem_spec))
+                })?;
+            self.pb.inc(elapsed_steps);
+            let end_step = self.pb.position();
 
-                    self.study_record.add_trial(TrialRecordBuilder {
-                        id: asked_trial.id,
-                        thread_id,
-                        params: asked_trial.params,
-                        values: evaluated_trial.values,
-                        start_step,
-                        end_step,
-                        ask_elapsed,
-                        tell_elapsed,
-                        evaluate_elapsed,
-                    });
-                }
-            } else {
-                thread.prune(asked_trial.id);
+            if end_step < self.study_steps {
+                let ((), tell_elapsed) =
+                    ElapsedSeconds::try_time(|| track!(self.solver.tell(evaluated_trial.clone())))?;
+
+                self.study_record.add_trial(TrialRecordBuilder {
+                    id: asked_trial.id,
+                    thread_id,
+                    params: asked_trial.params,
+                    values: evaluated_trial.values,
+                    start_step,
+                    end_step,
+                    ask_elapsed,
+                    tell_elapsed,
+                    evaluate_elapsed,
+                });
             }
+        } else {
+            thread.prune(asked_trial.id);
+        }
+
+        Ok(())
+    }
+
+    pub fn current_step(&self) -> u64 {
+        self.pb.position()
+    }
+
+    pub fn max_step(&self) -> u64 {
+        self.study_steps
+    }
+
+    pub fn best_values(&self) -> Option<&Values> {
+        // TODO: note about `last()`
+        self.study_record.pareto_frontier().map(|x| x.2).last()
+    }
+
+    fn run(mut self) -> Result<StudyRecord> {
+        track!(self.run_init())?;
+
+        while self.pb.position() < self.study_steps {
+            track!(self.run_once())?;
         }
 
         self.pb.finish_and_clear();

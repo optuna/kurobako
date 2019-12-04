@@ -2,6 +2,7 @@
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std;
+use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 
@@ -107,6 +108,11 @@ impl Params {
         self.0
     }
 
+    /// Returns a reference to the parameter values.
+    pub fn get(&self) -> &[f64] {
+        &self.0
+    }
+
     fn ordered_floats<'a>(&'a self) -> impl 'a + Iterator<Item = OrderedFloat<f64>> {
         self.0.iter().copied().map(OrderedFloat)
     }
@@ -153,6 +159,26 @@ impl Values {
 impl PartialEq for Values {
     fn eq(&self, other: &Self) -> bool {
         self.ordered_floats().eq(other.ordered_floats())
+    }
+}
+impl PartialOrd for Values {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let mut ord = None;
+        for (a, b) in self.0.iter().zip(other.0.iter()) {
+            if ord == None {
+                ord = a.partial_cmp(b);
+                if ord == None {
+                    return None;
+                }
+            } else if ord != a.partial_cmp(b) {
+                return None;
+            }
+        }
+        if ord == None {
+            Some(Ordering::Equal) // Both instances are empty.
+        } else {
+            ord
+        }
     }
 }
 impl Eq for Values {}

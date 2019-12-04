@@ -60,6 +60,7 @@ enum InnerRecipe {
     Sigopt(sigopt::SigoptProblemRecipe),
     Nasbench(nasbench::NasbenchProblemRecipe),
     Hpobench(hpobench::HpobenchProblemRecipe),
+    Study(self::study::StudyProblemRecipe),
 }
 impl ProblemRecipe for InnerRecipe {
     type Factory = BoxProblemFactory;
@@ -70,6 +71,7 @@ impl ProblemRecipe for InnerRecipe {
             Self::Sigopt(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
             Self::Nasbench(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
             Self::Hpobench(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
+            Self::Study(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
         }
     }
 }

@@ -19,9 +19,6 @@ macro_rules! track_writeln {
     }
 }
 
-// pub mod exam;
-// pub mod homonym;
-// pub mod multi_exam;
 pub mod markdown;
 pub mod plot;
 pub mod problem;

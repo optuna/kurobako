@@ -154,6 +154,16 @@ impl VariableBuilder {
         })
     }
 }
+impl From<Variable> for VariableBuilder {
+    fn from(f: Variable) -> Self {
+        Self {
+            name: f.name,
+            range: f.range,
+            distribution: f.distribution,
+            constraint: f.constraint,
+        }
+    }
+}
 
 /// A variable in a domain.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

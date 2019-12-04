@@ -39,8 +39,6 @@ enum Opt {
     Report(ReportOpt),
     Plot(PlotOpt),
     Var(Var),
-    // Exam(ExamRecipe),
-    // MultiExam(MultiExamRecipe),
 }
 
 fn main() -> trackable::result::TopLevelResult {
@@ -88,13 +86,3 @@ fn main() -> trackable::result::TopLevelResult {
 
     Ok(())
 }
-
-//         Opt::Exam(p) => {
-//             track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?
-//         }
-//         Opt::MultiExam(p) => {
-//             track!(serde_json::to_writer(std::io::stdout().lock(), &p).map_err(Error::from))?
-//         }
-//     }
-//     Ok(())
-// }

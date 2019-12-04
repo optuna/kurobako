@@ -42,6 +42,10 @@ impl VarPath {
     pub fn pop(&mut self) {
         self.0.pop();
     }
+
+    pub fn components<'a>(&'a self) -> impl 'a + Iterator<Item = &'a str> {
+        self.0.iter().map(|x| x.as_str())
+    }
 }
 impl fmt::Display for VarPath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
