@@ -61,8 +61,18 @@ impl StudyRecordBuilder {
                 .values()
                 .any(|(_, vs)| vs.partial_cmp(&trial.values) == Some(Ordering::Less));
             if !is_dominated {
+                let dominated = self
+                    .pareto_frontier
+                    .iter()
+                    .filter(|(_, (_, vs))| trial.values.partial_cmp(vs) == Some(Ordering::Less))
+                    .map(|(&id, _)| id)
+                    .collect::<Vec<_>>();
+
                 self.pareto_frontier
                     .insert(trial.id, (trial.params, trial.values));
+                for id in dominated {
+                    self.pareto_frontier.remove(&id);
+                }
             }
         }
     }
