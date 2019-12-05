@@ -110,7 +110,7 @@ impl StudyProblem {
             match json {
                 serde_json::Value::Object(ref mut x) => {
                     json = x
-                        .entry(c.clone())
+                        .entry(c)
                         .or_insert_with(|| serde_json::Value::Object(Default::default()));
                 }
                 serde_json::Value::Array(ref mut x) => {
