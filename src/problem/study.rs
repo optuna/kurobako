@@ -30,6 +30,8 @@ impl ProblemRecipe for StudyProblemRecipe {
     fn create_factory(&self, registry: &FactoryRegistry) -> Result<Self::Factory> {
         let study_json = self.study.clone();
         let study: StudyRecipe = track!(serde_json::from_value(study_json).map_err(Error::from))?;
+
+        // TODO: registry.get_or_create_problem_factory()
         let problem = track!(study.problem.create_factory(registry))?;
         let solver = track!(study.solver.create_factory(registry))?;
         Ok(StudyProblemFactory {
