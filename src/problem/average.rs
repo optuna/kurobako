@@ -1,6 +1,6 @@
 use crate::record::{ProblemRecord, StudyRecord};
 use kurobako_core::domain;
-use kurobako_core::json::{self, JsonRecipe};
+use kurobako_core::json::JsonRecipe;
 use kurobako_core::problem::{
     BoxEvaluator, BoxProblem, BoxProblemFactory, Evaluator, Problem, ProblemFactory, ProblemRecipe,
     ProblemSpec, ProblemSpecBuilder,
@@ -10,7 +10,6 @@ use kurobako_core::rng::ArcRng;
 use kurobako_core::trial::{Params, Values};
 use kurobako_core::{Error, ErrorKind, Result};
 use serde::{Deserialize, Serialize};
-use serde_json;
 use std::sync::{Arc, Mutex};
 use structopt::StructOpt;
 
@@ -36,7 +35,19 @@ impl ProblemRecipe for AverageProblemRecipe {
             let b = track!(spec(p))?;
 
             track_assert_eq!(a.params_domain, b.params_domain, ErrorKind::InvalidInput);
-            track_assert_eq!(a.values_domain, b.values_domain, ErrorKind::InvalidInput);
+            track_assert_eq!(
+                a.values_domain
+                    .variables()
+                    .iter()
+                    .map(|v| v.range())
+                    .collect::<Vec<_>>(),
+                b.values_domain
+                    .variables()
+                    .iter()
+                    .map(|v| v.range())
+                    .collect::<Vec<_>>(),
+                ErrorKind::InvalidInput
+            );
             track_assert_eq!(a.steps, b.steps, ErrorKind::InvalidInput);
         }
 
@@ -67,6 +78,7 @@ impl ProblemFactory for AverageProblemFactory {
 
         let inner_spec = track!(spec(&self.problems[0]))?;
 
+        // TODO:
         for v in inner_spec.values_domain.variables().iter().cloned() {
             builder = builder.value(v.into());
         }
@@ -110,12 +122,12 @@ pub struct StudyEvaluator {
 }
 impl Evaluator for StudyEvaluator {
     fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
-        let mut current_step = None;
+        // let mut current_step = None;
         for evaluator in &self.evaluators {
-            let (step, values) = track!(evaluator.evaluate(next_step))?;
-            if current_step.is_none() {
-                current_step = Some(step);
-            }
+            // let (step, values) = track!(evaluator.evaluate(next_step))?;
+            // if current_step.is_none() {
+            //     current_step = Some(step);
+            // }
         }
         panic!()
     }
