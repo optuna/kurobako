@@ -1,5 +1,4 @@
-use crate::record::{ProblemRecord, StudyRecord};
-use kurobako_core::domain;
+use kurobako_core::domain::VariableBuilder;
 use kurobako_core::json::JsonRecipe;
 use kurobako_core::problem::{
     BoxEvaluator, BoxProblem, BoxProblemFactory, Evaluator, Problem, ProblemFactory, ProblemRecipe,
@@ -9,7 +8,10 @@ use kurobako_core::registry::FactoryRegistry;
 use kurobako_core::rng::ArcRng;
 use kurobako_core::trial::{Params, Values};
 use kurobako_core::{Error, ErrorKind, Result};
+use num;
+use rustats::fundamental::average;
 use serde::{Deserialize, Serialize};
+use std::cmp;
 use std::sync::{Arc, Mutex};
 use structopt::StructOpt;
 
@@ -30,8 +32,9 @@ impl ProblemRecipe for AverageProblemRecipe {
             .map(|p| track!(registry.get_or_create_problem_factory_from_json(p)))
             .collect::<Result<Vec<_>>>()?;
 
+        let mut specs = vec![track!(spec(&problems[0]))?];
         for p in problems.iter().skip(1) {
-            let a = track!(spec(&problems[0]))?;
+            let a = &specs[0];
             let b = track!(spec(p))?;
 
             track_assert_eq!(a.params_domain, b.params_domain, ErrorKind::InvalidInput);
@@ -49,15 +52,26 @@ impl ProblemRecipe for AverageProblemRecipe {
                 ErrorKind::InvalidInput
             );
             track_assert_eq!(a.steps, b.steps, ErrorKind::InvalidInput);
+            specs.push(b);
         }
 
-        Ok(AverageProblemFactory { problems })
+        Ok(AverageProblemFactory { problems, specs })
     }
 }
 
 #[derive(Debug)]
 pub struct AverageProblemFactory {
     problems: Vec<Arc<Mutex<BoxProblemFactory>>>,
+    specs: Vec<ProblemSpec>,
+}
+impl AverageProblemFactory {
+    fn least_common_multiple_step(&self) -> u64 {
+        let mut n = self.specs[0].steps.last();
+        for spec in &self.specs[1..] {
+            n = num::integer::lcm(n, spec.steps.last());
+        }
+        n
+    }
 }
 impl ProblemFactory for AverageProblemFactory {
     type Problem = AverageProblem;
@@ -69,22 +83,19 @@ impl ProblemFactory for AverageProblemFactory {
                 &format!("kurobako_solvers={}", env!("CARGO_PKG_VERSION")),
             );
 
-        for p in &self.problems {
-            let inner_spec = track!(spec(p))?;
-            for (k, v) in inner_spec.attrs {
-                builder = builder.attr(&format!("{}.{}", inner_spec.name, k), &v);
+        for inner_spec in &self.specs {
+            for (k, v) in &inner_spec.attrs {
+                builder = builder.attr(&format!("{}.{}", inner_spec.name, k), v);
             }
         }
 
-        let inner_spec = track!(spec(&self.problems[0]))?;
+        let inner_spec = &self.specs[0];
 
-        // TODO:
         for v in inner_spec.values_domain.variables().iter().cloned() {
-            builder = builder.value(v.into());
+            builder = builder.value(VariableBuilder::from(v).name("Objective Value"));
         }
 
-        // TODO:
-        builder = builder.steps(inner_spec.steps.iter());
+        builder = builder.steps(1..=self.least_common_multiple_step());
 
         track!(builder.finish())
     }
@@ -95,13 +106,22 @@ impl ProblemFactory for AverageProblemFactory {
             .iter()
             .map(|p| track!(track!(p.lock().map_err(Error::from))?.create_problem(rng.clone())))
             .collect::<Result<Vec<_>>>()?;
-        Ok(AverageProblem { problems })
+        let lcm_step = self.least_common_multiple_step();
+        Ok(AverageProblem {
+            problems,
+            step_scales: self
+                .specs
+                .iter()
+                .map(|s| lcm_step / s.steps.last())
+                .collect(),
+        })
     }
 }
 
 #[derive(Debug)]
 pub struct AverageProblem {
     problems: Vec<BoxProblem>,
+    step_scales: Vec<u64>,
 }
 impl Problem for AverageProblem {
     type Evaluator = StudyEvaluator;
@@ -110,7 +130,15 @@ impl Problem for AverageProblem {
         let evaluators = self
             .problems
             .iter()
-            .map(|p| track!(p.create_evaluator(params.clone())))
+            .zip(self.step_scales.iter().cloned())
+            .map(|(p, scale)| {
+                Ok(EvaluatorState {
+                    inner: track!(p.create_evaluator(params.clone()))?,
+                    scale,
+                    current_step: 0,
+                    last_values: None,
+                })
+            })
             .collect::<Result<Vec<_>>>()?;
         Ok(StudyEvaluator { evaluators })
     }
@@ -118,22 +146,54 @@ impl Problem for AverageProblem {
 
 #[derive(Debug)]
 pub struct StudyEvaluator {
-    evaluators: Vec<BoxEvaluator>,
+    evaluators: Vec<EvaluatorState>,
 }
 impl Evaluator for StudyEvaluator {
     fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
-        // let mut current_step = None;
-        for evaluator in &self.evaluators {
-            // let (step, values) = track!(evaluator.evaluate(next_step))?;
-            // if current_step.is_none() {
-            //     current_step = Some(step);
-            // }
+        loop {
+            self.evaluators.sort_by_key(|e| e.current_step);
+            let eval = &mut self.evaluators[0];
+            let next_step = cmp::max(next_step, eval.current_step + 1);
+            let (current_step, values) = track!(eval
+                .inner
+                .evaluate((next_step + eval.scale - 1) / eval.scale))?;
+            eval.last_values = Some(values);
+            eval.current_step = current_step * eval.scale;
+            let current_step = eval.current_step;
+
+            if self
+                .evaluators
+                .iter()
+                .all(|e| e.current_step == current_step)
+            {
+                let dim = self.evaluators[0]
+                    .last_values
+                    .as_ref()
+                    .unwrap_or_else(|| unreachable!())
+                    .len();
+                let values =
+                    (0..dim)
+                        .map(|i| {
+                            average(self.evaluators.iter().map(|e| {
+                                e.last_values.as_ref().unwrap_or_else(|| unreachable!())[i]
+                            }))
+                        })
+                        .collect();
+                return Ok((current_step, Values::new(values)));
+            }
         }
-        panic!()
     }
 }
 
 fn spec(factory: &Arc<Mutex<BoxProblemFactory>>) -> Result<ProblemSpec> {
     let factory = track!(factory.lock().map_err(Error::from))?;
     track!(factory.specification())
+}
+
+#[derive(Debug)]
+struct EvaluatorState {
+    inner: BoxEvaluator,
+    scale: u64,
+    current_step: u64,
+    last_values: Option<Values>,
 }

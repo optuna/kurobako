@@ -67,6 +67,12 @@ impl VariableBuilder {
         }
     }
 
+    /// Sets the name of this variable.
+    pub fn name(mut self, name: &str) -> Self {
+        self.name = name.to_owned();
+        self
+    }
+
     /// Sets the distribution of this variable to `Distribution::Uniform`.
     ///
     /// Note that `Distribution::Uniform` is the default distribution.
