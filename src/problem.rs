@@ -10,6 +10,7 @@ use kurobako_problems::{hpobench, nasbench, sigopt};
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
+mod average;
 mod rank;
 mod study;
 
@@ -63,6 +64,7 @@ enum InnerRecipe {
     Hpobench(hpobench::HpobenchProblemRecipe),
     Study(self::study::StudyProblemRecipe),
     Rank(self::rank::RankProblemRecipe),
+    Average(self::average::AverageProblemRecipe),
 }
 impl ProblemRecipe for InnerRecipe {
     type Factory = BoxProblemFactory;
@@ -75,6 +77,7 @@ impl ProblemRecipe for InnerRecipe {
             Self::Hpobench(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
             Self::Study(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
             Self::Rank(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
+            Self::Average(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
         }
     }
 }
