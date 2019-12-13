@@ -342,12 +342,12 @@ impl Reporter {
             let mut writer = track!(writer.heading(&format!("ID: {}", id)))?;
             let mut list = writer.list();
             track!(list.item(&format!(
-                "problem: [{}](id-{})",
+                "problem: [{}](#id-{})",
                 problem_name,
                 track!(studies[0].problem.id())?
             )))?;
             track!(list.item(&format!(
-                "solver: [{}](id-{})",
+                "solver: [{}](#id-{})",
                 solver_name,
                 track!(studies[0].solver.id())?
             )))?;
