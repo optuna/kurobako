@@ -4,8 +4,9 @@ use crate::markdown::MarkdownWriter;
 use crate::record::{ProblemRecord, SolverRecord, StudyRecord};
 use kurobako_core::num::OrderedFloat;
 use kurobako_core::{Error, ErrorKind, Result};
+use num_integer;
 use rustats::fundamental::{average, stddev};
-use rustats::hypothesis_testings::{Alpha, MannWhitneyU};
+use rustats::hypothesis_testings::MannWhitneyU;
 use serde::Serialize;
 use serde_json;
 use sha2::{Digest, Sha256};
@@ -134,6 +135,7 @@ impl Reporter {
         let mut borda_ranking = Borda::new(solver_ids.iter());
         let mut firsts_ranking = Firsts::new(solver_ids.iter());
         let mut excluded_problems = Vec::new();
+        let alpha = self.alpha(solvers.len());
         for (problem_id, contest) in contests {
             if !solver_ids
                 .iter()
@@ -146,12 +148,12 @@ impl Reporter {
             borda_ranking.compete(|&a, &b| {
                 let a = &contest.competitors[a];
                 let b = &contest.competitors[b];
-                self.compete(a, b, contest.auc_start_step)
+                self.compete(a, b, contest.auc_start_step, alpha)
             });
             firsts_ranking.compete(|&a, &b| {
                 let a = &contest.competitors[a];
                 let b = &contest.competitors[b];
-                self.compete(a, b, contest.auc_start_step)
+                self.compete(a, b, contest.auc_start_step, alpha)
             });
         }
 
@@ -217,6 +219,7 @@ impl Reporter {
             // FIXME: Reduce redundant calculation.
             let auc_start_step = contest.auc_start_step;
             let mut rankings = BTreeMap::new();
+            let alpha = self.alpha(contest.competitors.len());
             for (solver_id0, competitor0) in &contest.competitors {
                 let mut ranking = 1;
                 for (solver_id1, competitor1) in &contest.competitors {
@@ -224,7 +227,9 @@ impl Reporter {
                         continue;
                     }
 
-                    if self.compete(competitor0, competitor1, auc_start_step) == Ordering::Greater {
+                    if self.compete(competitor0, competitor1, auc_start_step, alpha)
+                        == Ordering::Greater
+                    {
                         ranking += 1;
                     }
                 }
@@ -394,16 +399,17 @@ impl Reporter {
         Ok(map.into_iter().map(|(k, v)| (k.1, v)))
     }
 
-    fn compete(&self, a: &Competitor, b: &Competitor, auc_start_step: u64) -> Ordering {
+    fn compete(&self, a: &Competitor, b: &Competitor, auc_start_step: u64, alpha: f64) -> Ordering {
         for metric in &self.opt.metrics {
             let order = match metric {
                 Metric::BestValue => {
-                    MannWhitneyU::new(a.best_values(), b.best_values()).order(Alpha::P05)
+                    MannWhitneyU::new(a.best_values(), b.best_values()).order(alpha)
                 }
-                Metric::Auc => MannWhitneyU::new(a.aucs(auc_start_step), b.aucs(auc_start_step))
-                    .order(Alpha::P05),
+                Metric::Auc => {
+                    MannWhitneyU::new(a.aucs(auc_start_step), b.aucs(auc_start_step)).order(alpha)
+                }
                 Metric::ElapsedTime => {
-                    MannWhitneyU::new(a.elapsed_times(), b.elapsed_times()).order(Alpha::P05)
+                    MannWhitneyU::new(a.elapsed_times(), b.elapsed_times()).order(alpha)
                 }
             };
             if order != Ordering::Equal {
@@ -411,6 +417,20 @@ impl Reporter {
             }
         }
         Ordering::Equal
+    }
+
+    fn alpha(&self, solvers: usize) -> f64 {
+        let n = num_integer::binomial(solvers, 2);
+        let candidates = [
+            0.05f64, 0.025, 0.01, 0.0075, 0.005, 0.0025, 0.001, 0.00075, 0.0005, 0.00025, 0.0001,
+            0.000075, 0.00005, 0.000025, 0.00001,
+        ];
+        for &a in &candidates {
+            if 1.0 - (1.0 - a).powi(n as i32) < 0.05 {
+                return a;
+            }
+        }
+        0.00001
     }
 
     fn contests(&self) -> Result<BTreeMap<String, Contest>> {
