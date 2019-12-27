@@ -60,7 +60,7 @@ pub struct Reporter {
 impl Reporter {
     pub fn new(studies: Vec<StudyRecord>, mut opt: ReportOpt) -> Self {
         if opt.metrics.is_empty() {
-            opt.metrics = vec![Metric::BestValue, Metric::Auc, Metric::ElapsedTime];
+            opt.metrics = vec![Metric::BestValue, Metric::Auc];
         }
         Self { studies, opt }
     }
