@@ -422,15 +422,15 @@ impl Reporter {
     fn alpha(&self, solvers: usize) -> f64 {
         let n = num_integer::binomial(solvers, 2);
         let candidates = [
-            0.05f64, 0.025, 0.01, 0.0075, 0.005, 0.0025, 0.001, 0.00075, 0.0005, 0.00025, 0.0001,
-            0.000075, 0.00005, 0.000025, 0.00001,
+            0.05f64, 0.025, 0.01, 0.007_5, 0.005, 0.002_5, 0.001, 0.000_75, 0.000_5, 0.000_25,
+            0.000_1, 0.000_075, 0.000_05, 0.000_025, 0.000_01,
         ];
         for &a in &candidates {
             if 1.0 - (1.0 - a).powi(n as i32) < 0.05 {
                 return a;
             }
         }
-        0.00001
+        0.000_01
     }
 
     fn contests(&self) -> Result<BTreeMap<String, Contest>> {
