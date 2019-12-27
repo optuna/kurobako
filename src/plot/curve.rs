@@ -156,9 +156,8 @@ impl<'a> Problem<'a> {
         };
 
         let mut s = format!(
-            "set title {:?} noenhanced; set ylabel {:?} noenhanced; set xlabel \"Budget\"; set grid;",
-            self.problem.spec.name,
-            ylabel
+            "set title {:?}; set ylabel {:?}; set xlabel \"Budget\"; set grid;",
+            self.problem.spec.name, ylabel
         );
         s += "set datafile missing \"NaN\";";
 
@@ -172,7 +171,7 @@ impl<'a> Problem<'a> {
             self.problem_id
         ));
         s += &format!(
-            "set terminal pngcairo size {},{}; set output {:?};",
+            "set terminal pngcairo size {},{} noenhanced; set output {:?};",
             self.opt.width, self.opt.height, output
         );
 

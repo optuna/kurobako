@@ -115,9 +115,9 @@ impl<'a> Study<'a> {
             problem.spec.name, solver.spec.name
         );
         let mut s = format!(
-            "set title {:?} noenhanced; \
-             set ylabel {:?} noenhanced; \
-             set xlabel \"Parameter: {}\" noenhanced; \
+            "set title {:?}; \
+             set ylabel {:?}; \
+             set xlabel \"Parameter: {}\"; \
              set grid;",
             title,
             problem.spec.values_domain.variables()[0].name(),
@@ -133,7 +133,7 @@ impl<'a> Study<'a> {
         ));
 
         s += &format!(
-            "set terminal pngcairo size {},{}; set output {:?};",
+            "set terminal pngcairo size {},{} noenhanced; set output {:?};",
             opt.width, opt.height, output
         );
         s += "set palette defined (0 'blue', 1 'grey', 2 'red');";
