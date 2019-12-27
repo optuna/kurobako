@@ -7,24 +7,36 @@ use kurobako_core::solver::{
     Capabilities, Solver, SolverFactory, SolverRecipe, SolverSpec, SolverSpecBuilder,
 };
 use kurobako_core::trial::{EvaluatedTrial, IdGen, NextTrial, Params};
-use kurobako_core::Result;
+use kurobako_core::{ErrorKind, Result};
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
+fn is_false(b: &bool) -> bool {
+    !b
+}
+
 /// Recipe of `RandomSolver`.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
-pub struct RandomSolverRecipe {}
+pub struct RandomSolverRecipe {
+    #[structopt(long)]
+    #[serde(default, skip_serializing_if = "is_false")]
+    ask_all_steps: bool,
+}
 impl SolverRecipe for RandomSolverRecipe {
     type Factory = RandomSolverFactory;
 
     fn create_factory(&self, _registry: &FactoryRegistry) -> Result<Self::Factory> {
-        Ok(RandomSolverFactory {})
+        Ok(RandomSolverFactory {
+            ask_all_steps: self.ask_all_steps,
+        })
     }
 }
 
 /// Factory of `RandomSolver`.
 #[derive(Debug)]
-pub struct RandomSolverFactory {}
+pub struct RandomSolverFactory {
+    ask_all_steps: bool,
+}
 impl SolverFactory for RandomSolverFactory {
     type Solver = RandomSolver;
 
@@ -42,6 +54,7 @@ impl SolverFactory for RandomSolverFactory {
         Ok(RandomSolver {
             problem: problem.clone(),
             rng,
+            current_step: if self.ask_all_steps { Some(0) } else { None },
         })
     }
 }
@@ -51,6 +64,7 @@ impl SolverFactory for RandomSolverFactory {
 pub struct RandomSolver {
     rng: ArcRng,
     problem: ProblemSpec,
+    current_step: Option<u64>,
 }
 impl Solver for RandomSolver {
     fn ask(&mut self, idg: &mut IdGen) -> Result<NextTrial> {
@@ -74,14 +88,23 @@ impl Solver for RandomSolver {
             params.push(param);
         }
 
+        let next_step = if let Some(current_step) = self.current_step {
+            let step = self.problem.steps.iter().find(|&s| s > current_step);
+            track_assert_some!(step, ErrorKind::Bug)
+        } else {
+            self.problem.steps.last()
+        };
         Ok(NextTrial {
             id: idg.generate(),
             params: Params::new(params),
-            next_step: Some(self.problem.steps.last()),
+            next_step: Some(next_step),
         })
     }
 
-    fn tell(&mut self, _trial: EvaluatedTrial) -> Result<()> {
+    fn tell(&mut self, trial: EvaluatedTrial) -> Result<()> {
+        if let Some(step) = &mut self.current_step {
+            *step = trial.current_step;
+        }
         Ok(())
     }
 }
