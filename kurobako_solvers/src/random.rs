@@ -11,6 +11,7 @@ use kurobako_core::{ErrorKind, Result};
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn is_false(b: &bool) -> bool {
     !b
 }
