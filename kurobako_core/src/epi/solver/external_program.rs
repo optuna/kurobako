@@ -83,7 +83,6 @@ impl SolverRecipe for ExternalProgramSolverRecipe {
             let mut f = f.borrow_mut();
             let key = track!(self.cache_key())?;
             if !f.contains_key(&key) {
-                eprintln!("Create new solver: {:?}", self);
                 f.insert(key.clone(), track!(self.create_new_factory(registry))?);
             }
             Ok(f[&key].clone())

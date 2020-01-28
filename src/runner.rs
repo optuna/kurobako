@@ -25,16 +25,8 @@ use std::num::NonZeroUsize;
 use std::sync::atomic::{self, AtomicUsize};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::thread_local;
 use structopt::StructOpt;
 use trackable::error::ErrorKindExt;
-
-thread_local! {
-    pub static REGISTRY: Mutex<FactoryRegistry> = Mutex::new(FactoryRegistry::new::<
-        KurobakoProblemRecipe,
-        KurobakoSolverRecipe,
-    >());
-}
 
 #[derive(Debug, Clone, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
@@ -213,80 +205,58 @@ impl StudyRunner {
     }
 
     fn with_mpb(study: &StudyRecipe, mpb: &MultiProgress, cancel: Cancel) -> Result<Self> {
-        REGISTRY.with(|registry| {
-            let registry = track!(registry.lock().map_err(Error::from))?;
+        let registry = FactoryRegistry::new::<KurobakoProblemRecipe, KurobakoSolverRecipe>();
 
-            let random_seed = study.seed.unwrap_or_else(rand::random);
-            let rng = ArcRng::new(random_seed);
+        let random_seed = study.seed.unwrap_or_else(rand::random);
+        let rng = ArcRng::new(random_seed);
 
-            let problem_factory = track!(study.problem.create_factory(&registry))?;
-            let problem_spec = track!(problem_factory.specification())?;
-            let problem = track!(problem_factory.create_problem(rng.clone()))?;
+        let problem_factory = track!(study.problem.create_factory(&registry))?;
+        let problem_spec = track!(problem_factory.specification())?;
+        let problem = track!(problem_factory.create_problem(rng.clone()))?;
 
-            let solver_factory = track!(study.solver.create_factory(&registry))?;
-            let solver_spec = track!(solver_factory.specification())?;
+        let solver_factory = track!(study.solver.create_factory(&registry))?;
+        let solver_spec = track!(solver_factory.specification())?;
 
-            let incapables = solver_spec
-                .capabilities
-                .incapables(&problem_spec.requirements())
-                .collect::<Vec<_>>();
-            track_assert!(incapables.is_empty(), ErrorKind::Incapable; incapables);
+        let incapables = solver_spec
+            .capabilities
+            .incapables(&problem_spec.requirements())
+            .collect::<Vec<_>>();
+        track_assert!(incapables.is_empty(), ErrorKind::Incapable; incapables);
 
-            let solver = track!(solver_factory.create_solver(rng.clone(), &problem_spec))?;
+        let solver = track!(solver_factory.create_solver(rng.clone(), &problem_spec))?;
 
-            let study_steps = problem_spec.steps.last() * study.budget;
-            let pb = mpb.add(ProgressBar::new(study_steps));
-            let pb_style = ProgressStyle::default_bar().template(&format!(
-                "(STUDY) [{{elapsed_precise}}] [STEPS {{pos:>6}}/{{len}} \
-                 {{percent:>3}}%] [ETA {{eta:>3}}] {:?} {:?}",
-                solver_spec.name, problem_spec.name
-            ));
-            pb.set_style(pb_style);
+        let study_steps = problem_spec.steps.last() * study.budget;
+        let pb = mpb.add(ProgressBar::new(study_steps));
+        let pb_style = ProgressStyle::default_bar().template(&format!(
+            "(STUDY) [{{elapsed_precise}}] [STEPS {{pos:>6}}/{{len}} \
+             {{percent:>3}}%] [ETA {{eta:>3}}] {:?} {:?}",
+            solver_spec.name, problem_spec.name
+        ));
+        pb.set_style(pb_style);
 
-            let mut recipe = study.clone();
-            recipe.seed = Some(random_seed);
-            let study_record =
-                StudyRecordBuilder::new(recipe, solver_spec.clone(), problem_spec.clone());
-            let threads = EvaluationThreads::new(study, rng.clone());
-            Ok(Self {
-                solver,
-                solver_spec,
-                problem,
-                problem_spec,
-                study_record,
-                rng,
-                pb,
-                cancel,
-                idg: IdGen::new(),
-                threads,
-                study_steps,
-                _mpb: None,
-            })
+        let mut recipe = study.clone();
+        recipe.seed = Some(random_seed);
+        let study_record =
+            StudyRecordBuilder::new(recipe, solver_spec.clone(), problem_spec.clone());
+        let threads = EvaluationThreads::new(study, rng.clone());
+        Ok(Self {
+            solver,
+            solver_spec,
+            problem,
+            problem_spec,
+            study_record,
+            rng,
+            pb,
+            cancel,
+            idg: IdGen::new(),
+            threads,
+            study_steps,
+            _mpb: None,
         })
     }
 
     pub fn run_init(&mut self) -> Result<()> {
-        // TODO: refactor redundant code
-        REGISTRY.with::<_, Result<()>>(|registry| {
-            let registry = track!(registry.lock().map_err(Error::from))?;
-
-            self.rng = ArcRng::new(self.study_record.recipe().seed.unwrap());
-
-            let problem_factory =
-                track!(self.study_record.recipe().problem.create_factory(&registry))?;
-            self.problem_spec = track!(problem_factory.specification())?;
-            self.problem = track!(problem_factory.create_problem(self.rng.clone()))?;
-
-            let solver_factory =
-                track!(self.study_record.recipe().solver.create_factory(&registry))?;
-            self.solver_spec = track!(solver_factory.specification())?;
-            self.solver =
-                track!(solver_factory.create_solver(self.rng.clone(), &self.problem_spec))?;
-            Ok(())
-        })?;
-
         self.pb.reset_elapsed();
-
         Ok(())
     }
 
