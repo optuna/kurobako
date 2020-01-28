@@ -20,9 +20,9 @@ use std::time::Duration;
 
 #[derive(Debug)]
 pub struct StudyRecordBuilder {
-    pub recipe: StudyRecipe, // TODO: private
-    pub solver: SolverSpec,
-    pub problem: ProblemSpec,
+    recipe: StudyRecipe,
+    solver: SolverSpec,
+    problem: ProblemSpec,
     start_time: DateTime,
     trials: BTreeMap<TrialId, TrialRecord>,
     pareto_frontier: BTreeMap<TrialId, (Params, Values)>,
@@ -37,6 +37,10 @@ impl StudyRecordBuilder {
             trials: BTreeMap::new(),
             pareto_frontier: BTreeMap::new(),
         }
+    }
+
+    pub fn recipe(&self) -> &StudyRecipe {
+        &self.recipe
     }
 
     pub fn add_trial(&mut self, trial: TrialRecordBuilder) {

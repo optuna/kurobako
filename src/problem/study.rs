@@ -1,7 +1,6 @@
 use crate::runner::StudyRunner;
 use crate::study::StudyRecipe;
 use crate::variable::Var;
-use indicatif::MultiProgress;
 use kurobako_core::domain::Range;
 use kurobako_core::json::{self, JsonRecipe};
 use kurobako_core::problem::{
@@ -31,7 +30,6 @@ impl ProblemRecipe for StudyProblemRecipe {
         let study_json = self.study.clone();
         let study: StudyRecipe = track!(serde_json::from_value(study_json).map_err(Error::from))?;
 
-        // TODO: registry.get_or_create_problem_factory()
         let problem = track!(study.problem.create_factory(registry))?;
         let solver = track!(study.solver.create_factory(registry))?;
         Ok(StudyProblemFactory {
@@ -70,13 +68,12 @@ impl ProblemFactory for StudyProblemFactory {
             spec = spec.param(v.to_domain_var());
         }
 
-        // TODO: only single-objective is supported
         for v in self.problem.values_domain.variables() {
             spec = spec.value(v.clone().into());
         }
 
         let steps = self.problem.steps.last() * self.budget;
-        spec = spec.steps(1..=steps); // TODO: optimize
+        spec = spec.steps(1..=steps); // FIXME: optimize
 
         track!(spec.finish())
     }
@@ -144,16 +141,15 @@ impl Problem for StudyProblem {
         let study = track!(self.bind(params.get()))?;
         let study: StudyRecipe =
             track!(serde_json::from_value(study.clone()).map_err(Error::from); study)?;
-        let (mut runner, mpb) = track!(StudyRunner::new2(&study))?;
+        let mut runner = track!(StudyRunner::new(&study))?;
         track!(runner.run_init())?;
-        Ok(StudyEvaluator { runner, mpb })
+        Ok(StudyEvaluator { runner })
     }
 }
 
 #[derive(Debug)]
 pub struct StudyEvaluator {
     runner: StudyRunner,
-    mpb: MultiProgress, // TODO: remove
 }
 impl Evaluator for StudyEvaluator {
     fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {

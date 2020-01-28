@@ -25,7 +25,6 @@ mod rankings;
 pub struct ReportOpt {
     #[structopt(
         long,
-        // default_value = "best-value", // TODO: best-value, auc, elapsed-time
         possible_values = Metric::POSSIBLE_VALUES
     )]
     pub metrics: Vec<Metric>,

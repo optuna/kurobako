@@ -55,7 +55,7 @@ mod defaults {
 
 /// Recipe of `OptunaSolver`.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
-#[allow(missing_docs)] // TODO: remove
+#[allow(missing_docs)]
 #[structopt(rename_all = "kebab-case")]
 pub struct OptunaSolverRecipe {
     #[structopt(

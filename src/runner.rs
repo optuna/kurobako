@@ -166,7 +166,13 @@ impl Runner {
     fn create_study_runners(&self, recipes: &[StudyRecipe]) -> Result<Vec<StudyRunner>> {
         recipes
             .iter()
-            .map(|recipe| track!(StudyRunner::new(recipe, &self.mpb, self.cancel.clone())))
+            .map(|recipe| {
+                track!(StudyRunner::with_mpb(
+                    recipe,
+                    &self.mpb,
+                    self.cancel.clone()
+                ))
+            })
             .collect()
     }
 
@@ -193,16 +199,17 @@ pub struct StudyRunner {
     idg: IdGen,
     threads: EvaluationThreads,
     study_steps: u64,
+    _mpb: Option<MultiProgress>,
 }
 impl StudyRunner {
-    // TODO
-    pub fn new2(study: &StudyRecipe) -> Result<(Self, MultiProgress)> {
+    pub fn new(study: &StudyRecipe) -> Result<Self> {
         let mpb = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
-        let this = track!(Self::new(study, &mpb, Cancel::new()))?;
-        Ok((this, mpb))
+        let mut this = track!(Self::with_mpb(study, &mpb, Cancel::new()))?;
+        this._mpb = Some(mpb);
+        Ok(this)
     }
 
-    fn new(study: &StudyRecipe, mpb: &MultiProgress, cancel: Cancel) -> Result<Self> {
+    fn with_mpb(study: &StudyRecipe, mpb: &MultiProgress, cancel: Cancel) -> Result<Self> {
         // TODO: check capabilities
         REGISTRY.with(|registry| {
             let registry = track!(registry.lock().map_err(Error::from))?;
@@ -246,6 +253,7 @@ impl StudyRunner {
                 idg: IdGen::new(),
                 threads,
                 study_steps,
+                _mpb: None,
             })
         })
     }
@@ -255,16 +263,17 @@ impl StudyRunner {
         REGISTRY.with::<_, Result<()>>(|registry| {
             let registry = track!(registry.lock().map_err(Error::from))?;
 
-            self.rng = ArcRng::new(self.study_record.recipe.seed.unwrap());
+            self.rng = ArcRng::new(self.study_record.recipe().seed.unwrap());
 
-            let problem_factory =
-                track!(registry.get_or_create_problem_factory(&self.study_record.recipe.problem))?;
+            let problem_factory = track!(
+                registry.get_or_create_problem_factory(&self.study_record.recipe().problem)
+            )?;
             let problem_factory = track!(problem_factory.lock().map_err(Error::from))?;
             self.problem_spec = track!(problem_factory.specification())?;
             self.problem = track!(problem_factory.create_problem(self.rng.clone()))?;
 
             let solver_factory =
-                track!(registry.get_or_create_solver_factory(&self.study_record.recipe.solver))?;
+                track!(registry.get_or_create_solver_factory(&self.study_record.recipe().solver))?;
             let solver_factory = track!(solver_factory.lock().map_err(Error::from))?;
             self.solver_spec = track!(solver_factory.specification())?;
             self.solver =
@@ -328,7 +337,8 @@ impl StudyRunner {
     }
 
     pub fn best_values(&self) -> Option<&Values> {
-        // TODO: note about `last()`
+        // Note that even if there are more than one trials on the pareto front,
+        // the only last one will be returned.
         self.study_record.pareto_frontier().map(|x| x.2).last()
     }
 
