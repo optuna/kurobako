@@ -145,7 +145,7 @@ impl Evaluator for NasbenchEvaluator {
             model
                 .epochs
                 .range((Bound::Included(epoch_num), Bound::Unbounded))
-                .nth(0),
+                .next(),
             ErrorKind::InvalidInput
         );
         let epoch = &epoch_candidates[self.sample_index % epoch_candidates.len()];

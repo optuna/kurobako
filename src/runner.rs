@@ -421,7 +421,7 @@ impl EvaluationThread {
                 .steps
                 .iter()
                 .skip_while(|&s| s < next_step)
-                .nth(0),
+                .next(),
             ErrorKind::Bug
         );
         let (current_step, values) = track!(state.evaluator.evaluate(next_step))?;
