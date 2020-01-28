@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use structopt::StructOpt;
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
@@ -25,9 +25,9 @@ pub struct RankProblemRecipe {
     pub baselines: Vec<PathBuf>,
 }
 impl RankProblemRecipe {
-    fn inner_problem_id(&self, factory: &Arc<Mutex<BoxProblemFactory>>) -> Result<String> {
+    fn inner_problem_id(&self, factory: &BoxProblemFactory) -> Result<String> {
         let recipe = track!(serde_json::from_value(self.problem.clone()).map_err(Error::from))?;
-        let spec = track!(track!(factory.lock().map_err(Error::from))?.specification())?;
+        let spec = track!(factory.specification())?;
         let record = ProblemRecord { recipe, spec };
         track!(record.id())
     }
@@ -50,8 +50,7 @@ impl ProblemRecipe for RankProblemRecipe {
     type Factory = RankProblemFactory;
 
     fn create_factory(&self, registry: &FactoryRegistry) -> Result<Self::Factory> {
-        let inner_factory =
-            track!(registry.get_or_create_problem_factory_from_json(&self.problem))?;
+        let inner_factory = track!(registry.create_problem_factory_from_json(&self.problem))?;
         let inner_problem_id = track!(self.inner_problem_id(&inner_factory))?;
         let studies = track!(self.load_baseline_studies(&inner_problem_id))?;
         let baseline = Arc::new(Baseline::new(&studies));
@@ -65,7 +64,7 @@ impl ProblemRecipe for RankProblemRecipe {
 
 #[derive(Debug)]
 pub struct RankProblemFactory {
-    inner_factory: Arc<Mutex<BoxProblemFactory>>,
+    inner_factory: BoxProblemFactory,
     baseline: Arc<Baseline>,
     baseline_studies: usize,
 }
@@ -73,8 +72,7 @@ impl ProblemFactory for RankProblemFactory {
     type Problem = RankProblem;
 
     fn specification(&self) -> Result<ProblemSpec> {
-        let inner_spec =
-            track!(track!(self.inner_factory.lock().map_err(Error::from))?.specification())?;
+        let inner_spec = track!(self.inner_factory.specification())?;
         let mut spec = ProblemSpecBuilder::new(&inner_spec.name)
             .attr(
                 "version",
@@ -106,8 +104,7 @@ impl ProblemFactory for RankProblemFactory {
     }
 
     fn create_problem(&self, rng: ArcRng) -> Result<Self::Problem> {
-        let inner_problem =
-            track!(track!(self.inner_factory.lock().map_err(Error::from))?.create_problem(rng))?;
+        let inner_problem = track!(self.inner_factory.create_problem(rng))?;
         Ok(RankProblem {
             inner_problem,
             baseline: Arc::clone(&self.baseline),

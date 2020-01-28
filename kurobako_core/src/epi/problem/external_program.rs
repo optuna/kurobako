@@ -6,14 +6,24 @@ use crate::rng::{ArcRng, Rng as _};
 use crate::trial::{Params, Values};
 use crate::{Error, ErrorKind, Result};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::fs;
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::atomic::{self, AtomicU64};
 use std::sync::{Arc, Mutex};
+use std::thread_local;
 use structopt::StructOpt;
 
+thread_local! {
+    static FACTORIES: RefCell<HashMap<Vec<u8>, ExternalProgramProblemFactory>> =
+        RefCell::new(HashMap::new());
+}
+
 /// Recipe for the problem implemented by an external program.
-#[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
 pub struct ExternalProgramProblemRecipe {
     /// The path of the external program.
@@ -22,10 +32,11 @@ pub struct ExternalProgramProblemRecipe {
     /// The command line arguments that are passed to the program.
     pub args: Vec<String>,
 }
-impl ProblemRecipe for ExternalProgramProblemRecipe {
-    type Factory = ExternalProgramProblemFactory;
-
-    fn create_factory(&self, _registry: &FactoryRegistry) -> Result<Self::Factory> {
+impl ExternalProgramProblemRecipe {
+    fn create_new_factory(
+        &self,
+        _registry: &FactoryRegistry,
+    ) -> Result<ExternalProgramProblemFactory> {
         let mut child = track!(Command::new(&self.path)
             .args(&self.args)
             .stdin(Stdio::piped())
@@ -43,20 +54,59 @@ impl ProblemRecipe for ExternalProgramProblemRecipe {
             m => track_panic!(ErrorKind::InvalidInput, "Unexpected message: {:?}", m),
         };
 
-        Ok(ExternalProgramProblemFactory {
-            spec,
-            child,
-            tx: Arc::new(Mutex::new(tx)),
-            rx: Arc::new(Mutex::new(rx)),
-            next_problem_id: AtomicU64::new(0),
-            next_evaluator_id: Arc::new(AtomicU64::new(0)),
+        Ok(ExternalProgramProblemFactory(Arc::new(
+            ExternalProgramProblemFactoryInner {
+                spec,
+                child,
+                tx: Arc::new(Mutex::new(tx)),
+                rx: Arc::new(Mutex::new(rx)),
+                next_problem_id: AtomicU64::new(0),
+                next_evaluator_id: Arc::new(AtomicU64::new(0)),
+            },
+        )))
+    }
+
+    fn cache_key(&self) -> Result<Vec<u8>> {
+        let mut hasher = Sha256::new();
+        hasher.input(&track!(fs::read(&self.path).map_err(Error::from); self.path)?);
+        for arg in &self.args {
+            hasher.input(arg.as_bytes());
+        }
+        Ok(hasher.result().to_vec())
+    }
+}
+impl ProblemRecipe for ExternalProgramProblemRecipe {
+    type Factory = ExternalProgramProblemFactory;
+
+    fn create_factory(&self, registry: &FactoryRegistry) -> Result<Self::Factory> {
+        FACTORIES.with(|f| {
+            let mut f = f.borrow_mut();
+            let key = track!(self.cache_key())?;
+            if !f.contains_key(&key) {
+                f.insert(key.clone(), track!(self.create_new_factory(registry))?);
+            }
+            Ok(f[&key].clone())
         })
     }
 }
 
 /// Factory for the problem implemented by an external program.
+#[derive(Debug, Clone)]
+pub struct ExternalProgramProblemFactory(Arc<ExternalProgramProblemFactoryInner>);
+impl ProblemFactory for ExternalProgramProblemFactory {
+    type Problem = ExternalProgramProblem;
+
+    fn specification(&self) -> Result<ProblemSpec> {
+        track!(self.0.specification())
+    }
+
+    fn create_problem(&self, rng: ArcRng) -> Result<Self::Problem> {
+        track!(self.0.create_problem(rng))
+    }
+}
+
 #[derive(Debug)]
-pub struct ExternalProgramProblemFactory {
+struct ExternalProgramProblemFactoryInner {
     spec: ProblemSpec,
     child: Child,
     tx: Arc<Mutex<MessageSender<ProblemMessage, ChildStdin>>>,
@@ -64,7 +114,7 @@ pub struct ExternalProgramProblemFactory {
     next_problem_id: AtomicU64,
     next_evaluator_id: Arc<AtomicU64>,
 }
-impl ProblemFactory for ExternalProgramProblemFactory {
+impl ProblemFactory for ExternalProgramProblemFactoryInner {
     type Problem = ExternalProgramProblem;
 
     fn specification(&self) -> Result<ProblemSpec> {
@@ -88,7 +138,7 @@ impl ProblemFactory for ExternalProgramProblemFactory {
         })
     }
 }
-impl Drop for ExternalProgramProblemFactory {
+impl Drop for ExternalProgramProblemFactoryInner {
     fn drop(&mut self) {
         if self.child.kill().is_ok() {
             let _ = self.child.wait(); // for preventing the child process becomes a zombie.

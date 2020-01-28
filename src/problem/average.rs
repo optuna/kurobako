@@ -7,12 +7,11 @@ use kurobako_core::problem::{
 use kurobako_core::registry::FactoryRegistry;
 use kurobako_core::rng::ArcRng;
 use kurobako_core::trial::{Params, Values};
-use kurobako_core::{Error, ErrorKind, Result};
+use kurobako_core::{ErrorKind, Result};
 use num;
 use rustats::fundamental::average;
 use serde::{Deserialize, Serialize};
 use std::cmp;
-use std::sync::{Arc, Mutex};
 use structopt::StructOpt;
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
@@ -29,13 +28,13 @@ impl ProblemRecipe for AverageProblemRecipe {
         let problems = self
             .problems
             .iter()
-            .map(|p| track!(registry.get_or_create_problem_factory_from_json(p)))
+            .map(|p| track!(registry.create_problem_factory_from_json(p)))
             .collect::<Result<Vec<_>>>()?;
 
-        let mut specs = vec![track!(spec(&problems[0]))?];
+        let mut specs = vec![track!(problems[0].specification())?];
         for p in problems.iter().skip(1) {
             let a = &specs[0];
-            let b = track!(spec(p))?;
+            let b = track!(p.specification())?;
 
             track_assert_eq!(a.params_domain, b.params_domain, ErrorKind::InvalidInput);
             track_assert_eq!(
@@ -61,7 +60,7 @@ impl ProblemRecipe for AverageProblemRecipe {
 
 #[derive(Debug)]
 pub struct AverageProblemFactory {
-    problems: Vec<Arc<Mutex<BoxProblemFactory>>>,
+    problems: Vec<BoxProblemFactory>,
     specs: Vec<ProblemSpec>,
 }
 impl AverageProblemFactory {
@@ -104,7 +103,7 @@ impl ProblemFactory for AverageProblemFactory {
         let problems = self
             .problems
             .iter()
-            .map(|p| track!(track!(p.lock().map_err(Error::from))?.create_problem(rng.clone())))
+            .map(|p| track!(p.create_problem(rng.clone())))
             .collect::<Result<Vec<_>>>()?;
         let lcm_step = self.least_common_multiple_step();
         Ok(AverageProblem {
@@ -183,11 +182,6 @@ impl Evaluator for StudyEvaluator {
             }
         }
     }
-}
-
-fn spec(factory: &Arc<Mutex<BoxProblemFactory>>) -> Result<ProblemSpec> {
-    let factory = track!(factory.lock().map_err(Error::from))?;
-    track!(factory.specification())
 }
 
 #[derive(Debug)]

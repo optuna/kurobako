@@ -4,12 +4,15 @@ use crate::solver::KurobakoSolverRecipe;
 use crate::study::{Scheduling, StudyRecipe};
 use crate::time::ElapsedSeconds;
 use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
+use kurobako_core::problem::ProblemRecipe as _;
 use kurobako_core::problem::{
     BoxEvaluator, BoxProblem, Evaluator as _, Problem as _, ProblemFactory as _, ProblemSpec,
 };
 use kurobako_core::registry::FactoryRegistry;
 use kurobako_core::rng::ArcRng;
-use kurobako_core::solver::{BoxSolver, Solver as _, SolverFactory as _, SolverSpec};
+use kurobako_core::solver::{
+    BoxSolver, Solver as _, SolverFactory as _, SolverRecipe as _, SolverSpec,
+};
 use kurobako_core::trial::Values;
 use kurobako_core::trial::{EvaluatedTrial, IdGen, NextTrial, TrialId};
 use kurobako_core::{Error, ErrorKind, Result};
@@ -216,13 +219,11 @@ impl StudyRunner {
             let random_seed = study.seed.unwrap_or_else(rand::random);
             let rng = ArcRng::new(random_seed);
 
-            let problem_factory = track!(registry.get_or_create_problem_factory(&study.problem))?;
-            let problem_factory = track!(problem_factory.lock().map_err(Error::from))?;
+            let problem_factory = track!(study.problem.create_factory(&registry))?;
             let problem_spec = track!(problem_factory.specification())?;
             let problem = track!(problem_factory.create_problem(rng.clone()))?;
 
-            let solver_factory = track!(registry.get_or_create_solver_factory(&study.solver))?;
-            let solver_factory = track!(solver_factory.lock().map_err(Error::from))?;
+            let solver_factory = track!(study.solver.create_factory(&registry))?;
             let solver_spec = track!(solver_factory.specification())?;
 
             let incapables = solver_spec
@@ -271,16 +272,13 @@ impl StudyRunner {
 
             self.rng = ArcRng::new(self.study_record.recipe().seed.unwrap());
 
-            let problem_factory = track!(
-                registry.get_or_create_problem_factory(&self.study_record.recipe().problem)
-            )?;
-            let problem_factory = track!(problem_factory.lock().map_err(Error::from))?;
+            let problem_factory =
+                track!(self.study_record.recipe().problem.create_factory(&registry))?;
             self.problem_spec = track!(problem_factory.specification())?;
             self.problem = track!(problem_factory.create_problem(self.rng.clone()))?;
 
             let solver_factory =
-                track!(registry.get_or_create_solver_factory(&self.study_record.recipe().solver))?;
-            let solver_factory = track!(solver_factory.lock().map_err(Error::from))?;
+                track!(self.study_record.recipe().solver.create_factory(&registry))?;
             self.solver_spec = track!(solver_factory.specification())?;
             self.solver =
                 track!(solver_factory.create_solver(self.rng.clone(), &self.problem_spec))?;

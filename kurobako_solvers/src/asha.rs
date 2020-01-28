@@ -12,11 +12,10 @@ use kurobako_core::solver::{
     SolverSpecBuilder,
 };
 use kurobako_core::trial::{EvaluatedTrial, IdGen, NextTrial, TrialId, Values};
-use kurobako_core::{Error, ErrorKind, Result};
+use kurobako_core::{ErrorKind, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::f64;
-use std::sync::{Arc, Mutex};
 use structopt::StructOpt;
 use yamakan::optimizers::asha::{AshaOptimizer, AshaOptimizerBuilder};
 use yamakan::{self, Budget, MfObs, MultiFidelityOptimizer, Obs, ObsId, Optimizer, Ranked};
@@ -51,7 +50,7 @@ impl SolverRecipe for AshaSolverRecipe {
     type Factory = AshaSolverFactory;
 
     fn create_factory(&self, registry: &FactoryRegistry) -> Result<Self::Factory> {
-        let base = track!(registry.get_or_create_solver_factory_from_json(&self.base_solver))?;
+        let base = track!(registry.create_solver_factory_from_json(&self.base_solver))?;
         Ok(AshaSolverFactory {
             min_step_rate: self.min_step_rate,
             min_step: self.min_step,
@@ -69,14 +68,13 @@ pub struct AshaSolverFactory {
     min_step: Option<u64>,
     reduction_factor: usize,
     without_checkpoint: bool,
-    base: Arc<Mutex<BoxSolverFactory>>,
+    base: BoxSolverFactory,
 }
 impl SolverFactory for AshaSolverFactory {
     type Solver = AshaSolver;
 
     fn specification(&self) -> Result<SolverSpec> {
-        let base = track!(self.base.lock().map_err(Error::from))?;
-        let mut base = track!(base.specification())?;
+        let mut base = track!(self.base.specification())?;
         base.capabilities
             .remove_capability(Capability::MultiObjective);
 
@@ -102,8 +100,7 @@ impl SolverFactory for AshaSolverFactory {
             (max_budget as f64 * self.min_step_rate) as u64
         };
 
-        let base = track!(self.base.lock().map_err(Error::from))?;
-        let base = track!(base.create_solver(rng.clone(), problem))?;
+        let base = track!(self.base.create_solver(rng.clone(), problem))?;
 
         let mut builder = AshaOptimizerBuilder::new();
         track!(builder
