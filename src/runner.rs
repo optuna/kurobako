@@ -210,7 +210,6 @@ impl StudyRunner {
     }
 
     fn with_mpb(study: &StudyRecipe, mpb: &MultiProgress, cancel: Cancel) -> Result<Self> {
-        // TODO: check capabilities
         REGISTRY.with(|registry| {
             let registry = track!(registry.lock().map_err(Error::from))?;
 
@@ -225,6 +224,13 @@ impl StudyRunner {
             let solver_factory = track!(registry.get_or_create_solver_factory(&study.solver))?;
             let solver_factory = track!(solver_factory.lock().map_err(Error::from))?;
             let solver_spec = track!(solver_factory.specification())?;
+
+            let incapables = solver_spec
+                .capabilities
+                .incapables(&problem_spec.requirements())
+                .collect::<Vec<_>>();
+            track_assert!(incapables.is_empty(), ErrorKind::Incapable; incapables);
+
             let solver = track!(solver_factory.create_solver(rng.clone(), &problem_spec))?;
 
             let study_steps = problem_spec.steps.last() * study.budget;
