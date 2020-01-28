@@ -417,11 +417,7 @@ impl EvaluationThread {
         let mut state = track_assert_some!(self.runnings.remove(&trial_id), ErrorKind::Bug);
 
         let next_step = track_assert_some!(
-            problem_spec
-                .steps
-                .iter()
-                .skip_while(|&s| s < next_step)
-                .next(),
+            problem_spec.steps.iter().find(|&s| s >= next_step),
             ErrorKind::Bug
         );
         let (current_step, values) = track!(state.evaluator.evaluate(next_step))?;
