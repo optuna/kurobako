@@ -13,24 +13,31 @@ use tempfile::{NamedTempFile, TempPath};
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub struct PlotSliceOpt {
+    /// Output directory where generated images are stored.
     #[structopt(long, short = "o", default_value = "images/slice/")]
     pub output_dir: PathBuf,
 
+    /// Image width in pixels.
     #[structopt(long, default_value = "800")]
     pub width: usize,
 
+    /// Image height in pixels.
     #[structopt(long, default_value = "600")]
     pub height: usize,
 
+    /// Minimum value of Y axis.
     #[structopt(long)]
     pub ymin: Option<f64>,
 
+    /// Maximum value of Y axis.
     #[structopt(long)]
     pub ymax: Option<f64>,
 
+    /// Minimum value of X axis.
     #[structopt(long)]
     pub xmin: Option<f64>,
 
+    /// Maximum value of X axis.
     #[structopt(long)]
     pub xmax: Option<f64>,
 }

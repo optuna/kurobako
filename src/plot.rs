@@ -9,8 +9,10 @@ pub mod slice;
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub enum PlotOpt {
-    /// Optimization curve.
+    /// Generates optimization curve plots.
     Curve(self::curve::PlotCurveOpt),
+
+    /// Generates slice plots.
     Slice(self::slice::PlotSliceOpt),
 }
 impl PlotOpt {

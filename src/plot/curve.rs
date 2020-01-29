@@ -39,33 +39,43 @@ impl FromStr for Metric {
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub struct PlotCurveOpt {
+    /// Output directory where generated images are stored.
     #[structopt(long, short = "o", default_value = "images/curve/")]
     pub output_dir: PathBuf,
 
+    /// Image width in pixels.
     #[structopt(long, default_value = "800")]
     pub width: usize,
 
+    /// Image height in pixels.
     #[structopt(long, default_value = "600")]
     pub height: usize,
 
+    /// Minimum value of Y axis.
     #[structopt(long)]
     pub ymin: Option<f64>,
 
+    /// Maximum value of Y axis.
     #[structopt(long)]
     pub ymax: Option<f64>,
 
+    /// Minimum value of X axis.
     #[structopt(long)]
     pub xmin: Option<f64>,
 
+    /// Maximum value of X axis.
     #[structopt(long)]
     pub xmax: Option<f64>,
 
+    /// Makes Y axis log scale.
     #[structopt(long)]
     pub ylogscale: bool,
 
+    /// Displays errorbar showing standard deviation of optimization curve.
     #[structopt(long)]
     pub errorbar: bool,
 
+    /// Metric of X axis.
     #[structopt(
         long,
         default_value = "best-value",
