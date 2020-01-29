@@ -19,7 +19,7 @@ use kurobako_core::{Error, ErrorKind, Result};
 use rand;
 use rand::seq::SliceRandom;
 use serde_json;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::io::Write as _;
 use std::num::NonZeroUsize;
 use std::sync::atomic::{self, AtomicUsize};
@@ -193,6 +193,7 @@ pub struct StudyRunner {
     cancel: Cancel,
     idg: IdGen,
     threads: EvaluationThreads,
+    evaluators: HashMap<TrialId, EvaluatorState>,
     study_steps: u64,
     _mpb: Option<MultiProgress>,
 }
@@ -250,6 +251,7 @@ impl StudyRunner {
             cancel,
             idg: IdGen::new(),
             threads,
+            evaluators: HashMap::new(),
             study_steps,
             _mpb: None,
         })
@@ -261,44 +263,59 @@ impl StudyRunner {
     }
 
     pub fn run_once(&mut self) -> Result<()> {
+        track!(self.fill_waiting_queue())?;
+
         let start_step = self.pb.position();
-
-        let (asked_trial, ask_elapsed) =
-            ElapsedSeconds::try_time(|| track!(self.solver.ask(&mut self.idg)))?;
-
-        // TODO: Fix scheduling implementation correctly.
-        let thread = track!(self.threads.assign(&asked_trial, &self.problem))?;
+        let thread = track!(self.threads.next())?;
         let thread_id = thread.thread_id;
+        let WaitingTrial {
+            asked_trial,
+            ask_elapsed,
+        } = track!(thread.next_trial())?;
+        let next_step = track_assert_some!(asked_trial.next_step, ErrorKind::Bug);
 
-        if let Some(next_step) = asked_trial.next_step {
-            let problem_spec = &self.problem_spec;
-            let ((elapsed_steps, evaluated_trial), evaluate_elapsed) =
-                ElapsedSeconds::try_time(|| {
-                    track!(thread.evaluate(asked_trial.id, next_step, problem_spec))
-                })?;
-            self.pb.inc(elapsed_steps);
-            let end_step = self.pb.position();
+        let problem_spec = &self.problem_spec;
+        let evaluators = &mut self.evaluators;
+        let ((elapsed_steps, evaluated_trial), evaluate_elapsed) =
+            ElapsedSeconds::try_time(|| {
+                track!(thread.evaluate(asked_trial.id, next_step, problem_spec, evaluators))
+            })?;
+        self.pb.inc(elapsed_steps);
+        let end_step = self.pb.position();
 
-            if end_step < self.study_steps {
-                let ((), tell_elapsed) =
-                    ElapsedSeconds::try_time(|| track!(self.solver.tell(evaluated_trial.clone())))?;
+        if end_step < self.study_steps {
+            let ((), tell_elapsed) =
+                ElapsedSeconds::try_time(|| track!(self.solver.tell(evaluated_trial.clone())))?;
 
-                self.study_record.add_trial(TrialRecordBuilder {
-                    id: asked_trial.id,
-                    thread_id,
-                    params: asked_trial.params,
-                    values: evaluated_trial.values,
-                    start_step,
-                    end_step,
-                    ask_elapsed,
-                    tell_elapsed,
-                    evaluate_elapsed,
-                });
-            }
-        } else {
-            thread.prune(asked_trial.id);
+            self.study_record.add_trial(TrialRecordBuilder {
+                id: asked_trial.id,
+                thread_id,
+                params: asked_trial.params,
+                values: evaluated_trial.values,
+                start_step,
+                end_step,
+                ask_elapsed,
+                tell_elapsed,
+                evaluate_elapsed,
+            });
         }
 
+        Ok(())
+    }
+
+    fn fill_waiting_queue(&mut self) -> Result<()> {
+        while self.threads.has_idle_thread() {
+            let (asked_trial, ask_elapsed) =
+                ElapsedSeconds::try_time(|| track!(self.solver.ask(&mut self.idg)))?;
+
+            track!(self.init_evaluator(&asked_trial))?;
+
+            if asked_trial.next_step.is_some() {
+                track!(self.threads.assign(&asked_trial, ask_elapsed))?;
+            } else {
+                track!(self.prune_evaluator(asked_trial.id))?;
+            }
+        }
         Ok(())
     }
 
@@ -326,11 +343,25 @@ impl StudyRunner {
         self.pb.finish_and_clear();
         Ok(self.study_record.finish())
     }
+
+    fn init_evaluator(&mut self, trial: &NextTrial) -> Result<()> {
+        if !self.evaluators.contains_key(&trial.id) {
+            let evaluator = track!(EvaluatorState::new(&self.problem, trial))?;
+            self.evaluators.insert(trial.id, evaluator);
+        }
+        Ok(())
+    }
+
+    fn prune_evaluator(&mut self, trial_id: TrialId) -> Result<()> {
+        track_assert_some!(self.evaluators.remove(&trial_id), ErrorKind::InvalidInput; trial_id);
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
 struct EvaluationThreads {
     threads: Vec<EvaluationThread>,
+    evaluators: HashMap<TrialId, EvaluatorState>,
     scheduling: Scheduling,
     rng: ArcRng,
 }
@@ -340,72 +371,71 @@ impl EvaluationThreads {
             threads: (0..recipe.concurrency.get())
                 .map(EvaluationThread::new)
                 .collect(),
+            evaluators: HashMap::new(),
             scheduling: recipe.scheduling,
             rng,
         }
     }
 
-    fn assign(&mut self, trial: &NextTrial, problem: &BoxProblem) -> Result<&mut EvaluationThread> {
-        if self
-            .threads
-            .iter()
-            .any(|t| t.runnings.contains_key(&trial.id))
-        {
-            let thread = self
-                .threads
-                .iter_mut()
-                .find(|t| t.runnings.contains_key(&trial.id))
-                .unwrap_or_else(|| unreachable!());
-            Ok(thread)
-        } else {
-            match self.scheduling {
-                Scheduling::Random => track!(self.assign_random(trial, problem)),
-                Scheduling::Fair => track!(self.assign_fair(trial, problem)),
-            }
+    fn has_idle_thread(&self) -> bool {
+        self.threads.iter().any(|t| t.is_idle())
+    }
+
+    fn next(&mut self) -> Result<&mut EvaluationThread> {
+        self.threads.sort_by_key(|t| t.elapsed_steps);
+        let thread = track_assert_some!(self.threads.first_mut(), ErrorKind::Bug);
+        Ok(thread)
+    }
+
+    fn assign(&mut self, trial: &NextTrial, ask_elapsed: ElapsedSeconds) -> Result<()> {
+        match self.scheduling {
+            Scheduling::Random => track!(self.assign_random(trial, ask_elapsed)),
+            Scheduling::Fair => track!(self.assign_fair(trial, ask_elapsed)),
         }
     }
 
-    fn assign_random(
-        &mut self,
-        trial: &NextTrial,
-        problem: &BoxProblem,
-    ) -> Result<&mut EvaluationThread> {
+    fn assign_random(&mut self, trial: &NextTrial, ask_elapsed: ElapsedSeconds) -> Result<()> {
         let thread = track_assert_some!(self.threads.choose_mut(&mut self.rng), ErrorKind::Bug);
-        let state = track!(EvaluatorState::new(problem, trial))?;
-        thread.runnings.insert(trial.id, state);
-        Ok(thread)
+        thread.waitings.push_back(WaitingTrial {
+            asked_trial: trial.clone(),
+            ask_elapsed,
+        });
+        Ok(())
     }
 
-    fn assign_fair(
-        &mut self,
-        trial: &NextTrial,
-        problem: &BoxProblem,
-    ) -> Result<&mut EvaluationThread> {
+    fn assign_fair(&mut self, trial: &NextTrial, ask_elapsed: ElapsedSeconds) -> Result<()> {
         self.threads.sort_by_key(|t| t.elapsed_steps);
         let thread = track_assert_some!(self.threads.first_mut(), ErrorKind::Bug);
-        let state = track!(EvaluatorState::new(problem, trial))?;
-        thread.runnings.insert(trial.id, state);
-        Ok(thread)
+        thread.waitings.push_back(WaitingTrial {
+            asked_trial: trial.clone(),
+            ask_elapsed,
+        });
+        Ok(())
     }
 }
 
 #[derive(Debug)]
 struct EvaluationThread {
     thread_id: usize,
-    runnings: HashMap<TrialId, EvaluatorState>,
+    waitings: VecDeque<WaitingTrial>,
     elapsed_steps: u64,
 }
 impl EvaluationThread {
     fn new(thread_id: usize) -> Self {
         Self {
             thread_id,
-            runnings: HashMap::new(),
+            waitings: VecDeque::new(),
             elapsed_steps: 0,
         }
     }
 
-    fn prune(&mut self, trial_id: TrialId) {
-        self.runnings.remove(&trial_id);
+    fn is_idle(&self) -> bool {
+        self.waitings.is_empty()
+    }
+
+    fn next_trial(&mut self) -> Result<WaitingTrial> {
+        let trial = track_assert_some!(self.waitings.pop_front(), ErrorKind::Bug);
+        Ok(trial)
     }
 
     fn evaluate(
@@ -413,8 +443,9 @@ impl EvaluationThread {
         trial_id: TrialId,
         next_step: u64,
         problem_spec: &ProblemSpec,
+        evaluators: &mut HashMap<TrialId, EvaluatorState>,
     ) -> Result<(u64, EvaluatedTrial)> {
-        let mut state = track_assert_some!(self.runnings.remove(&trial_id), ErrorKind::Bug);
+        let mut state = track_assert_some!(evaluators.remove(&trial_id), ErrorKind::Bug);
 
         let next_step = track_assert_some!(
             problem_spec.steps.iter().find(|&s| s >= next_step),
@@ -427,7 +458,7 @@ impl EvaluationThread {
 
         state.current_step = current_step;
         if state.current_step < problem_spec.steps.last() && !values.is_empty() {
-            self.runnings.insert(trial_id, state);
+            evaluators.insert(trial_id, state);
         }
 
         let evaluated = EvaluatedTrial {
@@ -437,6 +468,12 @@ impl EvaluationThread {
         };
         Ok((elapsed_steps, evaluated))
     }
+}
+
+#[derive(Debug)]
+struct WaitingTrial {
+    asked_trial: NextTrial,
+    ask_elapsed: ElapsedSeconds,
 }
 
 #[derive(Debug)]
