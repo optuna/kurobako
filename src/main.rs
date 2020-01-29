@@ -8,7 +8,7 @@ use kurobako::problem_suites::ProblemSuite;
 use kurobako::report::{ReportOpt, Reporter};
 use kurobako::runner::{Runner, RunnerOpt};
 use kurobako::solver::KurobakoSolverRecipe;
-use kurobako::study::{StudiesRecipe, StudyRecipe};
+use kurobako::study::StudiesRecipe;
 use kurobako::variable::Var;
 use kurobako_core::json;
 use kurobako_core::Error;
@@ -30,15 +30,29 @@ macro_rules! print_json {
 #[structopt(rename_all = "kebab-case")]
 #[allow(clippy::large_enum_variant)]
 enum Opt {
+    /// Generates a solver recipe (JSON).
     Solver(KurobakoSolverRecipe),
+
+    /// Generates a problem recipe (JSON).
     Problem(KurobakoProblemRecipe),
+
+    /// Generates problem recipes (JSONs) belong to the specified suite.
     ProblemSuite(ProblemSuite),
-    Study(StudyRecipe),
-    Studies(StudiesRecipe),
-    Run(RunnerOpt),
-    Report(ReportOpt),
-    Plot(PlotOpt),
+
+    /// Generates a variable recipe (JSON).
     Var(Var),
+
+    /// Generates study recipes (JSONs).
+    Studies(StudiesRecipe),
+
+    /// Takes study recipes (JSONs), then runs the studies and outputs the results (JSONs).
+    Run(RunnerOpt),
+
+    /// Generates a markdown report from benchmark results (JSONs).
+    Report(ReportOpt),
+
+    /// Generates visualization images from benchmark results (JSONs).
+    Plot(PlotOpt),
 }
 
 fn main() -> trackable::result::TopLevelResult {
@@ -55,9 +69,6 @@ fn main() -> trackable::result::TopLevelResult {
             for p in p.recipes() {
                 print_json!(p);
             }
-        }
-        Opt::Study(x) => {
-            print_json!(x);
         }
         Opt::Studies(x) => {
             for y in x.studies() {
