@@ -51,6 +51,14 @@ mod defaults {
     define!(median_warmup_steps, is_median_warmup_steps, usize, 0);
     define!(asha_min_resource, is_asha_min_resource, usize, 1);
     define!(asha_reduction_factor, is_asha_reduction_factor, usize, 4);
+    define!(hyperband_min_resource, is_hyperband_min_resource, usize, 1);
+    define!(
+        hyperband_reduction_factor,
+        is_hyperband_reduction_factor,
+        usize,
+        3
+    );
+    define!(hyperband_n_brackets, is_hyperband_n_brackets, usize, 4);
 }
 
 /// Recipe of `OptunaSolver`.
@@ -103,7 +111,7 @@ pub struct OptunaSolverRecipe {
     #[structopt(
         long,
         default_value = "median",
-        possible_values = &["median", "asha", "nop", "none"]
+        possible_values = &["median", "asha", "nop", "hyperband"]
     )]
     #[serde(skip_serializing_if = "defaults::is_pruner")]
     #[serde(default = "defaults::pruner")]
@@ -128,6 +136,21 @@ pub struct OptunaSolverRecipe {
     #[serde(skip_serializing_if = "defaults::is_asha_reduction_factor")]
     #[serde(default = "defaults::asha_reduction_factor")]
     pub asha_reduction_factor: usize,
+
+    #[structopt(long, default_value = "1")]
+    #[serde(skip_serializing_if = "defaults::is_hyperband_min_resource")]
+    #[serde(default = "defaults::hyperband_min_resource")]
+    pub hyperband_min_resource: usize,
+
+    #[structopt(long, default_value = "3")]
+    #[serde(skip_serializing_if = "defaults::is_hyperband_reduction_factor")]
+    #[serde(default = "defaults::hyperband_reduction_factor")]
+    pub hyperband_reduction_factor: usize,
+
+    #[structopt(long, default_value = "4")]
+    #[serde(skip_serializing_if = "defaults::is_hyperband_n_brackets")]
+    #[serde(default = "defaults::hyperband_n_brackets")]
+    pub hyperband_n_brackets: usize,
 
     #[structopt(long)]
     #[serde(default, skip_serializing_if = "is_false")]
@@ -173,6 +196,21 @@ impl OptunaSolverRecipe {
             &mut args,
             "--asha-reduction-factor",
             &self.asha_reduction_factor.to_string(),
+        );
+        add_arg(
+            &mut args,
+            "--hyperband-min-resource",
+            &self.hyperband_min_resource.to_string(),
+        );
+        add_arg(
+            &mut args,
+            "--hyperband-reduction-factor",
+            &self.hyperband_reduction_factor.to_string(),
+        );
+        add_arg(
+            &mut args,
+            "--hyperband-n-brackets",
+            &self.hyperband_n_brackets.to_string(),
         );
         if self.maximize {
             args.push("--direction".to_owned());

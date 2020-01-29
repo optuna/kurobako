@@ -18,12 +18,15 @@ parser.add_argument('--skopt-base-estimator',
                     choices=['GP', 'RF', 'ET', 'GBRT'],
                     default='GP')
 parser.add_argument('--pruner',
-                    choices=['median', 'asha', 'nop'],
+                    choices=['median', 'asha', 'nop', 'hyperband'],
                     default='median')
 parser.add_argument('--median-startup-trials', type=int, default=5)
 parser.add_argument('--median-warmup-steps', type=int, default=0)
 parser.add_argument('--asha-min-resource', type=int, default=1)
 parser.add_argument('--asha-reduction-factor', type=int, default=4)
+parser.add_argument('--hyperband-min-resource', type=int, default=1)
+parser.add_argument('--hyperband-reduction-factor', type=int, default=3)
+parser.add_argument('--hyperband-n-brackets', type=int, default=4)
 parser.add_argument('--loglevel',
                     choices=['debug', 'info', 'warning', 'error'])
 parser.add_argument('--direction',
@@ -69,6 +72,11 @@ def create_study(seed):
         pruner = optuna.pruners.SuccessiveHalvingPruner(
             min_resource=args.asha_min_resource,
             reduction_factor=args.asha_reduction_factor)
+    elif args.pruner == 'hyperband':
+        pruner = optuna.pruners.HyperbandPruner(
+            min_resource=args.hyperband_min_resource,
+            reduction_factor=args.hyperband_reduction_factor,
+            n_brackets=args.hyperband_n_brackets)
     elif args.pruner == 'nop':
         pruner = optuna.pruners.NopPruner()
     else:
