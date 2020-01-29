@@ -344,6 +344,7 @@ impl StudyRunner {
         Ok(self.study_record.finish())
     }
 
+    #[allow(clippy::map_entry)]
     fn init_evaluator(&mut self, trial: &NextTrial) -> Result<()> {
         if !self.evaluators.contains_key(&trial.id) {
             let evaluator = track!(EvaluatorState::new(&self.problem, trial))?;
