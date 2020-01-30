@@ -1,15 +1,17 @@
 //! A problem based on the benchmark defined by [sigopt/evalset](https://github.com/sigopt/evalset).
-use kurobako_core::epi::problem::{
-    EmbeddedScriptEvaluator, EmbeddedScriptProblem, EmbeddedScriptProblemFactory,
-    EmbeddedScriptProblemRecipe,
+use self::functions::TestFunction;
+use kurobako_core::domain;
+use kurobako_core::problem::{
+    Evaluator, Problem, ProblemFactory, ProblemRecipe, ProblemSpec, ProblemSpecBuilder,
 };
-use kurobako_core::problem::{Evaluator, Problem, ProblemFactory, ProblemRecipe, ProblemSpec};
 use kurobako_core::registry::FactoryRegistry;
 use kurobako_core::rng::ArcRng;
 use kurobako_core::trial::{Params, Values};
-use kurobako_core::Result;
+use kurobako_core::{ErrorKind, Result};
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
+
+mod functions;
 
 /// Recipe of `SigoptProblem`.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
@@ -22,75 +24,126 @@ pub struct SigoptProblemRecipe {
     /// Dimension of the test function.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[structopt(long)]
-    pub dim: Option<u32>,
+    pub dim: Option<usize>,
 
     /// Input resolution of the test function.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[structopt(long)]
     pub res: Option<f64>,
+
+    /// List of the dimensions which should only accept integer values.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[structopt(long)]
+    pub int: Vec<usize>,
 }
 impl ProblemRecipe for SigoptProblemRecipe {
     type Factory = SigoptProblemFactory;
 
-    fn create_factory(&self, registry: &FactoryRegistry) -> Result<Self::Factory> {
-        let script = include_str!("../scripts/sigopt_problem.py");
-        let mut args = vec![format!("{:?}", self.name)];
-        if let Some(dim) = self.dim {
-            args.extend_from_slice(&["--dim".to_owned(), dim.to_string()]);
-        }
-        if let Some(res) = self.res {
-            args.extend_from_slice(&["--res".to_owned(), res.to_string()]);
-        }
-
-        let recipe = EmbeddedScriptProblemRecipe {
-            script: script.to_owned(),
-            args,
-        };
-        let inner = track!(recipe.create_factory(registry))?;
-        Ok(SigoptProblemFactory { inner })
+    fn create_factory(&self, _registry: &FactoryRegistry) -> Result<Self::Factory> {
+        let test_function = self.name.to_test_function();
+        Ok(SigoptProblemFactory {
+            name: self.name,
+            dim: self
+                .dim
+                .unwrap_or_else(|| test_function.default_dimension()),
+            res: self.res,
+            int: self.int.clone(),
+        })
     }
 }
 
 /// Factory of `SigoptProblem`.
 #[derive(Debug)]
 pub struct SigoptProblemFactory {
-    inner: EmbeddedScriptProblemFactory,
+    name: Name,
+    dim: usize,
+    res: Option<f64>,
+    int: Vec<usize>,
 }
 impl ProblemFactory for SigoptProblemFactory {
     type Problem = SigoptProblem;
 
     fn specification(&self) -> Result<ProblemSpec> {
-        track!(self.inner.specification())
+        let test_function = self.name.to_test_function();
+
+        let problem_name = if let Some(res) = self.res {
+            format!(
+                "sigopt/evalset/{:?}(dim={}, res={})",
+                self.name, self.dim, res
+            )
+        } else {
+            format!("sigopt/evalset/{:?}(dim={})", self.name, self.dim)
+        };
+        let paper = "Dewancker, Ian, et al. \"A strategy for ranking optimization methods using multiple criteria.\" Workshop on Automatic Machine Learning. 2016.";
+
+        let mut spec = ProblemSpecBuilder::new(&problem_name)
+            .attr(
+                "version",
+                &format!("kurobako_problems={}", env!("CARGO_PKG_VERSION")),
+            )
+            .attr("paper", paper)
+            .attr("github", "https://github.com/sigopt/evalset");
+
+        for (i, (low, high)) in track!(test_function.bounds(self.dim))?
+            .into_iter()
+            .enumerate()
+        {
+            let var = domain::var(&format!("p{}", i));
+            if self.int.contains(&i) {
+                let low = low.ceil() as i64;
+                let high = high.floor() as i64;
+                spec = spec.param(var.discrete(low, high));
+            } else {
+                spec = spec.param(var.continuous(low, high));
+            }
+        }
+
+        track!(spec.value(domain::var("Objective Value")).finish())
     }
 
-    fn create_problem(&self, rng: ArcRng) -> Result<Self::Problem> {
-        let inner = track!(self.inner.create_problem(rng))?;
-        Ok(SigoptProblem { inner })
+    fn create_problem(&self, _rng: ArcRng) -> Result<Self::Problem> {
+        Ok(SigoptProblem {
+            name: self.name,
+            res: self.res,
+        })
     }
 }
 
 /// Problem that uses the test functions defined in [sigopt/evalset](https://github.com/sigopt/evalset).
 #[derive(Debug)]
 pub struct SigoptProblem {
-    inner: EmbeddedScriptProblem,
+    name: Name,
+    res: Option<f64>,
 }
 impl Problem for SigoptProblem {
     type Evaluator = SigoptEvaluator;
 
     fn create_evaluator(&self, params: Params) -> Result<Self::Evaluator> {
-        let inner = track!(self.inner.create_evaluator(params))?;
-        Ok(SigoptEvaluator { inner })
+        Ok(SigoptEvaluator {
+            res: self.res,
+            test_function: self.name.to_test_function(),
+            params,
+        })
     }
 }
 
 /// Evaluator of `SigoptProblem`.
 #[derive(Debug)]
 pub struct SigoptEvaluator {
-    inner: EmbeddedScriptEvaluator,
+    res: Option<f64>,
+    test_function: Box<dyn TestFunction>,
+    params: Params,
 }
 impl Evaluator for SigoptEvaluator {
     fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
-        track!(self.inner.evaluate(next_step))
+        track_assert_eq!(next_step, 1, ErrorKind::Bug);
+
+        let mut value = self.test_function.evaluate(self.params.get());
+        if let Some(res) = self.res {
+            value = (value * res).floor() / res;
+        }
+
+        Ok((1, Values::new(vec![value])))
     }
 }
 
@@ -291,4 +344,12 @@ pub enum Name {
     Problem20,
     Problem21,
     Problem22,
+}
+impl Name {
+    fn to_test_function(self) -> Box<dyn TestFunction> {
+        match self {
+            Self::Ackley => Box::new(functions::Ackley),
+            _ => todo!(),
+        }
+    }
 }
