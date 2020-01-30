@@ -66,21 +66,29 @@ impl fmt::Display for Scheduling {
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
 pub struct StudiesRecipe {
+    /// Solver recipe JSONs.
     #[structopt(long, parse(try_from_str = json::parse_json))]
     pub solvers: Vec<KurobakoSolverRecipe>,
 
+    /// Problem recipe JSONs.
     #[structopt(long, parse(try_from_str = json::parse_json))]
     pub problems: Vec<KurobakoProblemRecipe>,
 
+    /// Number of execution times of each study.
     #[structopt(long, default_value = "10")]
     pub repeats: usize,
 
+    /// Budget of a study execution.
     #[structopt(long, default_value = "20")]
     pub budget: u64,
 
+    /// Concurrency of a study execution.
     #[structopt(long, default_value = "1")]
     pub concurrency: NonZeroUsize,
 
+    /// Scheduling policy of logical threads.
+    ///
+    /// This option is ignored when `concurrency` is less then `2`.
     #[structopt(long, default_value = "random")]
     pub scheduling: Scheduling,
 

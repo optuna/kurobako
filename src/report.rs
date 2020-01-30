@@ -23,6 +23,7 @@ mod rankings;
 #[derive(Debug, StructOpt, Serialize)]
 #[structopt(rename_all = "kebab-case")]
 pub struct ReportOpt {
+    /// Metric precedences used to compare the results of solvers.
     #[structopt(
         long,
         possible_values = Metric::POSSIBLE_VALUES
@@ -32,8 +33,13 @@ pub struct ReportOpt {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum Metric {
+    /// Best value.
     BestValue,
+
+    /// Auc of the best value.
     Auc,
+
+    /// Wall-clock time consumed by solver.
     ElapsedTime,
 }
 impl Metric {

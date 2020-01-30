@@ -8,8 +8,10 @@ use structopt::StructOpt;
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
 pub struct Var {
+    /// Path of the target variable on a recipe JSON.
     pub path: VarPath,
 
+    /// Makes the distribution of the variable log scale.
     #[structopt(long)]
     #[serde(default)]
     pub log_uniform: bool,

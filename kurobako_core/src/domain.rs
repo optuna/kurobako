@@ -232,18 +232,29 @@ fn infinity() -> f64 {
 pub enum Range {
     /// Continuous numerical range: `[low..high)`.
     Continuous {
+        /// Lower bound of this range (inclusive).
         #[serde(skip_serializing_if = "is_not_finite", default = "neg_infinity")]
         low: f64,
 
+        /// Upper bound of this range (exclusive).
         #[serde(skip_serializing_if = "is_not_finite", default = "infinity")]
         high: f64,
     },
 
     /// Discrete numerical range: `[low..high)`.
-    Discrete { low: i64, high: i64 },
+    Discrete {
+        /// Lower bound of this range (inclusive).
+        low: i64,
+
+        /// Upper bound of this range (exclusive).
+        high: i64,
+    },
 
     /// Categorical range.
-    Categorical { choices: Vec<String> },
+    Categorical {
+        /// Possible choices.
+        choices: Vec<String>,
+    },
 }
 impl Range {
     /// Returns the inclusive lower bound of this range.

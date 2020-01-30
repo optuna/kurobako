@@ -19,6 +19,7 @@ impl ProblemSuite {
     }
 }
 
+/// Problem suite containing problems for all datasets defined in HPOBench.
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub enum HpobenchProblemSuite {
@@ -43,6 +44,7 @@ impl HpobenchProblemSuite {
     }
 }
 
+/// Problem suite defined in `https://github.com/sigopt/evalset`.
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub enum SigoptProblemSuite {

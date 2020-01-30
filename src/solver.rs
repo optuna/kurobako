@@ -13,6 +13,7 @@ use structopt::StructOpt;
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
 pub struct KurobakoSolverRecipe {
+    /// Name of the solver.
     #[structopt(long)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     name: Option<String>,

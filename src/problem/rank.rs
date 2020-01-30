@@ -18,10 +18,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use structopt::StructOpt;
 
+/// Recipe for normalizing a problem's evaluation result by calculating ranking within the given baseline results.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
 pub struct RankProblemRecipe {
+    /// Problem recipe JSON.
     pub problem: JsonRecipe,
+
+    /// Baseline results that are used to calculate ranking.
     pub baselines: Vec<PathBuf>,
 }
 impl RankProblemRecipe {

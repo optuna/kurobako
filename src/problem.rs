@@ -59,6 +59,7 @@ impl From<sigopt::SigoptProblemRecipe> for KurobakoProblemRecipe {
 #[serde(rename_all = "snake_case")]
 enum InnerRecipe {
     Command(ExternalProgramProblemRecipe),
+    /// Recipe of `SigoptProblem`.
     Sigopt(sigopt::SigoptProblemRecipe),
     Nasbench(nasbench::NasbenchProblemRecipe),
     Hpobench(hpobench::HpobenchProblemRecipe),

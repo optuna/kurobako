@@ -66,6 +66,7 @@ mod defaults {
 #[allow(missing_docs)]
 #[structopt(rename_all = "kebab-case")]
 pub struct OptunaSolverRecipe {
+    /// Log level.
     #[structopt(
         long,
         default_value = "warning",
@@ -75,6 +76,7 @@ pub struct OptunaSolverRecipe {
     #[serde(default = "defaults::loglevel")]
     pub loglevel: String,
 
+    /// Sampler type.
     #[structopt(
         long,
         default_value = "tpe",
@@ -108,6 +110,7 @@ pub struct OptunaSolverRecipe {
     #[serde(default = "defaults::skopt_base_estimator")]
     pub skopt_base_estimator: String,
 
+    /// Pruner type.
     #[structopt(
         long,
         default_value = "median",
@@ -152,6 +155,9 @@ pub struct OptunaSolverRecipe {
     #[serde(default = "defaults::hyperband_n_brackets")]
     pub hyperband_n_brackets: usize,
 
+    /// Sets optimization direction to "maximize".
+    ///
+    /// The sign of all evaluated values ​​is reversed before being passed to Optuna.
     #[structopt(long)]
     #[serde(default, skip_serializing_if = "is_false")]
     pub maximize: bool,

@@ -14,9 +14,11 @@ use serde::{Deserialize, Serialize};
 use std::cmp;
 use structopt::StructOpt;
 
+/// Recipe for aggregating (averaging) multiple problems.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
 pub struct AverageProblemRecipe {
+    /// Problem recipe JSONs.
     pub problems: Vec<JsonRecipe>,
 }
 impl ProblemRecipe for AverageProblemRecipe {

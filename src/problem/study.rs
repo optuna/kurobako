@@ -15,11 +15,14 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use structopt::StructOpt;
 
+/// Recipe for problem based on a parameterized study.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
 pub struct StudyProblemRecipe {
+    /// Study recipe JSON.
     pub study: JsonRecipe,
 
+    /// Variable JSONs.
     #[structopt(long, parse(try_from_str = json::parse_json))]
     pub vars: Vec<Var>,
 }

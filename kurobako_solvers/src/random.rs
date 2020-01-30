@@ -19,6 +19,7 @@ fn is_false(b: &bool) -> bool {
 /// Recipe of `RandomSolver`.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 pub struct RandomSolverRecipe {
+    /// If this flag is set, this solver asks evaluators to evaluate parameters at every intermediate step.
     #[structopt(long)]
     #[serde(default, skip_serializing_if = "is_false")]
     ask_all_steps: bool,

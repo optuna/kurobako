@@ -31,9 +31,11 @@ use trackable::error::ErrorKindExt;
 #[derive(Debug, Clone, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub struct RunnerOpt {
-    #[structopt(long, default_value = "1")]
+    /// Number of worker threads used to execute the benchmark.
+    #[structopt(long, short = "p", default_value = "1")]
     pub parallelism: NonZeroUsize,
 
+    /// Disables progress bar.
     #[structopt(long, short = "q")]
     pub quiet: bool,
 }
