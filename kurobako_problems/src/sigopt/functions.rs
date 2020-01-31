@@ -175,11 +175,155 @@ impl TestFunction for Easom {
         -a * (-b * d).exp() - e + a + 1f64.exp()
     }
 }
-// recipe(Exponential, 6, None),
-// recipe(Hartmann3, 3, None),
-// recipe(Hartmann6, 6, Some(10.0)),
-// recipe(HelicalValley, 3, None),
-// recipe(LennardJones6, 6, None),
+
+#[derive(Debug)]
+pub struct Exponential;
+impl TestFunction for Exponential {
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        Ok(iter::repeat((-0.7, 0.2)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let a = xs.iter().map(|&x| x * x).sum::<f64>();
+        -(-0.5 * a).exp()
+    }
+}
+
+#[derive(Debug)]
+pub struct Hartmann3;
+impl TestFunction for Hartmann3 {
+    fn default_dimension(&self) -> usize {
+        3
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 3, ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let a = [
+            [3.0, 0.1, 3.0, 0.1],
+            [10.0, 10.0, 10.0, 10.0],
+            [30.0, 35.0, 30.0, 35.0],
+        ];
+        let p = [
+            [0.36890, 0.46990, 0.10910, 0.03815],
+            [0.11700, 0.43870, 0.87320, 0.57430],
+            [0.26730, 0.74700, 0.55470, 0.88280],
+        ];
+        let c = [1.0, 1.2, 3.0, 3.2];
+        let e = (0..4)
+            .map(|i| {
+                let mut d = 0.0;
+                for j in 0..3 {
+                    d += a[j][i] * (xs[j] - p[j][i]).powi(2);
+                }
+                c[i] * (-d).exp()
+            })
+            .sum::<f64>();
+        -e
+    }
+}
+
+#[derive(Debug)]
+pub struct Hartmann6;
+impl TestFunction for Hartmann6 {
+    fn default_dimension(&self) -> usize {
+        6
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 6, ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let a = [
+            [10.0, 0.05, 3.0, 17.0],
+            [3.0, 10.0, 3.5, 8.0],
+            [17.0, 17.0, 1.7, 0.05],
+            [3.5, 0.1, 10.0, 10.0],
+            [1.7, 8.0, 17.0, 0.1],
+            [8.0, 14.0, 8.0, 14.0],
+        ];
+        let p = [
+            [0.1312, 0.2329, 0.2348, 0.4047],
+            [0.1696, 0.4135, 0.1451, 0.8828],
+            [0.5569, 0.8307, 0.3522, 0.8732],
+            [0.0124, 0.3736, 0.2883, 0.5743],
+            [0.8283, 0.1004, 0.3047, 0.1091],
+            [0.5886, 0.9991, 0.6650, 0.0381],
+        ];
+        let c = [1.0, 1.2, 3.0, 3.2];
+        let e = (0..4)
+            .map(|i| {
+                let mut d = 0.0;
+                for j in 0..6 {
+                    d += a[j][i] * (xs[j] - p[j][i]).powi(2);
+                }
+                c[i] * (-d).exp()
+            })
+            .sum::<f64>();
+        -e
+    }
+}
+
+#[derive(Debug)]
+pub struct HelicalValley;
+impl TestFunction for HelicalValley {
+    fn default_dimension(&self) -> usize {
+        3
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 3, ErrorKind::InvalidInput);
+        Ok(iter::repeat((-1.0, 2.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let x1 = xs[0];
+        let x2 = xs[1];
+        let x3 = xs[2];
+        100.0
+            * ((x3 - 10.0 * x2.atan2(x1) / 2.0 / PI).powi(2)
+                + ((x1 * x1 + x2 * x2).sqrt() - 1.0).powi(2))
+            + x3 * x3
+    }
+}
+
+#[derive(Debug)]
+pub struct LennardJones6;
+impl TestFunction for LennardJones6 {
+    fn default_dimension(&self) -> usize {
+        6
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 6, ErrorKind::InvalidInput);
+        Ok(iter::repeat((-3.0, 3.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let k = xs.len() / 3;
+        let mut s = 0.0;
+        for i in 0..k - 1 {
+            for j in i + 1..k {
+                let a = 3 * i;
+                let b = 3 * j;
+                let xd = xs[a] - xs[b];
+                let yd = xs[a + 1] - xs[b + 1];
+                let zd = xs[a + 2] - xs[b + 2];
+                let ed = xd * xd + yd * yd + zd * zd;
+                let ud = ed * ed * ed + 1e-8;
+                if ed > 0.0 {
+                    s += (1.0 / ud - 2.0) / ud;
+                }
+            }
+        }
+        s.min(0.0)
+    }
+}
 // recipe(McCourt01, 7, Some(10.0)),
 // recipe(McCourt02, 7, None),
 // recipe(McCourt03, 9, None),
@@ -291,5 +435,66 @@ mod tests {
     fn easom_works() {
         assert_eq!(Easom.evaluate(&[1.2]), 5.62363908902924);
         assert_eq!(Easom.evaluate(&[1.2, 3.4]), 9.928391855906339);
+    }
+
+    #[test]
+    fn exponential_works() {
+        assert_eq!(Exponential.evaluate(&[0.12]), -0.9928258579038134);
+        assert_eq!(Exponential.evaluate(&[0.12, -0.34]), -0.9370674633774034);
+    }
+
+    #[test]
+    fn hartmann3_works() {
+        assert_eq!(Hartmann3.evaluate(&[0.12, 0.34, 0.56]), -0.5775714789099738);
+        assert_eq!(
+            Hartmann3.evaluate(&[0.47, 0.01, 0.98]),
+            -0.12200108040740279
+        );
+        assert_eq!(
+            Hartmann3.evaluate(&[0.1, 0.55592003, 0.85218259]),
+            -3.8626347486217725
+        );
+    }
+
+    #[test]
+    fn hartmann6_works() {
+        assert_eq!(
+            Hartmann6.evaluate(&[
+                0.20168952, 0.15001069, 0.47687398, 0.27533243, 0.31165162, 0.65730054
+            ]),
+            -3.3223680114155116
+        );
+        assert_eq!(
+            Hartmann6.evaluate(&[0.1, 0.2, 0.3, 0.4, 0.5, 0.6]),
+            -1.4069105761385299
+        );
+    }
+
+    #[test]
+    fn helicalvalley_works() {
+        assert_eq!(HelicalValley.evaluate(&[1.0, 0.0, 0.0]), 0.0);
+        assert_eq!(
+            HelicalValley.evaluate(&[-0.12, 0.34, 0.56]),
+            656.2430543456857
+        );
+    }
+
+    #[test]
+    fn lennard_jones6_works() {
+        assert_eq!(
+            LennardJones6.evaluate(&[
+                -2.66666470373,
+                2.73904387714,
+                1.42304625988,
+                -1.95553276732,
+                2.81714839844,
+                2.12175295546
+            ]),
+            -1.0
+        );
+        assert_eq!(
+            LennardJones6.evaluate(&[-0.12, 0.34, 0.56, 0.12, -0.34, -0.56]),
+            -0.3259538442755606
+        );
     }
 }
