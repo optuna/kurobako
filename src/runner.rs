@@ -339,6 +339,13 @@ impl StudyRunner {
         track!(self.run_init())?;
 
         while self.pb.position() < self.study_steps {
+            if self.pb.is_hidden() && !self.opt.quiet {
+                eprintln!(
+                    "DONE: {}/{}",
+                    self.pb.position(),
+                    self.study_steps.study_steps
+                );
+            }
             track!(self.run_once())?;
         }
 
