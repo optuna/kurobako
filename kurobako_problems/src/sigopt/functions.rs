@@ -294,6 +294,25 @@ impl TestFunction for HelicalValley {
 }
 
 #[derive(Debug)]
+pub struct HimmelBlau;
+impl TestFunction for HimmelBlau {
+    fn default_dimension(&self) -> usize {
+        2
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 2, ErrorKind::InvalidInput);
+        Ok(iter::repeat((-2.0, 6.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let x1 = xs[0];
+        let x2 = xs[1];
+        (x1.powi(2) + x2 - 11.0).powi(2) + (x1 + x2.powi(2) - 7.0).powi(2)
+    }
+}
+
+#[derive(Debug)]
 pub struct LennardJones6;
 impl TestFunction for LennardJones6 {
     fn default_dimension(&self) -> usize {
@@ -1748,6 +1767,27 @@ impl TestFunction for Shekel07 {
 }
 
 #[derive(Debug)]
+pub struct SixHumpCamel;
+impl TestFunction for SixHumpCamel {
+    fn default_dimension(&self) -> usize {
+        2
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 2, ErrorKind::InvalidInput);
+        Ok(vec![(-2.0, 2.0), (-1.5, 1.5)])
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let x1 = xs[0];
+        let x2 = xs[1];
+        (4.0 - 2.1 * x1.powi(2) + x1.powi(4) / 3.0) * x1.powi(2)
+            + x1 * x2
+            + (4.0 * x2.powi(2) - 4.0) * x2.powi(2)
+    }
+}
+
+#[derive(Debug)]
 pub struct Sphere;
 impl TestFunction for Sphere {
     fn default_dimension(&self) -> usize {
@@ -1866,23 +1906,52 @@ impl TestFunction for Weierstrass {
     }
 }
 
-// #[derive(Debug)]
-// pub struct Xor;
-// impl TestFunction for Xor {
-//     fn default_dimension(&self) -> usize {
-//         9
-//     }
+#[derive(Debug)]
+pub struct Xor;
+impl TestFunction for Xor {
+    fn default_dimension(&self) -> usize {
+        9
+    }
 
-//     fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
-//         track_assert_eq!(dim, 9, ErrorKind::InvalidInput);
-//         Ok(iter::repeat((-0.5, 0.2)).take(dim).collect())
-//     }
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 9, ErrorKind::InvalidInput);
+        Ok(iter::repeat((-1.0, 1.0)).take(dim).collect())
+    }
 
-//     fn evaluate(&self, xs: &[f64]) -> f64 {}
-// }
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let f_11 = xs[6] / (1.0 + (-xs[0] - xs[1] - xs[4]).exp());
+        let f_12 = xs[7] / (1.0 + (-xs[2] - xs[3] - xs[5]).exp());
+        let f_1 = (1.0 + (-f_11 - f_12 - xs[8]).exp()).powi(-2);
+        let f_21 = xs[6] / (1.0 + (-xs[4]).exp());
+        let f_22 = xs[7] / (1.0 + (-xs[5]).exp());
+        let f_2 = (1.0 + (-f_21 - f_22 - xs[8]).exp()).powi(-2);
+        let f_31 = xs[6] / (1.0 + (-xs[0] - xs[4]).exp());
+        let f_32 = xs[7] / (1.0 + (-xs[2] - xs[5]).exp());
+        let f_3 = (1.0 - (1.0 + (-f_31 - f_32 - xs[8]).exp()).powi(-1)).powi(2);
+        let f_41 = xs[6] / (1.0 + (-xs[1] - xs[4]).exp());
+        let f_42 = xs[7] / (1.0 + (-xs[3] - xs[5]).exp());
+        let f_4 = (1.0 - (1.0 + (-f_41 - f_42 - xs[8]).exp()).powi(-1)).powi(2);
+        f_1 + f_2 + f_3 + f_4
+    }
+}
 
-// recipe(YaoLiu, 5, None),
-// Six-Hemp Camel, Himmelblau
+#[derive(Debug)]
+pub struct YaoLiu;
+impl TestFunction for YaoLiu {
+    fn default_dimension(&self) -> usize {
+        2
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        Ok(iter::repeat((-5.12, 2.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        xs.iter()
+            .map(|&x| x.powi(2) - 10.0 * (2.0 * PI * x).cos() + 10.0)
+            .sum()
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -1992,6 +2061,12 @@ mod tests {
             HelicalValley.evaluate(&[-0.12, 0.34, 0.56]),
             656.2430543456857
         );
+    }
+
+    #[test]
+    fn himmelblau_works() {
+        assert_eq!(HimmelBlau.evaluate(&[3.0, 2.0]), 0.0);
+        assert_eq!(HimmelBlau.evaluate(&[0.1, 0.2]), 163.4837);
     }
 
     #[test]
@@ -2309,6 +2384,14 @@ mod tests {
     }
 
     #[test]
+    fn sixhumpcamel_works() {
+        assert_eq!(
+            SixHumpCamel.evaluate(&[0.08984201368301331, -0.7126564032704135]),
+            -1.0316284534898774
+        );
+    }
+
+    #[test]
     fn sphere_works() {
         assert_eq!(Sphere.evaluate(&[0.1, 0.2, -0.3]), 0.14);
     }
@@ -2334,5 +2417,29 @@ mod tests {
     #[test]
     fn weierstrass_works() {
         assert_eq!(Weierstrass.evaluate(&[0.1, 0.2, -0.3]), 17.127313481390843);
+    }
+
+    #[test]
+    fn xor_works() {
+        assert_eq!(
+            Xor.evaluate(&[
+                1.0,
+                -1.0,
+                1.0,
+                -1.0,
+                -1.0,
+                1.0,
+                1.0,
+                -1.0,
+                0.421457080713797
+            ]),
+            0.9597587570119619
+        );
+    }
+
+    #[test]
+    fn yaoliu_works() {
+        assert_eq!(YaoLiu.evaluate(&[0.0, 0.0]), 0.0);
+        assert_eq!(YaoLiu.evaluate(&[0.1, 0.2, -0.3, 0.4]), 40.3);
     }
 }
