@@ -1362,27 +1362,525 @@ impl TestFunction for McCourt28 {
     }
 }
 
-// recipe(Michalewicz, 4, None),
-// recipe(Mishra06, 2, None),
-// recipe(Ned01, 2, None),
-// recipe(OddSquare, 2, None),
-// recipe(Parsopoulos, 2, None),
-// recipe(Pinter, 2, None),
-// recipe(Plateau, 2, None),
-// recipe(Problem03, 1, None),
-// recipe(Rastrigin, 8, None),
-// recipe(RosenbrockLog, 11, None),
-// recipe(Sargan, 5, None),
-// recipe(Schwefel20, 2, None),
-// recipe(Schwefel36, 2, None),
-// recipe(Shekel05, 4, None),
-// recipe(Shekel07, 4, None),
-// recipe(Sphere, 7, None),
-// recipe(StyblinskiTang, 5, None),
-// recipe(Trid, 6, None),
-// recipe(Tripod, 2, None),
-// recipe(Weierstrass, 3, None),
-// recipe(Xor, 9, None),
+#[derive(Debug)]
+pub struct Michalewicz;
+impl TestFunction for Michalewicz {
+    fn default_dimension(&self) -> usize {
+        2
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        let max_dim = 12;
+        track_assert!(dim <= max_dim, ErrorKind::InvalidInput; dim, max_dim);
+        Ok(iter::repeat((0.0, PI)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let m = 10;
+        -(1..=xs.len())
+            .zip(xs.iter())
+            .map(|(i, &x)| x.sin() * (i as f64 * x.powi(2) / PI).sin().powi(2 * m))
+            .sum::<f64>()
+    }
+}
+
+#[derive(Debug)]
+pub struct Mishra06;
+impl TestFunction for Mishra06 {
+    fn default_dimension(&self) -> usize {
+        2
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 2, ErrorKind::InvalidInput);
+        Ok(iter::repeat((-10.0, 10.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let x1 = xs[0];
+        let x2 = xs[1];
+        let a = (x1.cos() + x2.cos()).powi(2).sin().powi(2);
+        let b = (x1.sin() + x2.sin()).powi(2).cos().powi(2);
+        let c = -(a - b + x1).powi(2).ln();
+        let d = (x1 - 1.0).powi(2) + (x2 - 1.0).powi(2);
+        c + 0.1 * d
+    }
+}
+
+#[derive(Debug)]
+pub struct Ned01;
+impl TestFunction for Ned01 {
+    fn default_dimension(&self) -> usize {
+        2
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 2, ErrorKind::InvalidInput);
+        Ok(iter::repeat((-10.0, 10.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        (xs[0].powi(2) + xs[1]).abs().sqrt().cos().abs().powf(0.5) + 0.01 * xs[0] + 0.01 * xs[1]
+    }
+}
+
+#[derive(Debug)]
+pub struct OddSquare;
+impl TestFunction for OddSquare {
+    fn default_dimension(&self) -> usize {
+        2
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 2, ErrorKind::InvalidInput);
+        Ok(iter::repeat((-3.0 * PI, 3.0 * PI)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let dim = xs.len() as f64;
+        let b = [1.0, 1.3];
+        let d = dim * (xs[0] - b[0]).max(xs[1] - b[1]).powi(2);
+        let h = (xs[0] - b[0]).powi(2) + (xs[1] - b[1]).powi(2);
+        -(-d / (2.0 * PI)).exp() * (PI * d).cos() * (1.0 + 0.02 * h / (d + 0.01))
+    }
+}
+
+#[derive(Debug)]
+pub struct Parsopoulos;
+impl TestFunction for Parsopoulos {
+    fn default_dimension(&self) -> usize {
+        2
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 2, ErrorKind::InvalidInput);
+        Ok(iter::repeat((-5.0, 5.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        xs[0].cos().powi(2) + xs[1].sin().powi(2)
+    }
+}
+
+#[derive(Debug)]
+pub struct Pinter;
+impl TestFunction for Pinter {
+    fn default_dimension(&self) -> usize {
+        2
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert!(dim > 1, ErrorKind::InvalidInput; dim);
+        Ok(iter::repeat((-5.0, 2.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        (0..xs.len())
+            .map(|i| {
+                let x_i = xs[i];
+                let x_mi = xs
+                    .get(i.wrapping_sub(1))
+                    .copied()
+                    .unwrap_or_else(|| xs[xs.len() - 1]);
+                let x_pi = xs.get(i + 1).copied().unwrap_or_else(|| xs[0]);
+                let a = x_mi * x_i.sin() + x_pi.sin();
+                let b = x_mi.powi(2) - 2.0 * x_i + 3.0 * x_pi - x_i.cos() + 1.0;
+                let i = i as f64;
+                (i + 1.0) * x_i.powi(2)
+                    + 20.0 * (i + 1.0) * a.sin().powi(2)
+                    + (i + 1.0) * (1.0 + (i + 1.0) * b.powi(2)).log10()
+            })
+            .sum()
+    }
+}
+
+#[derive(Debug)]
+pub struct Plateau;
+impl TestFunction for Plateau {
+    fn default_dimension(&self) -> usize {
+        2
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        Ok(iter::repeat((-2.34, 5.12)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        30.0 + xs.iter().map(|&x| x.abs().floor()).sum::<f64>()
+    }
+}
+
+#[derive(Debug)]
+pub struct Powell;
+impl TestFunction for Powell {
+    fn default_dimension(&self) -> usize {
+        4
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 4, ErrorKind::InvalidInput);
+        Ok(iter::repeat((-4.0, 5.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let x1 = xs[0];
+        let x2 = xs[1];
+        let x3 = xs[2];
+        let x4 = xs[3];
+        (x1 + 10.0 * x2).powi(2)
+            + 5.0 * (x3 - x4).powi(2)
+            + (x2 - 2.0 * x3).powi(4)
+            + 10.0 * (x1 - x4).powi(4)
+    }
+}
+
+#[derive(Debug)]
+pub struct Problem03;
+impl TestFunction for Problem03 {
+    fn default_dimension(&self) -> usize {
+        1
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 1, ErrorKind::InvalidInput);
+        Ok(iter::repeat((-10.0, 10.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let x = xs[0];
+        -(1..6)
+            .map(|k| k as f64)
+            .map(|k| k * ((k + 1.0) * x + k).sin())
+            .sum::<f64>()
+    }
+}
+
+#[derive(Debug)]
+pub struct Rastrigin;
+impl TestFunction for Rastrigin {
+    fn default_dimension(&self) -> usize {
+        8
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 8, ErrorKind::InvalidInput);
+        let a = [-5.0, -5.0, -2.0, -2.0, -5.0, -5.0, -2.0, -2.0];
+        let b = [2.0, 2.0, 5.0, 5.0, 2.0, 2.0, 5.0, 5.0];
+        Ok(a.iter().copied().zip(b.iter().copied()).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let dim = xs.len() as f64;
+        10.0 * dim
+            + xs.iter()
+                .map(|&x| x * x - 10.0 * (2.0 * PI * x).cos())
+                .sum::<f64>()
+    }
+}
+
+#[derive(Debug)]
+pub struct RosenbrockLog;
+impl TestFunction for RosenbrockLog {
+    fn default_dimension(&self) -> usize {
+        11
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 11, ErrorKind::InvalidInput);
+        Ok(vec![
+            (-2.0, 2.0),
+            (-2.0, 1.1),
+            (0.5, 2.0),
+            (-2.0, 2.0),
+            (0.8, 2.0),
+            (-2.0, 1.5),
+            (-2.0, 2.0),
+            (-2.0, 1.2),
+            (0.7, 2.0),
+            (-2.0, 2.0),
+            (-2.0, 2.0),
+        ])
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let a = xs
+            .iter()
+            .skip(1)
+            .zip(xs.iter().take(xs.len() - 1))
+            .map(|(x1, x2)| 100.0 * (x1 - x2.powi(2)).powi(2) + (1.0 - x2).powi(2))
+            .sum::<f64>();
+        (1.0 + a).ln()
+    }
+}
+
+#[derive(Debug)]
+pub struct Sargan;
+impl TestFunction for Sargan {
+    fn default_dimension(&self) -> usize {
+        2
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert!(dim > 1, ErrorKind::InvalidInput; dim);
+        Ok(iter::repeat((-2.0, 4.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let a = xs
+            .iter()
+            .skip(1)
+            .zip(xs.iter())
+            .map(|(&x1, &x0)| x0 * x1)
+            .sum::<f64>();
+        let dim = xs.len() as f64;
+        xs.iter().map(|&x| dim * (x * x + 0.4 * a)).sum()
+    }
+}
+
+#[derive(Debug)]
+pub struct Schwefel20;
+impl TestFunction for Schwefel20 {
+    fn default_dimension(&self) -> usize {
+        2
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        Ok(iter::repeat((-60.0, 100.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        xs.iter().map(|&x| x.abs()).sum()
+    }
+}
+
+#[derive(Debug)]
+pub struct Schwefel36;
+impl TestFunction for Schwefel36 {
+    fn default_dimension(&self) -> usize {
+        2
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 2, ErrorKind::InvalidInput);
+        Ok(iter::repeat((-0.0, 20.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let x1 = xs[0];
+        let x2 = xs[1];
+        -x1 * x2 * (72.0 - 2.0 * x1 - 2.0 * x2)
+    }
+}
+
+#[derive(Debug)]
+pub struct Shekel05;
+impl TestFunction for Shekel05 {
+    fn default_dimension(&self) -> usize {
+        4
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 4, ErrorKind::InvalidInput);
+        Ok(iter::repeat((-0.0, 10.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let a_mat = [
+            [4, 4, 4, 4],
+            [1, 1, 1, 1],
+            [8, 8, 8, 8],
+            [6, 6, 6, 6],
+            [3, 7, 3, 7],
+        ];
+        let c_vec = &[0.1, 0.2, 0.2, 0.4, 0.6];
+        -a_mat
+            .iter()
+            .zip(c_vec.iter())
+            .map(|(a, &c)| {
+                let b = xs
+                    .iter()
+                    .zip(a.iter())
+                    .map(|(&x, &a)| (x - a as f64).powi(2))
+                    .sum::<f64>();
+                1.0 / (b + c)
+            })
+            .sum::<f64>()
+    }
+}
+
+#[derive(Debug)]
+pub struct Shekel07;
+impl TestFunction for Shekel07 {
+    fn default_dimension(&self) -> usize {
+        4
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 4, ErrorKind::InvalidInput);
+        Ok(iter::repeat((-0.0, 10.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let a_mat = [
+            [4, 4, 4, 4],
+            [1, 1, 1, 1],
+            [8, 8, 8, 8],
+            [6, 6, 6, 6],
+            [3, 7, 3, 7],
+            [2, 9, 2, 9],
+            [5, 5, 3, 3],
+        ];
+        let c_vec = [0.1, 0.2, 0.2, 0.4, 0.4, 0.6, 0.3];
+
+        -a_mat
+            .iter()
+            .zip(c_vec.iter())
+            .map(|(a, &c)| {
+                let b = xs
+                    .iter()
+                    .zip(a.iter())
+                    .map(|(&x, &a)| (x - a as f64).powi(2))
+                    .sum::<f64>();
+                1.0 / (b + c)
+            })
+            .sum::<f64>()
+    }
+}
+
+#[derive(Debug)]
+pub struct Sphere;
+impl TestFunction for Sphere {
+    fn default_dimension(&self) -> usize {
+        2
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        Ok(iter::repeat((-5.12, 2.12)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        xs.iter().map(|&x| x * x).sum()
+    }
+}
+
+#[derive(Debug)]
+pub struct StyblinskiTang;
+impl TestFunction for StyblinskiTang {
+    fn default_dimension(&self) -> usize {
+        2
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        Ok(iter::repeat((-5.0, 5.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        xs.iter()
+            .map(|&x| x.powi(4) - 16.0 * x.powi(2) + 5.0 * x)
+            .sum::<f64>()
+            / 2.0
+    }
+}
+
+#[derive(Debug)]
+pub struct Trid;
+impl TestFunction for Trid {
+    fn default_dimension(&self) -> usize {
+        6
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 6, ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 20.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let a = xs.iter().map(|&x| (x - 1.0).powi(2)).sum::<f64>();
+        let b = xs
+            .iter()
+            .skip(1)
+            .zip(xs.iter())
+            .map(|(&x0, &x1)| x0 * x1)
+            .sum::<f64>();
+        a - b
+    }
+}
+
+#[derive(Debug)]
+pub struct Tripod;
+impl TestFunction for Tripod {
+    fn default_dimension(&self) -> usize {
+        2
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 2, ErrorKind::InvalidInput);
+        Ok(iter::repeat((-100.0, 100.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let x1 = xs[0];
+        let x2 = xs[1];
+        let p1 = if x1 >= 0.0 { 1.0 } else { 0.0 };
+        let p2 = if x2 >= 0.0 { 1.0 } else { 0.0 };
+        p2 * (1.0 + p1)
+            + (x1 + 50.0 * p2 * (1.0 - 2.0 * p1)).abs()
+            + (x2 + 50.0 * (1.0 - 2.0 * p2)).abs()
+    }
+}
+
+#[derive(Debug)]
+pub struct Weierstrass;
+impl TestFunction for Weierstrass {
+    fn default_dimension(&self) -> usize {
+        2
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        Ok(iter::repeat((-0.5, 0.2)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let a = 0.5f64;
+        let b = 3.0f64;
+        let kmax = 20;
+        let ak = (0..=kmax).map(|k| a.powi(k)).collect::<Vec<_>>();
+        let bk = (0..=kmax).map(|k| b.powi(k)).collect::<Vec<_>>();
+        let dim = xs.len() as f64;
+        let c = ak
+            .iter()
+            .zip(bk.iter())
+            .map(|(&a, &b)| a * (PI * b).cos())
+            .sum::<f64>();
+
+        xs.iter()
+            .map(|&x| {
+                let d = ak
+                    .iter()
+                    .zip(bk.iter())
+                    .map(|(&a, &b)| a * (2.0 * PI * b * (x + 0.5)).cos())
+                    .sum::<f64>();
+                d - dim * c
+            })
+            .sum()
+    }
+}
+
+// #[derive(Debug)]
+// pub struct Xor;
+// impl TestFunction for Xor {
+//     fn default_dimension(&self) -> usize {
+//         9
+//     }
+
+//     fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+//         track_assert_eq!(dim, 9, ErrorKind::InvalidInput);
+//         Ok(iter::repeat((-0.5, 0.2)).take(dim).collect())
+//     }
+
+//     fn evaluate(&self, xs: &[f64]) -> f64 {}
+// }
+
 // recipe(YaoLiu, 5, None),
 // Six-Hemp Camel, Himmelblau
 
@@ -1685,5 +2183,156 @@ mod tests {
             McCourt28.evaluate(&[0.4493, 0.0667, 0.9083, 0.2710]),
             -7.694326241956232
         );
+    }
+
+    #[test]
+    fn michalewicz_works() {
+        assert_eq!(
+            Michalewicz.evaluate(&[0.4493, 0.0667, 0.9083, 0.2710]),
+            -0.0008081861489932845
+        );
+    }
+
+    #[test]
+    fn mishra06_works() {
+        assert_eq!(Mishra06.evaluate(&[2.88631, 1.82326]), -2.2839498384520884);
+    }
+
+    #[test]
+    fn ned01_works() {
+        assert_eq!(Ned01.evaluate(&[-8.4666, -9.9988]), -0.17894509347721144);
+    }
+
+    #[test]
+    fn oddsquare_works() {
+        assert_eq!(
+            OddSquare.evaluate(&[0.912667308214834, 1.212667322565022]),
+            -1.0084672831031778
+        );
+    }
+
+    #[test]
+    fn parsopoulos_works() {
+        assert_eq!(
+            Parsopoulos.evaluate(&[PI / 2.0, PI]),
+            0.000000000000000000000000000000018746997283273168
+        );
+    }
+
+    #[test]
+    fn pinter_works() {
+        assert_eq!(Pinter.evaluate(&[0.0, 0.0, 0.0]), 0.0);
+        assert_eq!(Pinter.evaluate(&[-1.2, 0.34]), 43.142397037153586);
+    }
+
+    #[test]
+    fn plateau_works() {
+        assert_eq!(Plateau.evaluate(&[0.0, 0.0, 0.0]), 30.0);
+        assert_eq!(Plateau.evaluate(&[-1.2, 0.34]), 31.0);
+    }
+
+    #[test]
+    fn powell_works() {
+        assert_eq!(Powell.evaluate(&[0.0, 0.0, 0.0, 0.0]), 0.0);
+        assert_eq!(Powell.evaluate(&[-1.2, 3.4, 0.56, -0.78]), 1112.15253216);
+    }
+
+    #[test]
+    fn problem03_works() {
+        assert_eq!(Problem03.evaluate(&[-6.7745761]), -12.031249442166843);
+    }
+
+    #[test]
+    fn rastrigin_works() {
+        assert_eq!(
+            Rastrigin.evaluate(&[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+            0.0
+        );
+        assert_eq!(
+            Rastrigin.evaluate(&[0.1, 0.2, -0.3, 0.4, 0.5, 0.6, -0.7, 0.0]),
+            92.58033988749895
+        );
+    }
+
+    #[test]
+    fn rosenbrocklog_works() {
+        assert_eq!(
+            RosenbrockLog.evaluate(&iter::repeat(1.0).take(11).collect::<Vec<_>>()),
+            0.0
+        );
+        assert_eq!(
+            RosenbrockLog.evaluate(&[0.1, 0.2, -0.3, 0.4, 0.5, 0.6, -0.7, 0.8, 0.9, 1.0, 1.1]),
+            5.245865506545613
+        );
+    }
+
+    #[test]
+    fn sargan_works() {
+        assert_eq!(
+            Sargan.evaluate(&iter::repeat(0.0).take(5).collect::<Vec<_>>()),
+            0.0
+        );
+        assert_eq!(
+            Sargan.evaluate(&[0.1, 0.2, -0.3, 0.4, 0.5]),
+            3.1500000000000004
+        );
+    }
+
+    #[test]
+    fn schwefel20_works() {
+        assert_eq!(
+            Schwefel20.evaluate(&iter::repeat(0.0).take(5).collect::<Vec<_>>()),
+            0.0
+        );
+        assert_eq!(Schwefel20.evaluate(&[0.1, 0.2, -0.3, 0.4, 0.5]), 1.5);
+    }
+
+    #[test]
+    fn schwefel36_works() {
+        assert_eq!(Schwefel36.evaluate(&[12.0, 12.0]), -3456.0);
+    }
+
+    #[test]
+    fn shekel05_works() {
+        assert_eq!(
+            Shekel05.evaluate(&[4.0, 4.0, 4.0, 4.0]),
+            -10.152719932456289
+        );
+    }
+
+    #[test]
+    fn shekel07_works() {
+        assert_eq!(
+            Shekel07.evaluate(&[4.0, 4.0, 4.0, 4.0]),
+            -10.402818836930305
+        );
+    }
+
+    #[test]
+    fn sphere_works() {
+        assert_eq!(Sphere.evaluate(&[0.1, 0.2, -0.3]), 0.14);
+    }
+
+    #[test]
+    fn styblinskitang_works() {
+        assert_eq!(
+            StyblinskiTang.evaluate(&[-2.903534018185960, -2.903534018185960, -2.903534018185960]),
+            -117.49849711131424
+        );
+    }
+
+    #[test]
+    fn trid_works() {
+        assert_eq!(Trid.evaluate(&[6.0, 10.0, 12.0, 12.0, 10.0, 6.0]), -50.0);
+    }
+
+    #[test]
+    fn tripod_works() {
+        assert_eq!(Tripod.evaluate(&[0.0, -50.0]), 0.0);
+    }
+
+    #[test]
+    fn weierstrass_works() {
+        assert_eq!(Weierstrass.evaluate(&[0.1, 0.2, -0.3]), 17.127257847007424);
     }
 }
