@@ -18,6 +18,7 @@ use kurobako_core::{ErrorKind, Result};
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
+mod bessel;
 mod functions;
 
 /// Recipe of `SigoptProblem`.

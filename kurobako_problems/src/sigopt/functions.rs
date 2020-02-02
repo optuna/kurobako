@@ -1,5 +1,5 @@
+use super::bessel::bessel0;
 use kurobako_core::{ErrorKind, Result};
-use special_fun::unsafe_cephes_double::jv as besselj;
 use std::f64::consts::PI;
 use std::f64::EPSILON;
 use std::fmt;
@@ -823,7 +823,7 @@ impl McCourt12 {
         ];
         McCourtBase::dist_sq_2(xs, centers, e_mat)
             .map(|r2| r2.sqrt())
-            .map(|r| unsafe { besselj(0.0, r) })
+            .map(|r| bessel0(r))
     }
 }
 impl TestFunction for McCourt12 {
@@ -1196,7 +1196,7 @@ impl McCourt23 {
                 0.30000000000000004,
             ],
         ];
-        McCourtBase::dist_sq_inf(xs, centers, e_mat).map(|rmax| unsafe { besselj(0.0, rmax) })
+        McCourtBase::dist_sq_inf(xs, centers, e_mat).map(|rmax| bessel0(rmax))
     }
 }
 impl TestFunction for McCourt23 {
@@ -1890,19 +1890,19 @@ mod tests {
 
     #[test]
     fn ackley_works() {
-        assert_eq!(Ackley.evaluate(&[1.0]), 3.625384938440363);
-        assert_eq!(Ackley.evaluate(&[1.0, 2.0]), 5.42213171779951);
-        assert_eq!(Ackley.evaluate(&[1.0, 2.0, 3.0]), 7.016453608269399);
+        assert_eq!(Ackley.evaluate(&[1.0]), 3.6253849384403627);
+        assert_eq!(Ackley.evaluate(&[1.0, 2.0]), 5.422131717799509);
+        assert_eq!(Ackley.evaluate(&[1.0, 2.0, 3.0]), 7.0164536082694);
     }
 
     #[test]
     fn adjiman_works() {
-        assert_eq!(Adjiman.evaluate(&[1.0, 2.0]), 0.29129549643388186);
+        assert_eq!(Adjiman.evaluate(&[1.0, 2.0]), 0.2912954964338819);
     }
 
     #[test]
     fn alpine02_works() {
-        assert_eq!(Alpine02.evaluate(&[1.2, 3.4]), -0.48108849403215936);
+        assert_eq!(Alpine02.evaluate(&[1.2, 3.4]), -0.48108849403215925);
     }
 
     #[test]
@@ -1948,8 +1948,8 @@ mod tests {
 
     #[test]
     fn easom_works() {
-        assert_eq!(Easom.evaluate(&[1.2]), 5.623639089029241);
-        assert_eq!(Easom.evaluate(&[1.2, 3.4]), 9.92839185590634);
+        assert_eq!(Easom.evaluate(&[1.2]), 5.62363908902924);
+        assert_eq!(Easom.evaluate(&[1.2, 3.4]), 9.928391855906339);
     }
 
     #[test]
@@ -1990,7 +1990,7 @@ mod tests {
         assert_eq!(HelicalValley.evaluate(&[1.0, 0.0, 0.0]), 0.0);
         assert_eq!(
             HelicalValley.evaluate(&[-0.12, 0.34, 0.56]),
-            656.2430543456853
+            656.2430543456857
         );
     }
 
@@ -2095,7 +2095,7 @@ mod tests {
     fn mccourt11_works() {
         assert_eq!(
             McCourt11.evaluate(&[0.4, 0.6, 0.4, 1.0, 0.4, 0.2, 1.0, 0.3]),
-            -0.39045532564581453
+            -0.3904553256458163
         );
     }
 
@@ -2103,7 +2103,7 @@ mod tests {
     fn mccourt12_works() {
         assert_eq!(
             McCourt12.evaluate(&[0.4499, 0.4553, 0.0046, 1.0, 0.3784, 0.3067, 0.6173]),
-            3.542749889219432
+            3.5427498479589827
         );
     }
 
@@ -2155,7 +2155,7 @@ mod tests {
     fn mccourt22_works() {
         assert_eq!(
             McCourt22.evaluate(&[0.2723, 0.4390, 0.8277, 0.3390, 0.3695]),
-            -3.0807936518348034
+            -3.080793651834803
         );
     }
 
@@ -2163,7 +2163,7 @@ mod tests {
     fn mccourt23_works() {
         assert_eq!(
             McCourt23.evaluate(&[0.7268, 0.3914, 0.0, 0.7268, 0.5375, 0.8229]),
-            -18.357500597555667
+            -18.357500661879723
         );
     }
 
@@ -2189,7 +2189,7 @@ mod tests {
     fn michalewicz_works() {
         assert_eq!(
             Michalewicz.evaluate(&[0.4493, 0.0667, 0.9083, 0.2710]),
-            -0.0008081861489932845
+            -0.0008081861489932879
         );
     }
 
@@ -2215,14 +2215,14 @@ mod tests {
     fn parsopoulos_works() {
         assert_eq!(
             Parsopoulos.evaluate(&[PI / 2.0, PI]),
-            0.000000000000000000000000000000018746997283273168
+            0.00000000000000000000000000000001874699728327322
         );
     }
 
     #[test]
     fn pinter_works() {
         assert_eq!(Pinter.evaluate(&[0.0, 0.0, 0.0]), 0.0);
-        assert_eq!(Pinter.evaluate(&[-1.2, 0.34]), 43.142397037153586);
+        assert_eq!(Pinter.evaluate(&[-1.2, 0.34]), 43.14239703715357);
     }
 
     #[test]
@@ -2333,6 +2333,6 @@ mod tests {
 
     #[test]
     fn weierstrass_works() {
-        assert_eq!(Weierstrass.evaluate(&[0.1, 0.2, -0.3]), 17.127257847007424);
+        assert_eq!(Weierstrass.evaluate(&[0.1, 0.2, -0.3]), 17.127313481390843);
     }
 }
