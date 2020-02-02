@@ -1,4 +1,5 @@
 use kurobako_core::{ErrorKind, Result};
+use special_fun::unsafe_cephes_double::jv as besselj;
 use std::f64::consts::PI;
 use std::f64::EPSILON;
 use std::fmt;
@@ -324,28 +325,1043 @@ impl TestFunction for LennardJones6 {
         s.min(0.0)
     }
 }
-// recipe(McCourt01, 7, Some(10.0)),
-// recipe(McCourt02, 7, None),
-// recipe(McCourt03, 9, None),
-// recipe(McCourt06, 5, Some(12.0)),
-// recipe(McCourt07, 6, Some(12.0)),
-// recipe(McCourt08, 4, None),
-// recipe(McCourt09, 3, None),
-// recipe(McCourt10, 8, None),
-// recipe(McCourt11, 8, None),
-// recipe(McCourt12, 7, None),
-// recipe(McCourt13, 3, None),
-// recipe(McCourt14, 3, None),
-// recipe(McCourt16, 4, Some(10.0)),
-// recipe(McCourt17, 7, None),
-// recipe(McCourt18, 8, None),
-// recipe(McCourt19, 2, None),
-// recipe(McCourt20, 2, None),
-// recipe(McCourt22, 5, None),
-// recipe(McCourt23, 6, None),
-// recipe(McCourt26, 3, None),
-// recipe(McCourt27, 3, None),
-// recipe(McCourt28, 4, None),
+
+struct McCourtBase;
+impl McCourtBase {
+    fn evaluate<'a, F, I>(xs: &'a [f64], kernel: F, coefs: &'static [f64]) -> f64
+    where
+        F: FnOnce(&'a [f64]) -> I,
+        I: 'a + Iterator<Item = f64>,
+    {
+        coefs.iter().zip(kernel(xs)).map(|(&c, k)| c * k).sum()
+    }
+
+    fn dist_sq_1<'a>(
+        xs: &'a [f64],
+        centers: &'static [&'static [f64]],
+        e_mat: &'static [&'static [f64]],
+    ) -> impl 'a + Iterator<Item = f64> {
+        e_mat.iter().zip(centers.iter()).map(move |(evec, center)| {
+            xs.iter()
+                .zip(center.iter())
+                .zip(evec.iter().map(|&x| x.sqrt()))
+                .map(|((&x, &c), e)| ((x - c) * e).abs())
+                .sum::<f64>()
+        })
+    }
+
+    fn dist_sq_2<'a>(
+        xs: &'a [f64],
+        centers: &'static [&'static [f64]],
+        e_mat: &'static [&'static [f64]],
+    ) -> impl 'a + Iterator<Item = f64> {
+        e_mat.iter().zip(centers.iter()).map(move |(evec, center)| {
+            let a = xs
+                .iter()
+                .zip(center.iter())
+                .zip(evec.iter())
+                .map(|((&x, &c), &e)| (x - c) * e);
+            let b = xs.iter().zip(center.iter()).map(|(&x, &c)| x - c);
+            a.zip(b).map(|(a, b)| a * b).sum::<f64>()
+        })
+    }
+
+    fn dist_sq_inf<'a>(
+        xs: &'a [f64],
+        centers: &'static [&'static [f64]],
+        e_mat: &'static [&'static [f64]],
+    ) -> impl 'a + Iterator<Item = f64> {
+        e_mat.iter().zip(centers.iter()).map(move |(evec, center)| {
+            let mut max = std::f64::NEG_INFINITY;
+            for x in xs
+                .iter()
+                .zip(center.iter())
+                .zip(evec.iter().map(|&x| x.sqrt()))
+                .map(|((&x, &c), e)| ((x - c) * e).abs())
+            {
+                if x > max {
+                    max = x;
+                }
+            }
+            max
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt01;
+impl McCourt01 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[f64]] = &[
+            &[0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+            &[0.3, 0.1, 0.5, 0.1, 0.8, 0.8, 0.6],
+            &[0.6, 0.7, 0.8, 0.3, 0.7, 0.8, 0.6],
+            &[0.4, 0.7, 0.4, 0.9, 0.4, 0.1, 0.9],
+            &[0.9, 0.3, 0.3, 0.5, 0.2, 0.7, 0.2],
+            &[0.5, 0.5, 0.2, 0.8, 0.5, 0.3, 0.4],
+        ];
+        let e_mat: &[&[f64]] = &[
+            &[5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
+            &[5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
+            &[5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
+            &[5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
+            &[5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
+            &[5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
+        ];
+        McCourtBase::dist_sq_2(xs, centers, e_mat).map(|r2| 1.0 / (1.0 + r2).sqrt())
+    }
+}
+impl TestFunction for McCourt01 {
+    fn default_dimension(&self) -> usize {
+        7
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 7, ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[1.0, 1.0, -2.0, 1.0, 1.0, 1.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt02;
+impl McCourt02 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[
+            &[0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+            &[0.3, 0.1, 0.5, 0.1, 0.8, 0.8, 0.6],
+            &[0.6, 0.7, 0.8, 0.3, 0.7, 0.8, 0.6],
+            &[0.4, 0.7, 0.4, 0.9, 0.4, 0.1, 0.9],
+            &[0.9, 0.3, 0.3, 0.5, 0.2, 0.7, 0.2],
+            &[0.5, 0.5, 0.2, 0.8, 0.5, 0.3, 0.4],
+        ];
+        let e_mat: &[&[_]] = &[
+            &[5., 5., 5., 5., 5., 5., 5.],
+            &[1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5],
+            &[1., 1., 1., 1., 1., 1., 1.],
+            &[5., 5., 5., 5., 5., 5., 5.],
+            &[5., 5., 5., 5., 5., 5., 5.],
+            &[5., 5., 5., 5., 5., 5., 5.],
+        ];
+        McCourtBase::dist_sq_2(xs, centers, e_mat).map(|r2| 1.0 / (1.0 + r2).sqrt())
+    }
+}
+impl TestFunction for McCourt02 {
+    fn default_dimension(&self) -> usize {
+        7
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 7, ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[-1.0, -1.0, -2.0, 1.0, 1.0, -1.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt03;
+impl McCourt03 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[
+            &[0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+            &[0.3, 0.1, 0.5, 0.1, 0.8, 0.8, 0.6, 0.4, 0.2],
+            &[0.6, 0.7, 0.8, 0.3, 0.7, 0.8, 0.6, 0.9, 0.1],
+            &[0.7, 0.2, 0.7, 0.7, 0.3, 0.3, 0.8, 0.6, 0.4],
+            &[0.4, 0.6, 0.4, 0.9, 0.4, 0.1, 0.9, 0.3, 0.3],
+            &[0.5, 0.5, 0.2, 0.8, 0.5, 0.3, 0.4, 0.5, 0.8],
+            &[0.8, 0.3, 0.3, 0.5, 0.2, 0.7, 0.2, 0.4, 0.6],
+            &[0.8, 0.3, 0.3, 0.5, 0.2, 0.7, 0.2, 0.4, 0.6],
+            &[0.8, 0.3, 0.3, 0.5, 0.2, 0.7, 0.2, 0.4, 0.6],
+        ];
+        let e_mat: &[&[_]] = &[
+            &[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+            &[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+            &[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+            &[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+            &[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+            &[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+            &[0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+            &[0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+            &[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        ];
+        McCourtBase::dist_sq_2(xs, centers, e_mat).map(|r2| (-r2).exp())
+    }
+}
+impl TestFunction for McCourt03 {
+    fn default_dimension(&self) -> usize {
+        9
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 9, ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -2.0, -1.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt06;
+impl McCourt06 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[
+            &[0.1, 0.1, 0.1, 0.1, 0.1],
+            &[0.3, 0.8, 0.8, 0.6, 0.9],
+            &[0.6, 0.1, 0.2, 0.5, 0.2],
+            &[0.7, 0.2, 0.1, 0.8, 0.9],
+            &[0.4, 0.6, 0.5, 0.3, 0.8],
+            &[0.9, 0.5, 0.3, 0.2, 0.4],
+            &[0.2, 0.8, 0.6, 0.4, 0.6],
+        ];
+        let e_mat: &[&[_]] = &[
+            &[0.4, 0.4, 0.4, 0.4, 0.4],
+            &[0.2, 0.2, 0.2, 0.2, 0.2],
+            &[0.4, 0.4, 0.4, 0.4, 0.4],
+            &[0.08, 0.08, 0.08, 0.08, 0.08],
+            &[0.2, 0.2, 0.2, 0.2, 0.2],
+            &[0.4, 0.4, 0.4, 0.4, 0.4],
+            &[0.4, 0.4, 0.4, 0.4, 0.4],
+        ];
+        McCourtBase::dist_sq_2(xs, centers, e_mat).map(|r2| (1.0 + r2).sqrt())
+    }
+}
+impl TestFunction for McCourt06 {
+    fn default_dimension(&self) -> usize {
+        5
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, 5, ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[-3.0, 2.0, -2.0, 4.0, -1.0, 5.0, -1.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt07;
+impl McCourt07 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[
+            &[0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+            &[0.3, 0.8, 0.8, 0.6, 0.9, 0.4],
+            &[0.6, 1.0, 0.2, 0.0, 1.0, 0.3],
+            &[0.7, 0.2, 0.1, 0.8, 0.9, 0.2],
+            &[0.4, 0.6, 0.5, 0.3, 0.8, 0.3],
+            &[0.9, 0.5, 0.3, 0.2, 0.4, 0.8],
+            &[0.2, 0.8, 0.6, 0.4, 0.6, 0.9],
+        ];
+        let e_mat: &[&[_]] = &[
+            &[0.7, 0.7, 0.7, 0.7, 0.7, 0.7],
+            &[0.35, 0.35, 0.35, 0.35, 0.35, 0.35],
+            &[0.7, 0.7, 0.7, 0.7, 0.7, 0.7],
+            &[0.14, 0.14, 0.14, 0.14, 0.14, 0.14],
+            &[0.35, 0.35, 0.35, 0.35, 0.35, 0.35],
+            &[0.7, 0.7, 0.7, 0.7, 0.7, 0.7],
+            &[0.49, 0.49, 0.49, 0.49, 0.49, 0.49],
+        ];
+        McCourtBase::dist_sq_2(xs, centers, e_mat)
+            .map(|r2| r2.sqrt())
+            .map(|r| (1.0 + r) * (-r).exp())
+    }
+}
+impl TestFunction for McCourt07 {
+    fn default_dimension(&self) -> usize {
+        6
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, self.default_dimension(), ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[2.0, 2.0, -4.0, 1.0, -2.0, 4.0, -2.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt08;
+impl McCourt08 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[
+            &[0.1, 0.1, 0.1, 0.1],
+            &[0.3, 0.8, 0.9, 0.4],
+            &[0.6, 1.0, 0.2, 0.0],
+            &[0.7, 0.2, 0.1, 0.8],
+            &[0.4, 0.0, 0.8, 1.0],
+            &[0.9, 0.5, 0.3, 0.2],
+            &[0.2, 0.8, 0.6, 0.4],
+            &[0.1, 0.1, 0.1, 0.1],
+            &[0.3, 0.8, 0.9, 0.4],
+            &[0.6, 1.0, 0.2, 0.0],
+            &[0.7, 0.2, 0.1, 0.8],
+            &[0.4, 0.0, 0.8, 1.0],
+            &[0.9, 0.5, 0.3, 0.2],
+            &[0.2, 0.8, 0.6, 0.4],
+        ];
+        let e_mat: &[&[_]] = &[
+            &[0.7, 0.7, 0.7, 0.7],
+            &[0.35, 0.35, 0.35, 0.35],
+            &[0.7, 2.1, 0.7, 2.1],
+            &[0.35, 0.35, 0.35, 0.35],
+            &[1.4, 0.7, 1.4, 0.7],
+            &[0.7, 0.7, 0.7, 0.7],
+            &[0.49, 0.49, 0.49, 0.49],
+        ];
+        McCourtBase::dist_sq_2(xs, centers, e_mat)
+            .map(|r2| r2.sqrt())
+            .map(|r| (1.0 + r + 0.333 * r * r) * (-r).exp())
+    }
+}
+impl TestFunction for McCourt08 {
+    fn default_dimension(&self) -> usize {
+        4
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, self.default_dimension(), ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[2.0, 1.0, -8.0, 1.0, -5.0, 3.0, 2.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt09;
+impl McCourt09 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[
+            &[0.1, 0.1, 0.1],
+            &[0.3, 0.8, 0.9],
+            &[0.6, 1.0, 0.2],
+            &[0.6, 1.0, 0.2],
+            &[0.7, 0.2, 0.1],
+            &[0.4, 0.0, 0.8],
+            &[0.9, 0.5, 1.0],
+            &[0.0, 0.8, 0.6],
+        ];
+        let e_mat: &[&[_]] = &[
+            &[0.6, 0.6, 0.6],
+            &[0.36, 0.36, 0.36],
+            &[0.6, 0.3, 0.6],
+            &[2.4, 6.0, 2.4],
+            &[0.3, 0.3, 0.3],
+            &[0.3, 0.6, 0.3],
+            &[0.6, 0.6, 0.6],
+            &[0.18, 0.3, 0.3],
+        ];
+        McCourtBase::dist_sq_2(xs, centers, e_mat).map(|r2| (PI * r2.sqrt()).cos() * (-r2).exp())
+    }
+}
+impl TestFunction for McCourt09 {
+    fn default_dimension(&self) -> usize {
+        3
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, self.default_dimension(), ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[4.0, -3.0, -6.0, -2.0, 1.0, -3.0, 6.0, 2.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt10;
+impl McCourt10 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[
+            &[0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+            &[0.3, 0.1, 0.5, 0.1, 0.8, 0.8, 0.6, 0.4],
+            &[0.6, 0.7, 0.8, 0.3, 0.7, 0.8, 0.6, 0.9],
+            &[0.7, 0.0, 0.7, 1.0, 0.3, 0.0, 0.8, 0.6],
+            &[0.4, 0.6, 0.4, 1.0, 0.4, 0.2, 1.0, 0.3],
+            &[0.5, 0.5, 0.2, 0.8, 0.5, 0.3, 0.4, 0.5],
+            &[0.1, 0.2, 1.0, 0.4, 0.5, 0.6, 0.7, 0.0],
+            &[0.9, 0.4, 0.3, 0.5, 0.2, 0.7, 0.2, 0.4],
+            &[0.0, 0.5, 0.3, 0.2, 0.1, 0.9, 0.3, 0.7],
+            &[0.2, 0.8, 0.6, 0.4, 0.6, 0.6, 0.5, 0.0],
+        ];
+        let e_mat: &[&[_]] = &[
+            &[0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8],
+            &[0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8],
+            &[0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8],
+            &[0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4],
+            &[0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8],
+            &[
+                2.4000000000000004,
+                2.4000000000000004,
+                2.4000000000000004,
+                2.4000000000000004,
+                2.4000000000000004,
+                2.4000000000000004,
+                2.4000000000000004,
+                2.4000000000000004,
+            ],
+            &[0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4],
+            &[0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8],
+            &[1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6, 1.6],
+            &[0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8],
+        ];
+        McCourtBase::dist_sq_2(xs, centers, e_mat).map(|r2| 1.0 / (1.0 + r2).sqrt())
+    }
+}
+impl TestFunction for McCourt10 {
+    fn default_dimension(&self) -> usize {
+        8
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, self.default_dimension(), ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[5.0, -2.0, 5.0, -5.0, -12.0, -2.0, 10.0, 2.0, -5.0, 5.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt11;
+impl McCourt11 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[
+            &[0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+            &[0.3, 0.1, 0.5, 0.1, 0.8, 0.8, 0.6, 0.4],
+            &[0.6, 0.7, 0.8, 0.3, 0.7, 0.8, 0.6, 0.9],
+            &[0.7, 0.0, 0.7, 1.0, 0.3, 0.0, 0.8, 0.6],
+            &[0.4, 0.6, 0.4, 1.0, 0.4, 0.2, 1.0, 0.3],
+            &[0.5, 0.5, 0.2, 0.8, 0.5, 0.3, 0.4, 0.5],
+            &[0.1, 0.2, 1.0, 0.4, 0.5, 0.6, 0.7, 0.0],
+            &[0.9, 0.4, 0.3, 0.5, 0.2, 0.7, 0.2, 0.4],
+            &[0.0, 0.5, 0.3, 0.2, 0.1, 0.9, 0.3, 0.7],
+            &[0.2, 0.8, 0.6, 0.4, 0.6, 0.6, 0.5, 0.0],
+        ];
+        let e_mat: &[&[_]] = &[
+            &[0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+            &[0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+            &[0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+            &[0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25],
+            &[0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+            &[1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5],
+            &[0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25],
+            &[0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+            &[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+            &[0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+        ];
+        McCourtBase::dist_sq_2(xs, centers, e_mat)
+            .map(|r2| r2.sqrt())
+            .map(|r| (-r).exp())
+    }
+}
+impl TestFunction for McCourt11 {
+    fn default_dimension(&self) -> usize {
+        8
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, self.default_dimension(), ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[5.0, -2.0, 5.0, -5.0, -7.0, -2.0, 10.0, 2.0, -5.0, 5.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt12;
+impl McCourt12 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[
+            &[0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+            &[0.3, 0.1, 0.5, 0.1, 0.8, 0.8, 0.6],
+            &[0.6, 0.7, 0.8, 0.3, 0.7, 0.8, 0.6],
+            &[0.7, 0.0, 0.7, 1.0, 0.3, 0.0, 0.8],
+            &[0.4, 0.6, 0.4, 1.0, 0.4, 0.2, 1.0],
+            &[0.5, 0.5, 0.2, 0.8, 0.5, 0.3, 0.4],
+            &[0.1, 0.2, 1.0, 0.4, 0.5, 0.6, 0.7],
+            &[0.9, 0.4, 0.3, 0.5, 0.2, 0.7, 0.2],
+            &[0.0, 0.5, 0.3, 0.2, 0.1, 0.9, 0.3],
+            &[0.2, 0.8, 0.6, 0.4, 0.6, 0.6, 0.5],
+        ];
+        let e_mat: &[&[_]] = &[
+            &[0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7],
+            &[0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7],
+            &[0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7],
+            &[0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35],
+            &[0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7],
+            &[7.0, 7.0, 7.0, 7.0, 7.0, 7.0, 7.0],
+            &[0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35],
+            &[0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7],
+            &[1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4],
+            &[0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7],
+        ];
+        McCourtBase::dist_sq_2(xs, centers, e_mat)
+            .map(|r2| r2.sqrt())
+            .map(|r| unsafe { besselj(0.0, r) })
+    }
+}
+impl TestFunction for McCourt12 {
+    fn default_dimension(&self) -> usize {
+        7
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, self.default_dimension(), ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[5.0, -4.0, 5.0, -5.0, -7.0, -2.0, 10.0, 2.0, -5.0, 5.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt13;
+impl McCourt13 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[
+            &[0.9, 0.9, 0.9],
+            &[0.9, 0.9, 1.0],
+            &[0.9, 1.0, 0.9],
+            &[1.0, 0.9, 0.9],
+            &[1.0, 1.0, 1.0],
+            &[1.0, 0.0, 0.0],
+            &[0.5, 0.0, 0.0],
+            &[0.0, 1.0, 0.0],
+            &[0.0, 0.7, 0.0],
+            &[0.0, 0.0, 0.0],
+            &[0.4, 0.3, 0.6],
+            &[0.7, 0.7, 0.7],
+            &[0.7, 0.7, 1.0],
+            &[1.0, 0.7, 0.7],
+            &[0.7, 1.0, 0.7],
+        ];
+        let e_mat: &[&[_]] = &[
+            &[7.6000000000000005, 7.6000000000000005, 7.6000000000000005],
+            &[7.6000000000000005, 7.6000000000000005, 7.6000000000000005],
+            &[7.6000000000000005, 7.6000000000000005, 7.6000000000000005],
+            &[7.6000000000000005, 7.6000000000000005, 7.6000000000000005],
+            &[7.6000000000000005, 7.6000000000000005, 7.6000000000000005],
+            &[0.8, 0.4, 0.8],
+            &[1.6, 0.4, 0.8],
+            &[0.4, 0.4, 0.4],
+            &[0.4, 0.8, 0.4],
+            &[0.8, 0.8, 0.8],
+            &[1.6, 1.6, 2.8000000000000003],
+            &[6.800000000000001, 6.800000000000001, 6.800000000000001],
+            &[6.800000000000001, 6.800000000000001, 6.800000000000001],
+            &[6.800000000000001, 6.800000000000001, 6.800000000000001],
+            &[6.800000000000001, 6.800000000000001, 6.800000000000001],
+        ];
+        McCourtBase::dist_sq_2(xs, centers, e_mat).map(|r2| (-r2).exp())
+    }
+}
+impl TestFunction for McCourt13 {
+    fn default_dimension(&self) -> usize {
+        3
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, self.default_dimension(), ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[
+            4.0, 4.0, 4.0, 4.0, -12.0, 1.0, 3.0, -2.0, 5.0, -2.0, 1.0, -2.0, -2.0, -2.0, -2.0,
+        ];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt14;
+impl McCourt14 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[&[0.1, 0.8, 0.3]];
+        let e_mat: &[&[_]] = &[&[5.0, 5.0, 5.0]];
+        McCourtBase::dist_sq_2(xs, centers, e_mat).map(|r2| (-r2).exp())
+    }
+}
+impl TestFunction for McCourt14 {
+    fn default_dimension(&self) -> usize {
+        3
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, self.default_dimension(), ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[-5.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt16;
+impl McCourt16 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[&[0.3, 0.8, 0.3, 0.6], &[0.4, 0.9, 0.4, 0.7]];
+        let e_mat: &[&[_]] = &[&[5.0, 5.0, 5.0, 5.0], &[5.0, 5.0, 5.0, 5.0]];
+        McCourtBase::dist_sq_2(xs, centers, e_mat).map(|r2| 1.0 / (1.0 + r2).sqrt())
+    }
+}
+impl TestFunction for McCourt16 {
+    fn default_dimension(&self) -> usize {
+        4
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, self.default_dimension(), ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[-5.0, 5.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt17;
+impl McCourt17 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[
+            &[0.3, 0.8, 0.3, 0.6, 0.2, 0.8, 0.5],
+            &[0.8, 0.3, 0.8, 0.2, 0.5, 0.2, 0.8],
+            &[0.2, 0.7, 0.2, 0.5, 0.4, 0.7, 0.3],
+        ];
+        let e_mat: &[&[_]] = &[
+            &[4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0],
+            &[4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0],
+            &[4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0],
+        ];
+        McCourtBase::dist_sq_2(xs, centers, e_mat).map(|r2| 1.0 / (1.0 + r2).sqrt())
+    }
+}
+impl TestFunction for McCourt17 {
+    fn default_dimension(&self) -> usize {
+        7
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, self.default_dimension(), ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[-5.0, 5.0, 5.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt18;
+impl McCourt18 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[
+            &[0.3, 0.8, 0.3, 0.6, 0.2, 0.8, 0.2, 0.4],
+            &[0.3, 0.8, 0.3, 0.6, 0.2, 0.8, 0.2, 0.4],
+            &[0.3, 0.8, 0.3, 0.6, 0.2, 0.8, 0.2, 0.4],
+            &[0.8, 0.3, 0.8, 0.2, 0.5, 0.2, 0.5, 0.7],
+            &[0.2, 0.7, 0.2, 0.5, 0.4, 0.3, 0.8, 0.8],
+        ];
+        let e_mat: &[&[_]] = &[
+            &[0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+            &[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+            &[4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0],
+            &[4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0],
+            &[4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0],
+        ];
+        McCourtBase::dist_sq_2(xs, centers, e_mat)
+            .map(|r2| r2.sqrt())
+            .map(|r| (1.0 + r) * (-r).exp())
+    }
+}
+impl TestFunction for McCourt18 {
+    fn default_dimension(&self) -> usize {
+        8
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, self.default_dimension(), ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[-1.0, 2.0, -5.0, 4.0, 4.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt19;
+impl McCourt19 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[
+            &[0.1, 0.1],
+            &[0.3, 0.8],
+            &[0.6, 0.7],
+            &[0.7, 0.1],
+            &[0.4, 0.3],
+            &[0.2, 0.8],
+            &[0.1, 0.2],
+            &[0.9, 0.4],
+            &[0.5, 0.5],
+            &[0.0, 0.8],
+        ];
+        let e_mat: &[&[_]] = &[
+            &[3.0, 3.0],
+            &[3.0, 3.0],
+            &[3.0, 3.0],
+            &[1.5, 1.5],
+            &[3.0, 3.0],
+            &[9.0, 9.0],
+            &[1.5, 1.5],
+            &[3.0, 3.0],
+            &[6.0, 6.0],
+            &[3.0, 3.0],
+        ];
+        McCourtBase::dist_sq_1(xs, centers, e_mat)
+    }
+}
+impl TestFunction for McCourt19 {
+    fn default_dimension(&self) -> usize {
+        2
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, self.default_dimension(), ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[-5.0, 4.0, -5.0, 5.0, 4.0, 2.0, -10.0, -4.0, 5.0, 5.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt20;
+impl McCourt20 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[
+            &[0.1, 0.1],
+            &[0.3, 0.8],
+            &[0.6, 0.7],
+            &[0.7, 0.1],
+            &[0.4, 0.3],
+            &[0.2, 0.8],
+            &[0.1, 0.2],
+            &[0.9, 0.4],
+            &[0.5, 0.5],
+            &[0.0, 0.8],
+        ];
+        let e_mat: &[&[_]] = &[
+            &[50.0, 50.0],
+            &[50.0, 50.0],
+            &[50.0, 50.0],
+            &[25.0, 25.0],
+            &[50.0, 50.0],
+            &[150.0, 150.0],
+            &[25.0, 25.0],
+            &[50.0, 50.0],
+            &[100.0, 100.0],
+            &[50.0, 50.0],
+        ];
+        McCourtBase::dist_sq_1(xs, centers, e_mat).map(|rabs| (-rabs).exp())
+    }
+}
+impl TestFunction for McCourt20 {
+    fn default_dimension(&self) -> usize {
+        2
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, self.default_dimension(), ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[5.0, -4.0, 5.0, -7.0, -4.0, -2.0, 10.0, 4.0, -2.0, -5.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt22;
+impl McCourt22 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[
+            &[1.0, 0.3, 0.1, 0.4, 0.1],
+            &[0.9, 0.7, 0.0, 0.5, 0.8],
+            &[0.5, 0.6, 0.6, 0.5, 0.5],
+            &[0.2, 0.2, 0.4, 0.0, 0.3],
+            &[0.0, 0.6, 1.0, 0.1, 0.8],
+            &[0.3, 0.5, 0.8, 0.0, 0.2],
+            &[0.8, 1.0, 0.1, 0.1, 0.5],
+        ];
+        let e_mat: &[&[_]] = &[
+            &[5.0, 30.0, 25.0, 5.0, 15.0],
+            &[10.0, 30.0, 10.0, 5.0, 5.0],
+            &[5.0, 10.0, 5.0, 10.0, 5.0],
+            &[20.0, 5.0, 20.0, 5.0, 5.0],
+            &[25.0, 30.0, 5.0, 15.0, 10.0],
+            &[20.0, 10.0, 15.0, 5.0, 20.0],
+            &[15.0, 25.0, 5.0, 20.0, 25.0],
+        ];
+        McCourtBase::dist_sq_inf(xs, centers, e_mat).map(|rmax| (-rmax).exp())
+    }
+}
+impl TestFunction for McCourt22 {
+    fn default_dimension(&self) -> usize {
+        5
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, self.default_dimension(), ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[3.0, 4.0, -4.0, 2.0, -3.0, -2.0, 6.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt23;
+impl McCourt23 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[
+            &[0.1, 0.1, 1.0, 0.3, 0.4, 0.1],
+            &[0.0, 0.0, 0.1, 0.6, 0.0, 0.7],
+            &[0.1, 0.5, 0.7, 0.0, 0.7, 0.3],
+            &[0.9, 0.6, 0.2, 0.9, 0.3, 0.8],
+            &[0.8, 0.3, 0.7, 0.7, 0.2, 0.7],
+            &[0.7, 0.6, 0.5, 1.0, 1.0, 0.7],
+            &[0.8, 0.9, 0.5, 0.0, 0.0, 0.5],
+            &[0.3, 0.0, 0.3, 0.2, 0.1, 0.8],
+        ];
+        let e_mat: &[&[_]] = &[
+            &[0.4, 0.5, 0.5, 0.4, 0.1, 0.5],
+            &[0.2, 0.4, 0.5, 0.1, 0.2, 0.2],
+            &[0.1, 0.4, 0.30000000000000004, 0.2, 0.2, 0.30000000000000004],
+            &[0.4, 0.2, 0.30000000000000004, 0.4, 0.1, 0.4],
+            &[
+                0.2,
+                0.30000000000000004,
+                0.6000000000000001,
+                0.6000000000000001,
+                0.4,
+                0.1,
+            ],
+            &[0.5, 0.4, 0.1, 0.4, 0.1, 0.1],
+            &[0.2, 0.2, 0.2, 0.5, 0.4, 0.2],
+            &[
+                0.1,
+                0.4,
+                0.6000000000000001,
+                0.30000000000000004,
+                0.4,
+                0.30000000000000004,
+            ],
+        ];
+        McCourtBase::dist_sq_inf(xs, centers, e_mat).map(|rmax| unsafe { besselj(0.0, rmax) })
+    }
+}
+impl TestFunction for McCourt23 {
+    fn default_dimension(&self) -> usize {
+        6
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, self.default_dimension(), ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[1.0, -2.0, 3.0, -20.0, 5.0, -2.0, -1.0, -2.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt26;
+impl McCourt26 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[
+            &[0.5, 0.2, 0.0],
+            &[0.6, 0.2, 0.5],
+            &[0.4, 0.6, 0.5],
+            &[0.5, 0.7, 0.3],
+            &[0.4, 0.4, 0.4],
+            &[0.8, 0.5, 0.8],
+            &[0.0, 0.0, 0.8],
+            &[0.7, 0.7, 0.2],
+            &[0.9, 0.3, 1.0],
+            &[0.4, 0.4, 0.8],
+            &[0.2, 0.8, 0.8],
+        ];
+        let e_mat: &[&[_]] = &[
+            &[1.0, 1.0, 1.0],
+            &[3.0, 2.5, 1.5],
+            &[1.5, 1.5, 1.5],
+            &[2.5, 1.0, 2.5],
+            &[2.0, 3.0, 1.5],
+            &[1.0, 1.0, 1.5],
+            &[1.0, 2.0, 0.5],
+            &[2.0, 3.0, 2.0],
+            &[0.5, 1.5, 2.0],
+            &[1.5, 1.0, 1.0],
+            &[3.0, 1.0, 1.5],
+        ];
+        McCourtBase::dist_sq_1(xs, centers, e_mat).map(|rmax| (-rmax).exp())
+    }
+}
+impl TestFunction for McCourt26 {
+    fn default_dimension(&self) -> usize {
+        3
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, self.default_dimension(), ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[1.0, 2.0, 3.0, -5.0, 3.0, -2.0, 1.0, -2.0, 5.0, 2.0, -2.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt27;
+impl McCourt27 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[
+            &[0.6, 0.3, 0.5],
+            &[0.5, 0.2, 0.0],
+            &[0.4, 0.6, 0.5],
+            &[0.5, 0.7, 0.3],
+            &[0.4, 0.4, 0.4],
+            &[0.8, 0.5, 0.8],
+            &[0.0, 0.0, 0.8],
+            &[0.7, 0.0, 0.2],
+            &[0.9, 0.3, 1.0],
+            &[0.4, 0.4, 0.8],
+            &[0.2, 0.8, 0.8],
+        ];
+        let e_mat: &[&[_]] = &[
+            &[2.0, 2.0, 2.0],
+            &[6.0, 5.0, 3.0],
+            &[3.0, 3.0, 3.0],
+            &[5.0, 2.0, 5.0],
+            &[4.0, 6.0, 3.0],
+            &[2.0, 2.0, 3.0],
+            &[2.0, 4.0, 1.0],
+            &[4.0, 6.0, 4.0],
+            &[1.0, 3.0, 4.0],
+            &[3.0, 2.0, 2.0],
+            &[6.0, 2.0, 3.0],
+        ];
+        McCourtBase::dist_sq_1(xs, centers, e_mat).map(|rmax| (-rmax).exp())
+    }
+}
+impl TestFunction for McCourt27 {
+    fn default_dimension(&self) -> usize {
+        3
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, self.default_dimension(), ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[-10.0, 2.0, 3.0, 5.0, 3.0, 2.0, 1.0, 2.0, 5.0, 2.0, 2.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
+#[derive(Debug)]
+pub struct McCourt28;
+impl McCourt28 {
+    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+        let centers: &[&[_]] = &[
+            &[0.6, 0.2, 0.8, 0.4],
+            &[0.1, 0.1, 0.7, 0.9],
+            &[1.0, 0.1, 0.8, 0.6],
+            &[0.0, 0.3, 0.2, 1.0],
+            &[0.2, 1.0, 0.8, 0.0],
+            &[0.6, 0.9, 0.2, 0.9],
+            &[0.1, 0.7, 0.6, 0.8],
+            &[0.8, 0.4, 0.3, 0.2],
+            &[0.1, 1.0, 0.8, 0.2],
+            &[0.3, 0.9, 0.9, 0.0],
+            &[0.8, 1.0, 0.6, 0.9],
+        ];
+        let e_mat: &[&[_]] = &[
+            &[1.0, 1.0, 1.0, 1.0],
+            &[5.0, 3.0, 3.0, 3.0],
+            &[4.0, 6.0, 2.0, 4.0],
+            &[4.0, 1.0, 6.0, 3.0],
+            &[2.0, 5.0, 3.0, 5.0],
+            &[5.0, 4.0, 6.0, 1.0],
+            &[6.0, 4.0, 1.0, 6.0],
+            &[5.0, 1.0, 2.0, 1.0],
+            &[1.0, 5.0, 4.0, 2.0],
+            &[1.0, 3.0, 3.0, 2.0],
+            &[4.0, 6.0, 6.0, 2.0],
+        ];
+        McCourtBase::dist_sq_2(xs, centers, e_mat).map(|r2| (-r2).exp())
+    }
+}
+impl TestFunction for McCourt28 {
+    fn default_dimension(&self) -> usize {
+        4
+    }
+
+    fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
+        track_assert_eq!(dim, self.default_dimension(), ErrorKind::InvalidInput);
+        Ok(iter::repeat((0.0, 1.0)).take(dim).collect())
+    }
+
+    fn evaluate(&self, xs: &[f64]) -> f64 {
+        let coefs = &[-10.0, 2.0, 3.0, 5.0, 3.0, 2.0, 1.0, 2.0, 5.0, 2.0, 2.0];
+        McCourtBase::evaluate(xs, Self::kernel, coefs)
+    }
+}
+
 // recipe(Michalewicz, 4, None),
 // recipe(Mishra06, 2, None),
 // recipe(Ned01, 2, None),
@@ -368,6 +1384,7 @@ impl TestFunction for LennardJones6 {
 // recipe(Weierstrass, 3, None),
 // recipe(Xor, 9, None),
 // recipe(YaoLiu, 5, None),
+// Six-Hemp Camel, Himmelblau
 
 #[cfg(test)]
 mod tests {
@@ -375,19 +1392,19 @@ mod tests {
 
     #[test]
     fn ackley_works() {
-        assert_eq!(Ackley.evaluate(&[1.0]), 3.6253849384403627);
-        assert_eq!(Ackley.evaluate(&[1.0, 2.0]), 5.422131717799509);
-        assert_eq!(Ackley.evaluate(&[1.0, 2.0, 3.0]), 7.0164536082694);
+        assert_eq!(Ackley.evaluate(&[1.0]), 3.625384938440363);
+        assert_eq!(Ackley.evaluate(&[1.0, 2.0]), 5.42213171779951);
+        assert_eq!(Ackley.evaluate(&[1.0, 2.0, 3.0]), 7.016453608269399);
     }
 
     #[test]
     fn adjiman_works() {
-        assert_eq!(Adjiman.evaluate(&[1.0, 2.0]), 0.2912954964338819);
+        assert_eq!(Adjiman.evaluate(&[1.0, 2.0]), 0.29129549643388186);
     }
 
     #[test]
     fn alpine02_works() {
-        assert_eq!(Alpine02.evaluate(&[1.2, 3.4]), -0.48108849403215925);
+        assert_eq!(Alpine02.evaluate(&[1.2, 3.4]), -0.48108849403215936);
     }
 
     #[test]
@@ -433,8 +1450,8 @@ mod tests {
 
     #[test]
     fn easom_works() {
-        assert_eq!(Easom.evaluate(&[1.2]), 5.62363908902924);
-        assert_eq!(Easom.evaluate(&[1.2, 3.4]), 9.928391855906339);
+        assert_eq!(Easom.evaluate(&[1.2]), 5.623639089029241);
+        assert_eq!(Easom.evaluate(&[1.2, 3.4]), 9.92839185590634);
     }
 
     #[test]
@@ -475,7 +1492,7 @@ mod tests {
         assert_eq!(HelicalValley.evaluate(&[1.0, 0.0, 0.0]), 0.0);
         assert_eq!(
             HelicalValley.evaluate(&[-0.12, 0.34, 0.56]),
-            656.2430543456857
+            656.2430543456853
         );
     }
 
@@ -495,6 +1512,178 @@ mod tests {
         assert_eq!(
             LennardJones6.evaluate(&[-0.12, 0.34, 0.56, 0.12, -0.34, -0.56]),
             -0.3259538442755606
+        );
+    }
+
+    #[test]
+    fn mccourt01_works() {
+        assert_eq!(
+            McCourt01.evaluate(&[0.6241, 0.7688, 0.8793, 0.2739, 0.7351, 0.8499, 0.6196]),
+            -0.08594263064487956
+        );
+        assert_eq!(
+            McCourt01.evaluate(&[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]),
+            1.5047377187821733
+        );
+    }
+
+    #[test]
+    fn mccourt02_works() {
+        assert_eq!(
+            McCourt02.evaluate(&[0.4068, 0.4432, 0.6479, 0.1978, 0.7660, 0.7553, 0.5640]),
+            -2.7416211601265212
+        );
+        assert_eq!(
+            McCourt02.evaluate(&[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]),
+            -2.3839412938903193
+        );
+    }
+
+    #[test]
+    fn mccourt03_works() {
+        assert_eq!(
+            McCourt03.evaluate(&[
+                0.9317, 0.1891, 0.2503, 0.3646, 0.1603, 0.9829, 0.0392, 0.3263, 0.6523
+            ]),
+            -3.0237963611611614
+        );
+    }
+
+    #[test]
+    fn mccourt06_works() {
+        assert_eq!(
+            McCourt06.evaluate(&[1.0, 1.0, 0.7636, 0.5268, 1.0]),
+            2.807202633080286
+        );
+    }
+
+    #[test]
+    fn mccourt07_works() {
+        assert_eq!(
+            McCourt07.evaluate(&[0.3811, 1.0, 0.2312, 0.0, 1.0, 0.1403]),
+            -0.36321372791219586
+        );
+    }
+
+    #[test]
+    fn mccourt08_works() {
+        assert_eq!(
+            McCourt08.evaluate(&[0.5067, 1.0, 0.5591, 0.0823]),
+            -3.450990971528579
+        );
+        assert_eq!(
+            McCourt08.evaluate(&[0.1, 0.2, 0.3, 0.4]),
+            -1.968579289153076
+        );
+    }
+
+    #[test]
+    fn mccourt09_works() {
+        assert_eq!(
+            McCourt09.evaluate(&[0.594, 1.0, 0.205]),
+            -10.171467017140396
+        );
+    }
+
+    #[test]
+    fn mccourt10_works() {
+        assert_eq!(
+            McCourt10.evaluate(&[0.5085, 0.5433, 0.2273, 1.0, 0.3381, 0.0255, 1.0, 0.5038]),
+            -2.519395956637841
+        );
+    }
+
+    #[test]
+    fn mccourt11_works() {
+        assert_eq!(
+            McCourt11.evaluate(&[0.4, 0.6, 0.4, 1.0, 0.4, 0.2, 1.0, 0.3]),
+            -0.39045532564581453
+        );
+    }
+
+    #[test]
+    fn mccourt12_works() {
+        assert_eq!(
+            McCourt12.evaluate(&[0.4499, 0.4553, 0.0046, 1.0, 0.3784, 0.3067, 0.6173]),
+            3.542749889219432
+        );
+    }
+
+    #[test]
+    fn mccourt13_works() {
+        assert_eq!(McCourt13.evaluate(&[1.0, 1.0, 1.0]), 1.490482963587614);
+    }
+
+    #[test]
+    fn mccourt14_works() {
+        assert_eq!(McCourt14.evaluate(&[0.1, 0.8, 0.3]), -5.0);
+    }
+
+    #[test]
+    fn mccourt16_works() {
+        assert_eq!(
+            McCourt16.evaluate(&[0.1858, 0.6858, 0.1858, 0.4858]),
+            -0.8422170093622552
+        );
+    }
+
+    #[test]
+    fn mccourt17_works() {
+        assert_eq!(
+            McCourt17.evaluate(&[0.3125, 0.9166, 0.3125, 0.7062, 0.0397, 0.9270, 0.5979]),
+            0.4708920110382042
+        );
+    }
+
+    #[test]
+    fn mccourt18_works() {
+        assert_eq!(
+            McCourt18.evaluate(&[0.2677, 0.8696, 0.2677, 0.6594, 0.1322, 0.9543, 0.0577, 0.295]),
+            -1.4290621963312253
+        );
+    }
+
+    #[test]
+    fn mccourt19_works() {
+        assert_eq!(McCourt19.evaluate(&[0.4, 0.8]), -8.6726896031426);
+    }
+
+    #[test]
+    fn mccourt20_works() {
+        assert_eq!(McCourt20.evaluate(&[0.7, 0.1]), -6.5976366321635656);
+    }
+
+    #[test]
+    fn mccourt22_works() {
+        assert_eq!(
+            McCourt22.evaluate(&[0.2723, 0.4390, 0.8277, 0.3390, 0.3695]),
+            -3.0807936518348034
+        );
+    }
+
+    #[test]
+    fn mccourt23_works() {
+        assert_eq!(
+            McCourt23.evaluate(&[0.7268, 0.3914, 0.0, 0.7268, 0.5375, 0.8229]),
+            -18.357500597555667
+        );
+    }
+
+    #[test]
+    fn mccourt26_works() {
+        assert_eq!(McCourt26.evaluate(&[0.5, 0.8, 0.3]), -1.5534975431190259);
+    }
+
+    #[test]
+    fn mccourt27_works() {
+        assert_eq!(McCourt27.evaluate(&[0.6, 0.3, 0.5]), -1.7690847025557281);
+    }
+
+    #[test]
+    fn mccourt28_works() {
+        assert_eq!(
+            McCourt28.evaluate(&[0.4493, 0.0667, 0.9083, 0.2710]),
+            -7.694326241956232
         );
     }
 }

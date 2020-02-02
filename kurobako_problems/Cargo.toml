@@ -18,5 +18,6 @@ hdf5file = "0.1"
 kurobako_core = { path = "../kurobako_core/", version = "0.1" }
 nasbench = "0.1"
 serde = { version = "1", features = ["derive"] }
+special-fun = "0.2"
 structopt = "0.3"
 trackable = "0.2"

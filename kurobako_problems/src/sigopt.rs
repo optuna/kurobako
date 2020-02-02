@@ -1,4 +1,11 @@
-//! A problem based on the benchmark defined by [sigopt/evalset](https://github.com/sigopt/evalset).
+//! A problem based on the benchmark defined by [sigopt/evalset].
+//!
+//! # Note
+//!
+//! Currently, only a part of the functions defined in [sigopt/evalset] are implemented.
+//! If you want to use an unimplemented function, please create an issue or PR.
+//!
+//! [sigopt/evalset]: https://github.com/sigopt/evalset
 use self::functions::TestFunction;
 use kurobako_core::domain;
 use kurobako_core::problem::{
