@@ -48,7 +48,7 @@ impl TestFunction for Adjiman {
 }
 
 #[derive(Debug)]
-struct Alpine02;
+pub struct Alpine02;
 impl TestFunction for Alpine02 {
     fn bounds(&self, dim: usize) -> Result<Vec<(f64, f64)>> {
         track_assert_eq!(dim, 2, ErrorKind::InvalidInput);
