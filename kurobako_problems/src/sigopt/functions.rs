@@ -845,7 +845,7 @@ impl McCourt12 {
         ];
         McCourtBase::dist_sq_2(xs, centers, e_mat)
             .map(|r2| r2.sqrt())
-            .map(|r| bessel0(r))
+            .map(bessel0)
     }
 }
 impl TestFunction for McCourt12 {
@@ -1218,7 +1218,7 @@ impl McCourt23 {
                 0.30000000000000004,
             ],
         ];
-        McCourtBase::dist_sq_inf(xs, centers, e_mat).map(|rmax| bessel0(rmax))
+        McCourtBase::dist_sq_inf(xs, centers, e_mat).map(bessel0)
     }
 }
 impl TestFunction for McCourt23 {

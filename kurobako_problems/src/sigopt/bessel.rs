@@ -1,4 +1,5 @@
 #![allow(clippy::unreadable_literal)]
+use std::f64::consts::FRAC_2_PI;
 
 fn horner(arr: &[f64], v: f64) -> f64 {
     let mut z = 0.0;
@@ -53,9 +54,8 @@ pub fn bessel0(x: f64) -> f64 {
     } else {
         let xx = x - 0.785398164;
         let y = 64.0 / y;
-        let w = 0.636619772;
         let a1 = horner(&b0_a1b, y);
         let a2 = horner(&b0_a2b, y);
-        (w / x).sqrt() * (xx.cos() * a1 - xx.sin() * a2 * 8.0 / x)
+        (FRAC_2_PI / x).sqrt() * (xx.cos() * a1 - xx.sin() * a2 * 8.0 / x)
     }
 }
