@@ -1,3 +1,6 @@
+#![allow(clippy::many_single_char_names)]
+#![allow(clippy::unreadable_literal)]
+
 use super::bessel::bessel0;
 use kurobako_core::{ErrorKind, Result};
 use std::f64::consts::PI;
@@ -43,7 +46,7 @@ impl TestFunction for Adjiman {
     }
 
     fn evaluate(&self, xs: &[f64]) -> f64 {
-        return xs[0].cos() * xs[1].sin() - xs[0] / (xs[1] * xs[1] + 1.0);
+        xs[0].cos() * xs[1].sin() - xs[0] / (xs[1] * xs[1] + 1.0)
     }
 }
 

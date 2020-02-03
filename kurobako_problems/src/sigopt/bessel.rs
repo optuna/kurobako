@@ -1,3 +1,5 @@
+#![allow(clippy::unreadable_literal)]
+
 fn horner(arr: &[f64], v: f64) -> f64 {
     let mut z = 0.0;
     for a in arr {
