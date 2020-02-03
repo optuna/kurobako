@@ -8,7 +8,6 @@ use kurobako_core::registry::FactoryRegistry;
 use kurobako_core::rng::ArcRng;
 use kurobako_core::trial::{Params, Values};
 use kurobako_core::{ErrorKind, Result};
-use num;
 use rustats::fundamental::average;
 use serde::{Deserialize, Serialize};
 use std::cmp;
