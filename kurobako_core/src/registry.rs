@@ -4,7 +4,6 @@ use crate::json::JsonRecipe;
 use crate::problem::{BoxProblemFactory, ProblemRecipe};
 use crate::solver::{BoxSolverFactory, SolverRecipe};
 use crate::{Error, Result};
-use serde_json;
 use std::fmt;
 
 /// Factory registry.

@@ -1,6 +1,4 @@
-use rlua;
 use serde::{Deserialize, Serialize};
-use serde_json;
 use trackable::error::{ErrorKind as TrackableErrorKind, ErrorKindExt};
 use trackable::error::{Failure, TrackableError};
 

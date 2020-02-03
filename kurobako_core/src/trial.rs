@@ -1,7 +1,6 @@
 //! A trial that represents one ask-evaluate-tell cycle.
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
-use std;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;

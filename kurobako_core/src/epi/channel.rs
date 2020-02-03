@@ -1,7 +1,6 @@
 //! The receiving and sending channels used to communicate with the external problems that support EPI.
 use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
-use serde_json;
 use std::fmt;
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::marker::PhantomData;

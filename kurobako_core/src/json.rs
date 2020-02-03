@@ -1,7 +1,6 @@
 //! JSON.
 use crate::{Error, Result};
 use serde::Deserialize;
-use serde_json;
 use std::io::Read;
 
 /// JSON representation of a recipe.

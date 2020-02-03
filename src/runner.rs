@@ -16,9 +16,7 @@ use kurobako_core::solver::{
 use kurobako_core::trial::Values;
 use kurobako_core::trial::{EvaluatedTrial, IdGen, NextTrial, TrialId};
 use kurobako_core::{Error, ErrorKind, Result};
-use rand;
 use rand::seq::SliceRandom;
-use serde_json;
 use std::collections::{HashMap, VecDeque};
 use std::io::Write as _;
 use std::num::NonZeroUsize;

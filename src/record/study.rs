@@ -10,7 +10,6 @@ use kurobako_core::solver::SolverSpec;
 use kurobako_core::trial::{Params, TrialId, Values};
 use kurobako_core::{Error, Result};
 use serde::{Deserialize, Serialize};
-use serde_json;
 use sha2::{Digest, Sha256};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BinaryHeap};
