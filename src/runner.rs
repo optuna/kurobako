@@ -16,9 +16,7 @@ use kurobako_core::solver::{
 use kurobako_core::trial::Values;
 use kurobako_core::trial::{EvaluatedTrial, IdGen, NextTrial, TrialId};
 use kurobako_core::{Error, ErrorKind, Result};
-use rand;
 use rand::seq::SliceRandom;
-use serde_json;
 use std::collections::{HashMap, VecDeque};
 use std::io::Write as _;
 use std::num::NonZeroUsize;
@@ -166,6 +164,7 @@ impl Runner {
             .map(|recipe| {
                 track!(StudyRunner::with_mpb(
                     recipe,
+                    &self.opt,
                     &self.mpb,
                     self.cancel.clone()
                 ))
@@ -197,17 +196,27 @@ pub struct StudyRunner {
     threads: EvaluationThreads,
     evaluators: HashMap<TrialId, EvaluatorState>,
     study_steps: u64,
+    opt: RunnerOpt,
     _mpb: Option<MultiProgress>,
 }
 impl StudyRunner {
     pub fn new(study: &StudyRecipe) -> Result<Self> {
+        let opt = RunnerOpt {
+            parallelism: unsafe { NonZeroUsize::new_unchecked(1) },
+            quiet: true,
+        };
         let mpb = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
-        let mut this = track!(Self::with_mpb(study, &mpb, Cancel::new()))?;
+        let mut this = track!(Self::with_mpb(study, &opt, &mpb, Cancel::new()))?;
         this._mpb = Some(mpb);
         Ok(this)
     }
 
-    fn with_mpb(study: &StudyRecipe, mpb: &MultiProgress, cancel: Cancel) -> Result<Self> {
+    fn with_mpb(
+        study: &StudyRecipe,
+        opt: &RunnerOpt,
+        mpb: &MultiProgress,
+        cancel: Cancel,
+    ) -> Result<Self> {
         let registry = FactoryRegistry::new::<KurobakoProblemRecipe, KurobakoSolverRecipe>();
 
         let random_seed = study.seed.unwrap_or_else(rand::random);
@@ -255,6 +264,7 @@ impl StudyRunner {
             threads,
             evaluators: HashMap::new(),
             study_steps,
+            opt: opt.clone(),
             _mpb: None,
         })
     }
@@ -340,11 +350,7 @@ impl StudyRunner {
 
         while self.pb.position() < self.study_steps {
             if self.pb.is_hidden() && !self.opt.quiet {
-                eprintln!(
-                    "DONE: {}/{}",
-                    self.pb.position(),
-                    self.study_steps.study_steps
-                );
+                eprintln!("DONE: {}/{}", self.pb.position(), self.study_steps);
             }
             track!(self.run_once())?;
         }

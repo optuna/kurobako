@@ -12,7 +12,6 @@ use kurobako_core::solver::{SolverFactory as _, SolverRecipe as _, SolverSpec};
 use kurobako_core::trial::{Params, Values};
 use kurobako_core::{Error, ErrorKind, Result};
 use serde::{Deserialize, Serialize};
-use serde_json;
 use structopt::StructOpt;
 
 /// Recipe for problem based on a parameterized study.

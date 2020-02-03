@@ -1,4 +1,3 @@
-use chrono;
 use kurobako_core::Result;
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};

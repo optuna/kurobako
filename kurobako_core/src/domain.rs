@@ -2,7 +2,6 @@
 use crate::{Error, ErrorKind, Result};
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
-use std;
 use std::hash::{Hash, Hasher};
 use structopt::StructOpt;
 

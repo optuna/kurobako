@@ -1,6 +1,5 @@
 use kurobako_core::{Error, ErrorKind};
 use trackable::error::ErrorKindExt;
-use yamakan;
 
 pub fn from_yamakan(f: yamakan::Error) -> Error {
     let kind = match f.kind() {

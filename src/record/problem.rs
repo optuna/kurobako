@@ -2,7 +2,6 @@ use crate::problem::KurobakoProblemRecipe;
 use kurobako_core::problem::ProblemSpec;
 use kurobako_core::{Error, Result};
 use serde::{Deserialize, Serialize};
-use serde_json;
 use sha2::{Digest, Sha256};
 use std::fmt::Write as _;
 

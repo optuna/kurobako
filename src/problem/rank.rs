@@ -10,7 +10,6 @@ use kurobako_core::rng::ArcRng;
 use kurobako_core::trial::{Params, Values};
 use kurobako_core::{Error, Result};
 use serde::{Deserialize, Serialize};
-use serde_json;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
