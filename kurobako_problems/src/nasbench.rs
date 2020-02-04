@@ -12,11 +12,18 @@ use kurobako_core::trial::{Params, Values};
 use kurobako_core::{Error, ErrorKind, Result};
 use nasbench::{AdjacencyMatrix, ModelSpec, NasBench, Op};
 use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::collections::{Bound, HashSet};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::thread_local;
 use structopt::StructOpt;
+
+thread_local! {
+    static NASBENCHES: RefCell<HashMap<PathBuf, Arc<NasBench>>> = RefCell::new(HashMap::new());
+}
 
 const MAX_EDGES: usize = 9;
 const VERTICES: usize = 7;
@@ -41,10 +48,18 @@ impl ProblemRecipe for NasbenchProblemRecipe {
     type Factory = NasbenchProblemFactory;
 
     fn create_factory(&self, _registry: &FactoryRegistry) -> Result<Self::Factory> {
-        let nasbench = track!(NasBench::new(&self.dataset))?;
-        Ok(NasbenchProblemFactory {
-            nasbench: Arc::new(nasbench),
-            encoding: self.encoding,
+        NASBENCHES.with(|map| {
+            let mut map = map.borrow_mut();
+            if !map.contains_key(&self.dataset) {
+                map.insert(
+                    self.dataset.clone(),
+                    Arc::new(track!(NasBench::new(&self.dataset))?),
+                );
+            }
+            Ok(NasbenchProblemFactory {
+                nasbench: Arc::clone(&map[&self.dataset]),
+                encoding: self.encoding,
+            })
         })
     }
 }
