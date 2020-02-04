@@ -320,9 +320,18 @@ impl StudyRunner {
             let (asked_trial, ask_elapsed) =
                 ElapsedSeconds::try_time(|| track!(self.solver.ask(&mut self.idg)))?;
 
-            track!(self.init_evaluator(&asked_trial))?;
-
-            if asked_trial.next_step.is_some() {
+            if let Err(e) = track!(self.init_evaluator(&asked_trial)) {
+                if *e.kind() != ErrorKind::UnevaluableParams {
+                    return Err(e);
+                } else {
+                    let unevaluable = EvaluatedTrial {
+                        id: asked_trial.id,
+                        values: Values::new(vec![]),
+                        current_step: 0,
+                    };
+                    track!(self.solver.tell(unevaluable))?
+                }
+            } else if asked_trial.next_step.is_some() {
                 track!(self.threads.assign(&asked_trial, ask_elapsed))?;
             } else {
                 track!(self.prune_evaluator(asked_trial.id))?;
