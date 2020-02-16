@@ -77,14 +77,15 @@ impl ProblemFactory for SigoptProblemFactory {
     fn specification(&self) -> Result<ProblemSpec> {
         let test_function = self.name.to_test_function();
 
-        let problem_name = if let Some(res) = self.res {
-            format!(
-                "sigopt/evalset/{:?}(dim={}, res={})",
-                self.name, self.dim, res
-            )
-        } else {
-            format!("sigopt/evalset/{:?}(dim={})", self.name, self.dim)
-        };
+        let mut problem_name = format!("sigopt/evalset/{:?}(dim={}", self.name, self.dim);
+        if let Some(res) = self.res {
+            problem_name += &format!(", res={}", res);
+        }
+        if !self.int.is_empty() {
+            problem_name += &format!(", int={:?}", self.int);
+        }
+        problem_name += ")";
+
         let paper = "Dewancker, Ian, et al. \"A strategy for ranking optimization methods using multiple criteria.\" Workshop on Automatic Machine Learning. 2016.";
 
         let mut spec = ProblemSpecBuilder::new(&problem_name)
