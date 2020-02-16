@@ -50,6 +50,8 @@ jobs:
         with:
           command: test
           args: --all-features --all
+      - name: studies command
+        run: cargo run -- studies --solvers $(cargo run -- solver random) --problems $(cargo run -- problem sigopt --dim 5 ackley) --repeats 10 --budget 100
 
   lints:
     name: Lints
