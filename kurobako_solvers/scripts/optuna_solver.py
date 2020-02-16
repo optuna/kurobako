@@ -32,6 +32,8 @@ parser.add_argument('--loglevel',
 parser.add_argument('--direction',
                     choices=['minimize', 'maximize'],
                     default='minimize')
+parser.add_argument('--use-discrete-uniform', action='store_true')
+
 args = parser.parse_args()
 
 
@@ -91,6 +93,6 @@ def create_study(seed):
 ## (3) Solve
 ##
 if __name__ == '__main__':
-    factory = OptunaSolverFactory(create_study)
+    factory = OptunaSolverFactory(create_study, use_discrete_uniform=args.use_discrete_uniform)
     runner = solver.SolverRunner(factory)
     runner.run()

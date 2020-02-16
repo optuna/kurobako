@@ -161,6 +161,11 @@ pub struct OptunaSolverRecipe {
     #[structopt(long)]
     #[serde(default, skip_serializing_if = "is_false")]
     pub maximize: bool,
+
+    /// If this is `true`, `Trial.suggest_discrete_uniform()` is used for sampling discrete parameters instead of `Trial.suggest_int()`.
+    #[structopt(long)]
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub use_discrete_uniform: bool,
 }
 impl OptunaSolverRecipe {
     fn build_args(&self) -> Vec<String> {
@@ -221,6 +226,9 @@ impl OptunaSolverRecipe {
         if self.maximize {
             args.push("--direction".to_owned());
             args.push("maximize".to_owned());
+        }
+        if self.use_discrete_uniform {
+            args.push("--use-discrete-uniform".to_owned());
         }
         args
     }
