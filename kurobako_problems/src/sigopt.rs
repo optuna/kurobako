@@ -31,16 +31,19 @@ pub struct SigoptProblemRecipe {
 
     /// Dimension of the test function.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     #[structopt(long)]
     pub dim: Option<usize>,
 
     /// Input resolution of the test function.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     #[structopt(long)]
     pub res: Option<f64>,
 
     /// List of the dimensions which should only accept integer values.
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     #[structopt(long)]
     pub int: Vec<usize>,
 }
