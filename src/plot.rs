@@ -4,6 +4,7 @@ use std::process::Command;
 use structopt::StructOpt;
 
 pub mod curve;
+pub mod pareto_front;
 pub mod slice;
 
 #[derive(Debug, StructOpt)]
@@ -14,12 +15,16 @@ pub enum PlotOpt {
 
     /// Generates slice plots.
     Slice(self::slice::PlotSliceOpt),
+
+    /// Generates 2D pareto front plots.
+    ParetoFront(self::pareto_front::PlotParetoFrontOpt),
 }
 impl PlotOpt {
     pub fn plot(&self, studies: &[StudyRecord]) -> Result<()> {
         match self {
             Self::Curve(opt) => track!(opt.plot(studies)),
             Self::Slice(opt) => track!(opt.plot(studies)),
+            Self::ParetoFront(opt) => track!(opt.plot(studies)),
         }
     }
 }
