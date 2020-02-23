@@ -5,7 +5,7 @@ use kurobako_core::registry::FactoryRegistry;
 use kurobako_core::rng::ArcRng;
 use kurobako_core::solver::{BoxSolver, BoxSolverFactory, SolverFactory, SolverRecipe, SolverSpec};
 use kurobako_core::Result;
-use kurobako_solvers::{asha, optuna, random};
+use kurobako_solvers::{asha, nsga2, optuna, random};
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
@@ -41,6 +41,7 @@ enum InnerRecipe {
     Command(epi::solver::ExternalProgramSolverRecipe),
     Random(random::RandomSolverRecipe),
     Asha(asha::AshaSolverRecipe),
+    Nsga2(nsga2::Nsga2SolverRecipe),
     Optuna(optuna::OptunaSolverRecipe),
 }
 impl SolverRecipe for InnerRecipe {
@@ -51,6 +52,7 @@ impl SolverRecipe for InnerRecipe {
             Self::Random(r) => track!(r.create_factory(registry)).map(BoxSolverFactory::new),
             Self::Optuna(r) => track!(r.create_factory(registry)).map(BoxSolverFactory::new),
             Self::Asha(r) => track!(r.create_factory(registry)).map(BoxSolverFactory::new),
+            Self::Nsga2(r) => track!(r.create_factory(registry)).map(BoxSolverFactory::new),
             Self::Command(r) => track!(r.create_factory(registry)).map(BoxSolverFactory::new),
         }
     }

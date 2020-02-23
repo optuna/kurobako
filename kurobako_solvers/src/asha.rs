@@ -2,6 +2,7 @@
 //!
 //! [ASHA]: https://arxiv.org/abs/1810.05934
 use crate::error::{from_yamakan, into_yamakan};
+use crate::yamakan_utils::YamakanIdGen;
 use kurobako_core::json::JsonRecipe;
 use kurobako_core::num::OrderedFloat;
 use kurobako_core::problem::ProblemSpec;
@@ -165,14 +166,6 @@ impl Solver for AshaSolver {
             value,
         };
         track!(self.optimizer.tell(obs).map_err(from_yamakan))
-    }
-}
-
-#[derive(Debug)]
-struct YamakanIdGen<'a>(&'a mut IdGen);
-impl<'a> yamakan::IdGen for YamakanIdGen<'a> {
-    fn generate(&mut self) -> Result<ObsId, yamakan::Error> {
-        Ok(ObsId::new(self.0.generate().get()))
     }
 }
 
