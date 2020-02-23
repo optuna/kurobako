@@ -45,6 +45,23 @@ impl TrialRecord {
         None
     }
 
+    pub fn values(&self, step: u64) -> Option<&[f64]> {
+        let mut current_step = 0;
+        for eval in &self.evaluations {
+            current_step += eval.elapsed_steps();
+            match current_step.cmp(&step) {
+                cmp::Ordering::Equal => {
+                    return Some(&eval.values);
+                }
+                cmp::Ordering::Greater => {
+                    break;
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+
     pub fn solver_elapsed(&self) -> Duration {
         let mut d = Duration::default();
         for eval in &self.evaluations {

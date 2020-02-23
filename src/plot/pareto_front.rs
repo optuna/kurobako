@@ -1,8 +1,7 @@
 use super::{execute_gnuplot, normalize_filename};
 use crate::record::StudyRecord;
 use indicatif::{ProgressBar, ProgressStyle};
-use kurobako_core::domain::Variable;
-use kurobako_core::{Error, Result};
+use kurobako_core::{Error, ErrorKind, Result};
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::Write as _;
@@ -45,6 +44,12 @@ impl PlotParetoFrontOpt {
     pub fn plot(&self, study_records: &[StudyRecord]) -> Result<()> {
         let mut studies = BTreeMap::new();
         for record in study_records {
+            track_assert_eq!(
+                record.problem.spec.values_domain.variables().len(),
+                2,
+                ErrorKind::InvalidInput
+            );
+
             let id = track!(record.id())?;
             studies
                 .entry(id)
@@ -53,8 +58,7 @@ impl PlotParetoFrontOpt {
                 .push(record);
         }
 
-        let pb =
-            ProgressBar::new(studies.iter().map(|(_, s)| s.params_len()).sum::<usize>() as u64);
+        let pb = ProgressBar::new(studies.len() as u64);
         let template =
             "(PLOT) [{elapsed_precise}] [{pos}/{len} {percent:>3}%] [ETA {eta:>3}] {msg}";
         pb.set_style(ProgressStyle::default_bar().template(&template));
@@ -63,7 +67,7 @@ impl PlotParetoFrontOpt {
 
         for (_study_id, study) in studies {
             track!(study.plot(self))?;
-            pb.inc(study.params_len() as u64);
+            pb.inc(1);
         }
 
         pb.finish_with_message(&format!("done (dir={:?})", self.output_dir));
@@ -83,35 +87,17 @@ impl<'a> Study<'a> {
         }
     }
 
-    fn params_len(&self) -> usize {
-        self.instances[0]
-            .problem
-            .spec
-            .params_domain
-            .variables()
-            .len()
-    }
-
     fn plot(&self, opt: &PlotParetoFrontOpt) -> Result<()> {
-        for (param_index, param) in self.instances[0]
-            .problem
-            .spec
-            .params_domain
-            .variables()
-            .iter()
-            .enumerate()
-        {
-            let data_path = track!(self.generate_data(param_index))?;
-            let script = track!(self.make_gnuplot_script(param, &data_path, opt))?;
-            track!(execute_gnuplot(&script))?;
-            std::mem::drop(data_path);
-        }
+        let data_path = track!(self.generate_data())?;
+        let script = track!(self.make_gnuplot_script(&data_path, opt))?;
+        track!(execute_gnuplot(&script))?;
+        std::mem::drop(data_path);
+
         Ok(())
     }
 
     fn make_gnuplot_script(
         &self,
-        param: &Variable,
         data_path: &TempPath,
         opt: &PlotParetoFrontOpt,
     ) -> Result<String> {
@@ -124,18 +110,17 @@ impl<'a> Study<'a> {
         let mut s = format!(
             "set title {:?}; \
              set ylabel {:?}; \
-             set xlabel \"Parameter: {}\"; \
+             set xlabel {:?}; \
              set grid;",
             title,
             problem.spec.values_domain.variables()[0].name(),
-            param.name()
+            problem.spec.values_domain.variables()[1].name(),
         );
 
         let output = opt.output_dir.join(format!(
-            "{}-{}-{}-{}.png",
+            "{}-{}-{}.png",
             normalize_filename(&problem.spec.name),
             normalize_filename(&solver.spec.name),
-            normalize_filename(param.name()),
             track!(self.instances[0].id())?
         ));
 
@@ -157,19 +142,16 @@ impl<'a> Study<'a> {
         Ok(s)
     }
 
-    fn generate_data(&self, param_index: usize) -> Result<TempPath> {
+    fn generate_data(&self) -> Result<TempPath> {
         let mut temp_file = track!(NamedTempFile::new().map_err(Error::from))?;
 
         let problem_steps = self.instances[0].problem.spec.steps.last();
         for study in &self.instances {
             for trial in &study.trials {
-                if let Some(v) = trial.value(problem_steps) {
+                if let Some(vs) = trial.values(problem_steps) {
                     let end_step = trial.end_step().unwrap_or_else(|| unreachable!());
                     let budget = end_step as f64 / problem_steps as f64;
-                    let p = trial.params[param_index];
-                    if p.is_finite() {
-                        track_writeln!(temp_file, "{} {} {}", budget, v, p)?;
-                    }
+                    track_writeln!(temp_file, "{} {} {}", budget, vs[0], vs[1])?;
                 }
             }
         }
