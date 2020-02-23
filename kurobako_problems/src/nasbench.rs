@@ -43,11 +43,22 @@ pub struct NasbenchProblemRecipe {
         possible_values = &Encoding::POSSIBLE_VALUES
     )]
     pub encoding: Encoding,
+
+    /// Evaluation metrics.
+    #[structopt(
+        long,
+        default_value = "accuracy",
+        possible_values = Metric::POSSIBLE_VALUES
+    )]
+    #[serde(default = "default_metrics")]
+    pub metrics: Vec<Metric>,
 }
 impl ProblemRecipe for NasbenchProblemRecipe {
     type Factory = NasbenchProblemFactory;
 
     fn create_factory(&self, _registry: &FactoryRegistry) -> Result<Self::Factory> {
+        track_assert!(!self.metrics.is_empty(), ErrorKind::InvalidInput);
+
         NASBENCHES.with(|map| {
             let mut map = map.borrow_mut();
             if !map.contains_key(&self.dataset) {
@@ -59,6 +70,7 @@ impl ProblemRecipe for NasbenchProblemRecipe {
             Ok(NasbenchProblemFactory {
                 nasbench: Arc::clone(&map[&self.dataset]),
                 encoding: self.encoding,
+                metrics: self.metrics.clone(),
             })
         })
     }
@@ -69,6 +81,7 @@ impl ProblemRecipe for NasbenchProblemRecipe {
 pub struct NasbenchProblemFactory {
     nasbench: Arc<NasBench>,
     encoding: Encoding,
+    metrics: Vec<Metric>,
 }
 impl ProblemFactory for NasbenchProblemFactory {
     type Problem = NasbenchProblem;
@@ -96,6 +109,7 @@ impl ProblemFactory for NasbenchProblemFactory {
         Ok(NasbenchProblem {
             nasbench: Arc::clone(&self.nasbench),
             encoding: self.encoding,
+            metrics: self.metrics.clone(),
             rng,
         })
     }
@@ -106,6 +120,7 @@ impl ProblemFactory for NasbenchProblemFactory {
 pub struct NasbenchProblem {
     nasbench: Arc<NasBench>,
     encoding: Encoding,
+    metrics: Vec<Metric>,
     rng: ArcRng,
 }
 impl Problem for NasbenchProblem {
@@ -136,6 +151,7 @@ impl Problem for NasbenchProblem {
         Ok(NasbenchEvaluator {
             nasbench: Arc::clone(&self.nasbench),
             encoding: self.encoding,
+            metrics: self.metrics.clone(),
             model_spec,
             sample_index: track!(self.rng.with_lock(|rng| rng.gen()))?,
         })
@@ -147,6 +163,7 @@ impl Problem for NasbenchProblem {
 pub struct NasbenchEvaluator {
     nasbench: Arc<NasBench>,
     encoding: Encoding,
+    metrics: Vec<Metric>,
     model_spec: ModelSpec,
     sample_index: usize,
 }
@@ -165,8 +182,19 @@ impl Evaluator for NasbenchEvaluator {
         );
         let epoch = &epoch_candidates[self.sample_index % epoch_candidates.len()];
 
-        let value = 1.0 - epoch.complete.validation_accuracy;
-        Ok((u64::from(*current_step), Values::new(vec![value])))
+        let mut values = Vec::new();
+        for metric in &self.metrics {
+            match metric {
+                Metric::Accuracy => {
+                    values.push(1.0 - epoch.complete.validation_accuracy);
+                }
+                Metric::Params => {
+                    values.push(model.trainable_parameters as f64);
+                }
+            }
+        }
+
+        Ok((u64::from(*current_step), Values::new(values)))
     }
 }
 
@@ -310,4 +338,33 @@ impl Default for Encoding {
     fn default() -> Self {
         Encoding::A
     }
+}
+
+/// Evaluation metric.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Metric {
+    /// 1.0 - validation accuracy.
+    Accuracy,
+
+    /// Number of trainable model parameters.
+    Params,
+}
+impl Metric {
+    const POSSIBLE_VALUES: &'static [&'static str] = &["accuracy", "params"];
+}
+impl FromStr for Metric {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "accuracy" => Ok(Self::Accuracy),
+            "params" => Ok(Self::Params),
+            _ => track_panic!(ErrorKind::InvalidInput, "Unknown metric name: {:?}", s),
+        }
+    }
+}
+
+fn default_metrics() -> Vec<Metric> {
+    vec![Metric::Accuracy]
 }
