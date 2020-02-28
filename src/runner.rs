@@ -66,7 +66,7 @@ impl Cancel {
 
 #[derive(Debug)]
 pub struct Runner {
-    mpb: MultiProgress,
+    mpb: Arc<MultiProgress>,
     opt: RunnerOpt,
     cancel: Cancel,
 }
@@ -79,7 +79,7 @@ impl Runner {
         };
         let mpb = MultiProgress::with_draw_target(target);
         Self {
-            mpb,
+            mpb: Arc::new(mpb),
             opt,
             cancel: Cancel::new(),
         }
@@ -88,9 +88,9 @@ impl Runner {
     pub fn run(mut self) -> Result<()> {
         let recipes = track!(self.read_study_recipes())?;
         let pb = self.create_pb(&recipes);
-        let runners = track!(self.create_study_runners(&recipes))?;
+        // let runners = track!(self.create_study_runners(&recipes))?;
 
-        self.spawn_runners(runners, pb);
+        self.spawn_runners(recipes, pb);
         track!(self.mpb.join().map_err(|e| ErrorKind::Other.cause(e)))?;
         eprintln!();
 
@@ -101,32 +101,35 @@ impl Runner {
         }
     }
 
-    fn spawn_runners(&self, runners: Vec<StudyRunner>, pb: ProgressBar) {
+    fn spawn_runners(&self, recipes: Vec<StudyRecipe>, pb: ProgressBar) {
         pb.tick();
 
-        let pb_len = runners.len() as u64;
-        let runners = Arc::new(Mutex::new(
-            runners.into_iter().map(Some).collect::<Vec<_>>(),
+        let pb_len = recipes.len() as u64;
+        let recipes = Arc::new(Mutex::new(
+            recipes.into_iter().map(Some).collect::<Vec<_>>(),
         ));
 
         let next_index = Arc::new(AtomicUsize::new(0));
         for _ in 0..self.opt.parallelism.get() {
             let pb = pb.clone();
-            let runners = Arc::clone(&runners);
+            let recipes = Arc::clone(&recipes);
             let next_index = Arc::clone(&next_index);
             let cancel = self.cancel.clone();
+            let opt = self.opt.clone();
+            let mpb = Arc::clone(&self.mpb);
             thread::spawn(move || {
                 while !cancel.is_canceled() {
                     let i = next_index.fetch_add(1, atomic::Ordering::SeqCst);
-                    let runner = {
-                        let mut runners = runners.lock().unwrap_or_else(|e| panic!("{}", e));
-                        if i >= runners.len() {
+                    let recipe = {
+                        let mut recipes = recipes.lock().unwrap_or_else(|e| panic!("{}", e));
+                        if i >= recipes.len() {
                             break;
                         }
-                        runners[i].take().unwrap_or_else(|| unreachable!())
+                        recipes[i].take().unwrap_or_else(|| unreachable!())
                     };
 
-                    let result = track!(runner.run());
+                    let result = track!(StudyRunner::with_mpb(&recipe, &opt, &mpb, cancel.clone()))
+                        .and_then(|runner| track!(runner.run()));
 
                     fn output(record: StudyRecord) -> Result<()> {
                         let stdout = std::io::stdout();
@@ -155,20 +158,6 @@ impl Runner {
         serde_json::Deserializer::from_reader(stdin.lock())
             .into_iter()
             .map(|recipe| track!(recipe.map_err(Error::from)))
-            .collect()
-    }
-
-    fn create_study_runners(&self, recipes: &[StudyRecipe]) -> Result<Vec<StudyRunner>> {
-        recipes
-            .iter()
-            .map(|recipe| {
-                track!(StudyRunner::with_mpb(
-                    recipe,
-                    &self.opt,
-                    &self.mpb,
-                    self.cancel.clone()
-                ))
-            })
             .collect()
     }
 
