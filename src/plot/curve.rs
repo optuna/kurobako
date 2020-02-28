@@ -161,8 +161,8 @@ impl<'a> Problem<'a> {
     fn make_gnuplot_script(&self, data_path: &TempPath) -> Result<String> {
         let ylabel = match self.opt.metric {
             Metric::BestValue => self.problem.spec.values_domain.variables()[0].name(),
-            Metric::ElapsedTime => "Elapsed Seconds (Ask + Evaluate + Tell)",
-            Metric::SolverElapsedTime => "Elapsed Seconds (Ask + Tell)",
+            Metric::ElapsedTime => "Cumulative Elapsed Seconds (Ask + Evaluate + Tell)",
+            Metric::SolverElapsedTime => "Cumulative Elapsed Seconds (Ask + Tell)",
         };
 
         let mut s = format!(
