@@ -95,3 +95,8 @@ Where does the name come from?
 
 "kurobako" is a Japanese translation of "black box".
 
+
+References
+----------
+
+- [Introduction to Kurobako: A Benchmark Tool for Hyperparameter Optimization Algorithms](https://medium.com/optuna/kurobako-a2e3f7b760c7)
