@@ -396,30 +396,27 @@ impl EvaluationThreads {
     }
 
     fn next(&mut self) -> Result<&mut EvaluationThread> {
-        self.threads.sort_by_key(|t| t.elapsed_steps);
-        let thread = track_assert_some!(self.threads.first_mut(), ErrorKind::Bug);
-        Ok(thread)
-    }
-
-    fn assign(&mut self, trial: &NextTrial, ask_elapsed: ElapsedSeconds) -> Result<()> {
         match self.scheduling {
-            Scheduling::Random => track!(self.assign_random(trial, ask_elapsed)),
-            Scheduling::Fair => track!(self.assign_fair(trial, ask_elapsed)),
+            Scheduling::Fair => {
+                let thread = track_assert_some!(
+                    self.threads.iter_mut().min_by_key(|t| t.elapsed_steps),
+                    ErrorKind::Bug
+                );
+                Ok(thread)
+            }
+            Scheduling::Random => {
+                let thread =
+                    track_assert_some!(self.threads.choose_mut(&mut self.rng), ErrorKind::Bug);
+                Ok(thread)
+            }
         }
     }
 
-    fn assign_random(&mut self, trial: &NextTrial, ask_elapsed: ElapsedSeconds) -> Result<()> {
-        let thread = track_assert_some!(self.threads.choose_mut(&mut self.rng), ErrorKind::Bug);
-        thread.waitings.push_back(WaitingTrial {
-            asked_trial: trial.clone(),
-            ask_elapsed,
-        });
-        Ok(())
-    }
-
-    fn assign_fair(&mut self, trial: &NextTrial, ask_elapsed: ElapsedSeconds) -> Result<()> {
-        self.threads.sort_by_key(|t| t.elapsed_steps);
-        let thread = track_assert_some!(self.threads.first_mut(), ErrorKind::Bug);
+    fn assign(&mut self, trial: &NextTrial, ask_elapsed: ElapsedSeconds) -> Result<()> {
+        let thread = track_assert_some!(
+            self.threads.iter_mut().find(|t| t.waitings.is_empty()),
+            ErrorKind::Bug
+        );
         thread.waitings.push_back(WaitingTrial {
             asked_trial: trial.clone(),
             ask_elapsed,
