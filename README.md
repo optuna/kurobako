@@ -20,7 +20,7 @@ Features:
 - Generating a markdown report and PNG plots from benchmarking results
 - Easy to add user-defined optimization problems and solvers
 - Simulating a concurrent environment in which an optimization process is executed by multiple workers simultaneously
-- Reproducible 
+- Reproducible
 
 
 Installation
@@ -81,6 +81,7 @@ Build-in Solvers and Problems
 
 Solvers:
 - Random Search
+- [NSGA-II](https://ieeexplore.ieee.org/document/996017)
 - [ASHA](https://arxiv.org/abs/1810.05934)
 - [Optuna](https://github.com/optuna/optuna)
 
