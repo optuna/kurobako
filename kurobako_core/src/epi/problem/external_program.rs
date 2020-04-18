@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fs;
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::atomic::{self, AtomicU64};
@@ -68,7 +67,7 @@ impl ExternalProgramProblemRecipe {
 
     fn cache_key(&self) -> Result<Vec<u8>> {
         let mut hasher = Sha256::new();
-        hasher.input(&track!(fs::read(&self.path).map_err(Error::from); self.path)?);
+        hasher.input(&*self.path.to_string_lossy());
         for arg in &self.args {
             hasher.input(arg.as_bytes());
         }
