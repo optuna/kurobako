@@ -48,6 +48,9 @@ $ cargo install kurobako
 
 [cargo]: https://doc.rust-lang.org/cargo/
 
+## Dependencies
+
+If you want to use `kurobako plot` command, you need to have installed `gnuplot` package on your environment.
 
 Usage Example
 --------------
