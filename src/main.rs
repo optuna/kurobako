@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate trackable;
 
+use kurobako::dataset::DatasetOpt;
 use kurobako::markdown::MarkdownWriter;
 use kurobako::plot::PlotOpt;
 use kurobako::problem::KurobakoProblemRecipe;
@@ -53,6 +54,9 @@ enum Opt {
 
     /// Generates visualization images from benchmark results (JSONs).
     Plot(PlotOpt),
+
+    /// Dataset management.
+    Dataset(DatasetOpt),
 }
 
 fn main() -> trackable::result::TopLevelResult {
@@ -92,6 +96,9 @@ fn main() -> trackable::result::TopLevelResult {
         Opt::Plot(opt) => {
             let studies = track!(json::load(io::stdin().lock()))?;
             track!(opt.plot(&studies))?;
+        }
+        Opt::Dataset(opt) => {
+            track!(opt.run())?;
         }
     }
 
