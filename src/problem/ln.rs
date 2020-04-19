@@ -82,9 +82,8 @@ impl Problem for LnProblem {
             .iter()
             .zip(params.into_vec().into_iter())
             .map(|(var, val)| {
-                if let (Range::Continuous { .. }, Distribution::Uniform) =
-                    (var.range(), var.distribution())
-                {
+                if let Range::Continuous { .. } = var.range() {
+                    assert_eq!(var.distribution(), Distribution::LogUniform);
                     val.ln()
                 } else {
                     val
