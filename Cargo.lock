@@ -263,6 +263,7 @@ dependencies = [
  "kurobako_core 0.1.6",
  "kurobako_problems 0.1.7",
  "kurobako_solvers 0.1.7",
+ "nasbench 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "num 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "num-integer 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
