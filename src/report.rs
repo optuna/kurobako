@@ -1,3 +1,4 @@
+//! `kurobako report` command.
 use self::rankings::{Borda, Firsts};
 use crate::markdown as md;
 use crate::markdown::MarkdownWriter;
@@ -18,6 +19,7 @@ use structopt::StructOpt;
 
 mod rankings;
 
+/// Options of the `kurobako report` command.
 #[derive(Debug, StructOpt, Serialize)]
 #[structopt(rename_all = "kebab-case")]
 pub struct ReportOpt {
@@ -29,6 +31,7 @@ pub struct ReportOpt {
     pub metrics: Vec<Metric>,
 }
 
+/// Evaluation metric.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum Metric {
     /// Best value.
@@ -56,12 +59,14 @@ impl FromStr for Metric {
     }
 }
 
+/// Reporter that builds and prints a benchmark report.
 #[derive(Debug)]
 pub struct Reporter {
     studies: Vec<StudyRecord>,
     opt: ReportOpt,
 }
 impl Reporter {
+    /// Makes a `Reporter` instance.
     pub fn new(studies: Vec<StudyRecord>, mut opt: ReportOpt) -> Self {
         if opt.metrics.is_empty() {
             opt.metrics = vec![Metric::BestValue, Metric::Auc];
@@ -69,7 +74,9 @@ impl Reporter {
         Self { studies, opt }
     }
 
-    pub fn report_all<W: Write>(&self, writer: &mut MarkdownWriter<W>) -> Result<()> {
+    /// Prints a full report.
+    pub fn report_all(&self, mut writer: impl Write) -> Result<()> {
+        let mut writer = MarkdownWriter::new(&mut writer);
         let mut writer = track!(writer.heading("Benchmark Result Report"))?;
 
         let mut list = writer.list();
@@ -129,7 +136,7 @@ impl Reporter {
         Ok(())
     }
 
-    pub fn report_overall_results<W: Write>(&self, writer: &mut MarkdownWriter<W>) -> Result<()> {
+    fn report_overall_results<W: Write>(&self, writer: &mut MarkdownWriter<W>) -> Result<()> {
         let mut writer = track!(writer.heading("Overall Results"))?;
         track_writeln!(writer.inner_mut())?;
 
@@ -203,10 +210,7 @@ impl Reporter {
         Ok(())
     }
 
-    pub fn report_individual_results<W: Write>(
-        &self,
-        writer: &mut MarkdownWriter<W>,
-    ) -> Result<()> {
+    fn report_individual_results<W: Write>(&self, writer: &mut MarkdownWriter<W>) -> Result<()> {
         let mut writer = track!(writer.heading("Individual Results"))?;
         track_writeln!(writer.inner_mut())?;
 
@@ -300,7 +304,7 @@ impl Reporter {
         Ok(())
     }
 
-    pub fn report_solvers<W: Write>(&self, writer: &mut MarkdownWriter<W>) -> Result<()> {
+    fn report_solvers<W: Write>(&self, writer: &mut MarkdownWriter<W>) -> Result<()> {
         let mut writer = track!(writer.heading("Solvers"))?;
         for (id, solver) in track!(self.solvers())? {
             let mut writer = track!(writer.heading(&format!("ID: {}", id)))?;
@@ -318,7 +322,7 @@ impl Reporter {
         Ok(())
     }
 
-    pub fn report_problems<W: Write>(&self, writer: &mut MarkdownWriter<W>) -> Result<()> {
+    fn report_problems<W: Write>(&self, writer: &mut MarkdownWriter<W>) -> Result<()> {
         let mut writer = track!(writer.heading("Problems"))?;
         for (id, problem) in track!(self.problems())? {
             let mut writer = track!(writer.heading(&format!("ID: {}", id)))?;
@@ -336,7 +340,7 @@ impl Reporter {
         Ok(())
     }
 
-    pub fn report_studies<W: Write>(&self, writer: &mut MarkdownWriter<W>) -> Result<()> {
+    fn report_studies<W: Write>(&self, writer: &mut MarkdownWriter<W>) -> Result<()> {
         let mut writer = track!(writer.heading("Studies"))?;
         let mut studies = BTreeMap::<_, Vec<_>>::new();
         for study in &self.studies {
@@ -479,21 +483,21 @@ struct Competitor<'a> {
     studies: Vec<&'a StudyRecord>,
 }
 impl<'a> Competitor<'a> {
-    pub fn best_values<'b>(&'b self) -> impl 'b + Iterator<Item = OrderedFloat<f64>> {
+    fn best_values<'b>(&'b self) -> impl 'b + Iterator<Item = OrderedFloat<f64>> {
         self.studies
             .iter()
             .filter_map(|s| s.best_value())
             .map(OrderedFloat)
     }
 
-    pub fn aucs<'b>(&'b self, start_step: u64) -> impl 'b + Iterator<Item = OrderedFloat<f64>> {
+    fn aucs<'b>(&'b self, start_step: u64) -> impl 'b + Iterator<Item = OrderedFloat<f64>> {
         self.studies
             .iter()
             .filter_map(move |s| s.auc(start_step))
             .map(OrderedFloat)
     }
 
-    pub fn elapsed_times<'b>(&'b self) -> impl 'b + Iterator<Item = Duration> {
+    fn elapsed_times<'b>(&'b self) -> impl 'b + Iterator<Item = Duration> {
         self.studies.iter().map(|s| s.solver_elapsed())
     }
 }

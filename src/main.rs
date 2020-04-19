@@ -2,7 +2,6 @@
 extern crate trackable;
 
 use kurobako::dataset::DatasetOpt;
-use kurobako::markdown::MarkdownWriter;
 use kurobako::plot::PlotOpt;
 use kurobako::problem::KurobakoProblemRecipe;
 use kurobako::problem_suites::ProblemSuite;
@@ -89,9 +88,8 @@ fn main() -> trackable::result::TopLevelResult {
             let studies = track!(json::load(io::stdin().lock()))?;
             let reporter = Reporter::new(studies, opt);
             let stdout = io::stdout();
-            let mut stdout = stdout.lock();
-            let mut writer = MarkdownWriter::new(&mut stdout);
-            track!(reporter.report_all(&mut writer))?;
+            let stdout = stdout.lock();
+            track!(reporter.report_all(stdout))?;
         }
         Opt::Plot(opt) => {
             let studies = track!(json::load(io::stdin().lock()))?;

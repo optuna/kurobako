@@ -1,3 +1,4 @@
+//! `kurobako run` command.
 use crate::problem::KurobakoProblemRecipe;
 use crate::record::{StudyRecord, StudyRecordBuilder, TrialRecordBuilder};
 use crate::solver::KurobakoSolverRecipe;
@@ -26,6 +27,7 @@ use std::thread;
 use structopt::StructOpt;
 use trackable::error::ErrorKindExt;
 
+/// Options of the `kurobako run` command.
 #[derive(Debug, Clone, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub struct RunnerOpt {
@@ -64,6 +66,7 @@ impl Cancel {
     }
 }
 
+/// Runner of a benchmark.
 #[derive(Debug)]
 pub struct Runner {
     mpb: Arc<MultiProgress>,
@@ -71,6 +74,7 @@ pub struct Runner {
     cancel: Cancel,
 }
 impl Runner {
+    /// Makes a `Runner` instance.
     pub fn new(opt: RunnerOpt) -> Self {
         let target = if opt.quiet {
             ProgressDrawTarget::hidden()
@@ -85,10 +89,10 @@ impl Runner {
         }
     }
 
+    /// Runs the benchmark.
     pub fn run(mut self) -> Result<()> {
         let recipes = track!(self.read_study_recipes())?;
         let pb = self.create_pb(&recipes);
-        // let runners = track!(self.create_study_runners(&recipes))?;
 
         self.spawn_runners(recipes, pb);
         track!(self.mpb.join().map_err(|e| ErrorKind::Other.cause(e)))?;
@@ -172,7 +176,7 @@ impl Runner {
 }
 
 #[derive(Debug)]
-pub struct StudyRunner {
+pub(crate) struct StudyRunner {
     solver: BoxSolver,
     solver_spec: SolverSpec,
     problem: BoxProblem,

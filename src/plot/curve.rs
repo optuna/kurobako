@@ -1,3 +1,4 @@
+//! `kurobako plot curve` command.
 use super::{execute_gnuplot, normalize_filename};
 use crate::record::{ProblemRecord, StudyRecord};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -12,8 +13,10 @@ use std::str::FromStr;
 use structopt::StructOpt;
 use tempfile::{NamedTempFile, TempPath};
 
+/// Metric of the Y-axis.
 #[derive(Debug, StructOpt, PartialEq, Eq)]
 #[structopt(rename_all = "kebab-case")]
+#[allow(missing_docs)]
 pub enum Metric {
     BestValue,
     ElapsedTime,
@@ -36,6 +39,7 @@ impl FromStr for Metric {
     }
 }
 
+/// Options of `kurobako plot curve` command.
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub struct PlotCurveOpt {
@@ -84,7 +88,7 @@ pub struct PlotCurveOpt {
     pub metric: Metric,
 }
 impl PlotCurveOpt {
-    pub fn plot(&self, studies: &[StudyRecord]) -> Result<()> {
+    pub(crate) fn plot(&self, studies: &[StudyRecord]) -> Result<()> {
         let mut problems = BTreeMap::<_, Vec<_>>::new();
         for study in studies {
             problems

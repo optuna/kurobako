@@ -1,3 +1,4 @@
+//! `kurobako plot` command.
 use crate::record::StudyRecord;
 use kurobako_core::{Error, ErrorKind, Result};
 use std::process::Command;
@@ -7,6 +8,7 @@ pub mod curve;
 pub mod pareto_front;
 pub mod slice;
 
+/// Options of the `kurobako plot` command.
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub enum PlotOpt {
@@ -20,6 +22,7 @@ pub enum PlotOpt {
     ParetoFront(self::pareto_front::PlotParetoFrontOpt),
 }
 impl PlotOpt {
+    /// Plots a graph.
     pub fn plot(&self, studies: &[StudyRecord]) -> Result<()> {
         match self {
             Self::Curve(opt) => track!(opt.plot(studies)),

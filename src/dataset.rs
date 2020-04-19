@@ -3,6 +3,7 @@ use kurobako_core::{Error, Result};
 use std::path::PathBuf;
 use structopt::StructOpt;
 
+/// Options of the `kurobako dataset` command.
 #[derive(Debug, Clone, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub enum DatasetOpt {
@@ -23,6 +24,7 @@ impl DatasetOpt {
     }
 }
 
+/// Options of the `kurobako dataset nasbench` command.
 #[derive(Debug, Clone, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub enum NasbenchOpt {
@@ -75,6 +77,7 @@ impl NasbenchOpt {
     }
 }
 
+/// Options of the `kurobako dataset hpobench` command.
 #[derive(Debug, Clone, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub enum HpobenchOpt {

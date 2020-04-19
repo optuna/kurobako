@@ -38,10 +38,6 @@ impl StudyRecordBuilder {
         }
     }
 
-    pub fn recipe(&self) -> &StudyRecipe {
-        &self.recipe
-    }
-
     pub fn add_trial(&mut self, trial: TrialRecordBuilder) {
         let t = self.trials.entry(trial.id).or_insert_with(|| TrialRecord {
             thread_id: trial.thread_id,

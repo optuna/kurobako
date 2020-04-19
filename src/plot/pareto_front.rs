@@ -1,3 +1,4 @@
+//! `kurobako plot pareto-front` command.
 use super::{execute_gnuplot, normalize_filename};
 use crate::record::StudyRecord;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -9,6 +10,7 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 use tempfile::{NamedTempFile, TempPath};
 
+/// Options of the `kurobako plot pareto-front` command.
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub struct PlotParetoFrontOpt {
@@ -41,7 +43,7 @@ pub struct PlotParetoFrontOpt {
     pub xmax: Option<f64>,
 }
 impl PlotParetoFrontOpt {
-    pub fn plot(&self, study_records: &[StudyRecord]) -> Result<()> {
+    pub(crate) fn plot(&self, study_records: &[StudyRecord]) -> Result<()> {
         let mut studies = BTreeMap::new();
         for record in study_records {
             track_assert_eq!(

@@ -1,3 +1,4 @@
+//! Study.
 use crate::problem::KurobakoProblemRecipe;
 use crate::solver::KurobakoSolverRecipe;
 use kurobako_core::json;
@@ -8,8 +9,10 @@ use std::num::NonZeroUsize;
 use std::str::FromStr;
 use structopt::StructOpt;
 
+/// Recipe of a study.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
+#[allow(missing_docs)]
 pub struct StudyRecipe {
     #[structopt(long, parse(try_from_str = json::parse_json))]
     pub solver: KurobakoSolverRecipe,
@@ -31,9 +34,11 @@ pub struct StudyRecipe {
     pub seed: Option<u64>,
 }
 
+/// Logical threads scheduling policy for executing a study.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[allow(missing_docs)]
 pub enum Scheduling {
     Random,
     Fair,
@@ -63,6 +68,7 @@ impl fmt::Display for Scheduling {
     }
 }
 
+/// Recipe of multiple studies.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
 pub struct StudiesRecipe {
@@ -97,6 +103,7 @@ pub struct StudiesRecipe {
     pub seed: Option<u64>,
 }
 impl StudiesRecipe {
+    /// Returns a iterator that iterates over the study recipes specified by this recipe.
     pub fn studies(&self) -> impl Iterator<Item = StudyRecipe> {
         let mut studies = Vec::new();
         for i in 0..self.repeats {

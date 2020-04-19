@@ -1,3 +1,4 @@
+//! `kurobako plot slice` command.
 use super::{execute_gnuplot, normalize_filename};
 use crate::record::StudyRecord;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -10,6 +11,7 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 use tempfile::{NamedTempFile, TempPath};
 
+/// Options of the `kurobako plot slice` command.
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub struct PlotSliceOpt {
@@ -42,7 +44,7 @@ pub struct PlotSliceOpt {
     pub xmax: Option<f64>,
 }
 impl PlotSliceOpt {
-    pub fn plot(&self, study_records: &[StudyRecord]) -> Result<()> {
+    pub(crate) fn plot(&self, study_records: &[StudyRecord]) -> Result<()> {
         let mut studies = BTreeMap::new();
         for record in study_records {
             let id = track!(record.id())?;

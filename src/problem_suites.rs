@@ -1,16 +1,20 @@
+//! Built-in problem suites.
 use crate::problem::KurobakoProblemRecipe;
 use kurobako_problems::hpobench;
 use kurobako_problems::sigopt;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
+/// Problem suite.
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
+#[allow(missing_docs)]
 pub enum ProblemSuite {
     Sigopt(SigoptProblemSuite),
     Hpobench(HpobenchProblemSuite),
 }
 impl ProblemSuite {
+    /// Returns an iterator that iterates over the recipes included in the specified problem suite.
     pub fn recipes(&self) -> Box<dyn Iterator<Item = KurobakoProblemRecipe>> {
         match self {
             Self::Sigopt(s) => s.recipes(),
@@ -22,6 +26,7 @@ impl ProblemSuite {
 /// Problem suite containing problems for all datasets defined in HPOBench.
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
+#[allow(missing_docs)]
 pub enum HpobenchProblemSuite {
     Fcnet { dataset_dir: PathBuf },
 }
@@ -47,6 +52,7 @@ impl HpobenchProblemSuite {
 /// Problem suite defined in `https://github.com/sigopt/evalset`.
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
+#[allow(missing_docs)]
 pub enum SigoptProblemSuite {
     Nonparametric,
     Auc,

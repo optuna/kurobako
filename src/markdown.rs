@@ -138,14 +138,6 @@ impl<W: Write> ListWriter<W> {
         }
         Ok(())
     }
-
-    pub fn list(&mut self) -> ListWriter<&mut W> {
-        ListWriter {
-            writer: &mut self.writer,
-            level: self.level + 1,
-            number: None,
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -200,6 +192,7 @@ impl Row {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum Align {
     Left,
     Center,
