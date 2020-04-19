@@ -89,7 +89,7 @@ Solvers:
 - [Optuna](https://github.com/optuna/optuna)
 
 Problems:
-- [NASBench](https://github.com/automl/nas_benchmarks)
+- [NASBench](https://github.com/automl/nas_benchmarks) ([detail](https://github.com/sile/kurobako/wiki/NASBench))
 - [HPOBench](https://github.com/automl/nas_benchmarks)
 - [sigopt/evalset](https://github.com/sigopt/evalset)
 
