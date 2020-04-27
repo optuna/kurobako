@@ -7,3 +7,4 @@ extern crate trackable;
 pub mod hpobench;
 pub mod nasbench;
 pub mod sigopt;
+pub mod zdt;

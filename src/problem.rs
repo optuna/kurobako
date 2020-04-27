@@ -6,7 +6,7 @@ use kurobako_core::problem::{
 use kurobako_core::registry::FactoryRegistry;
 use kurobako_core::rng::ArcRng;
 use kurobako_core::Result;
-use kurobako_problems::{hpobench, nasbench, sigopt};
+use kurobako_problems::{hpobench, nasbench, sigopt, zdt};
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
@@ -54,6 +54,14 @@ impl From<sigopt::SigoptProblemRecipe> for KurobakoProblemRecipe {
         }
     }
 }
+impl From<zdt::ZdtProblemRecipe> for KurobakoProblemRecipe {
+    fn from(f: zdt::ZdtProblemRecipe) -> Self {
+        Self {
+            name: None,
+            inner: InnerRecipe::Zdt(f),
+        }
+    }
+}
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
@@ -64,6 +72,7 @@ enum InnerRecipe {
     Sigopt(sigopt::SigoptProblemRecipe),
     Nasbench(nasbench::NasbenchProblemRecipe),
     Hpobench(hpobench::HpobenchProblemRecipe),
+    Zdt(zdt::ZdtProblemRecipe),
     Study(self::study::StudyProblemRecipe),
     Rank(self::rank::RankProblemRecipe),
     Average(self::average::AverageProblemRecipe),
@@ -78,6 +87,7 @@ impl ProblemRecipe for InnerRecipe {
             Self::Sigopt(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
             Self::Nasbench(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
             Self::Hpobench(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
+            Self::Zdt(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
             Self::Study(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
             Self::Rank(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
             Self::Average(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
