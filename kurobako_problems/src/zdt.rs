@@ -140,7 +140,7 @@ pub enum Zdt {
 }
 
 impl Zdt {
-    fn name(&self) -> &'static str {
+    fn name(self) -> &'static str {
         match self {
             Self::Function1 => "ZDT1",
             Self::Function2 => "ZDT2",
@@ -151,7 +151,7 @@ impl Zdt {
         }
     }
 
-    fn ranges(&self) -> Vec<Range> {
+    fn ranges(self) -> Vec<Range> {
         match self {
             Self::Function1 | Self::Function2 | Self::Function3 => (0..30)
                 .map(|_| Range::Continuous {
@@ -176,7 +176,7 @@ impl Zdt {
         }
     }
 
-    fn evaluate(&self, xs: &[f64]) -> Vec<f64> {
+    fn evaluate(self, xs: &[f64]) -> Vec<f64> {
         match self {
             Self::Function1 => self.evaluate_zdt1(xs),
             Self::Function2 => self.evaluate_zdt2(xs),
@@ -187,7 +187,7 @@ impl Zdt {
         }
     }
 
-    fn evaluate_zdt1(&self, xs: &[f64]) -> Vec<f64> {
+    fn evaluate_zdt1(self, xs: &[f64]) -> Vec<f64> {
         let n = xs.len() as f64;
         let f1 = xs[0];
         let g = 1.0 + 9.0 * xs.iter().skip(1).sum::<f64>() / (n - 1.0);
@@ -196,7 +196,7 @@ impl Zdt {
         vec![f1, f2]
     }
 
-    fn evaluate_zdt2(&self, xs: &[f64]) -> Vec<f64> {
+    fn evaluate_zdt2(self, xs: &[f64]) -> Vec<f64> {
         let n = xs.len() as f64;
         let f1 = xs[0];
         let g = 1.0 + 9.0 * xs.iter().skip(1).sum::<f64>() / (n - 1.0);
@@ -205,7 +205,7 @@ impl Zdt {
         vec![f1, f2]
     }
 
-    fn evaluate_zdt3(&self, xs: &[f64]) -> Vec<f64> {
+    fn evaluate_zdt3(self, xs: &[f64]) -> Vec<f64> {
         let n = xs.len() as f64;
         let f1 = xs[0];
         let g = 1.0 + 9.0 * xs.iter().skip(1).sum::<f64>() / (n - 1.0);
@@ -214,7 +214,7 @@ impl Zdt {
         vec![f1, f2]
     }
 
-    fn evaluate_zdt4(&self, xs: &[f64]) -> Vec<f64> {
+    fn evaluate_zdt4(self, xs: &[f64]) -> Vec<f64> {
         let n = xs.len() as f64;
         let f1 = xs[0];
         let g = 10.0 * (n - 1.0)
@@ -227,7 +227,7 @@ impl Zdt {
         vec![f1, f2]
     }
 
-    fn evaluate_zdt5(&self, xs: &[f64]) -> Vec<f64> {
+    fn evaluate_zdt5(self, xs: &[f64]) -> Vec<f64> {
         let f1 = 1.0 + (xs[0] as i64).count_ones() as f64;
         let g = xs
             .iter()
@@ -240,7 +240,7 @@ impl Zdt {
         vec![f1, f2]
     }
 
-    fn evaluate_zdt6(&self, xs: &[f64]) -> Vec<f64> {
+    fn evaluate_zdt6(self, xs: &[f64]) -> Vec<f64> {
         let n = xs.len() as f64;
         let f1 = 1.0 - (-4.0 * xs[0]).exp() * (6.0 * PI * xs[0]).sin().powi(6);
         let g = 1.0 + 9.0 * (xs.iter().skip(1).sum::<f64>() / (n - 1.0)).powf(0.25);
