@@ -1,7 +1,6 @@
 //! Built-in problem suites.
 use crate::problem::KurobakoProblemRecipe;
-use kurobako_problems::hpobench;
-use kurobako_problems::sigopt;
+use kurobako_problems::{hpobench, sigopt, zdt};
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -12,6 +11,7 @@ use structopt::StructOpt;
 pub enum ProblemSuite {
     Sigopt(SigoptProblemSuite),
     Hpobench(HpobenchProblemSuite),
+    Zdt(ZdtProblemSuite),
 }
 impl ProblemSuite {
     /// Returns an iterator that iterates over the recipes included in the specified problem suite.
@@ -19,6 +19,7 @@ impl ProblemSuite {
         match self {
             Self::Sigopt(s) => s.recipes(),
             Self::Hpobench(s) => s.recipes(),
+            Self::Zdt(s) => s.recipes(),
         }
     }
 }
@@ -46,6 +47,28 @@ impl HpobenchProblemSuite {
                 Box::new(recipes.into_iter().map(KurobakoProblemRecipe::from))
             }
         }
+    }
+}
+
+/// Problem suite containing problems for all the ZDT functions.
+#[derive(Debug, StructOpt)]
+#[structopt(rename_all = "kebab-case")]
+#[allow(missing_docs)]
+pub struct ZdtProblemSuite {}
+impl ZdtProblemSuite {
+    fn recipes(&self) -> Box<dyn Iterator<Item = KurobakoProblemRecipe>> {
+        Box::new(
+            vec![
+                zdt::Zdt::Function1,
+                zdt::Zdt::Function2,
+                zdt::Zdt::Function3,
+                zdt::Zdt::Function4,
+                zdt::Zdt::Function5,
+                zdt::Zdt::Function6,
+            ]
+            .into_iter()
+            .map(|zdt| KurobakoProblemRecipe::from(zdt::ZdtProblemRecipe { zdt })),
+        )
     }
 }
 
