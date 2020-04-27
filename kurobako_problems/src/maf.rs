@@ -9,6 +9,7 @@ use kurobako_core::trial::{Params, Values};
 use kurobako_core::Result;
 use serde::{Deserialize, Serialize};
 use std::f64;
+use std::f64::consts::PI;
 use structopt::StructOpt;
 
 /// Recipe of `MafProblem`.
@@ -111,8 +112,13 @@ impl Evaluator for MafEvaluator {
 pub enum Maf {
     /// Modified inverted DTLZ1.
     Maf1,
+
+    /// DTLZ2BZ.
     Maf2,
+
+    /// Convex DTLZ3.
     Maf3,
+
     Maf4,
     Maf5,
     Maf6,
@@ -131,6 +137,7 @@ impl Maf {
     fn name(&self) -> &'static str {
         match self {
             Self::Maf1 => "MaF1 (modified inverted DTLZ1)",
+            Self::Maf2 => "MaF2 (DTLZ2BZ)",
             _ => todo!(),
         }
     }
@@ -138,6 +145,8 @@ impl Maf {
     fn decision_variables(&self, objectives: usize) -> usize {
         match self {
             Self::Maf1 => objectives + 9,
+            Self::Maf2 => objectives + 9,
+            Self::Maf3 => objectives + 9,
             _ => todo!(),
         }
     }
@@ -145,6 +154,7 @@ impl Maf {
     fn evaluate(&self, objectives: usize, xs: &[f64]) -> Vec<f64> {
         match self {
             Self::Maf1 => self.evaluate_maf1(objectives, xs),
+            Self::Maf2 => self.evaluate_maf2(objectives, xs),
             _ => todo!(),
         }
     }
@@ -163,5 +173,41 @@ impl Maf {
                 (1.0 - v) * (1.0 + g)
             })
             .collect()
+    }
+
+    fn evaluate_maf2(&self, objectives: usize, xs: &[f64]) -> Vec<f64> {
+        let g = |i: usize| -> f64 {
+            let k = 10.0;
+            let m = objectives as f64;
+            let interval = (k / m).floor() as usize;
+            let j_start = objectives + i * interval;
+            let j_end = if i != objectives - 1 {
+                objectives + (i + 1) * interval
+            } else {
+                xs.len()
+            };
+
+            (&xs[j_start..j_end])
+                .iter()
+                .map(|&x| (x / 2.0 + 1.0 / 4.0).powi(2))
+                .sum()
+        };
+
+        fn theta(x: f64) -> f64 {
+            (PI / 2.0) * (x / 2.0 + 1.0 / 4.0)
+        }
+
+        (0..objectives)
+            .map(|i| {
+                let n = objectives - 1 - i;
+                let v = xs.iter().take(n).map(|&x| theta(x).cos()).product::<f64>()
+                    * if i == 0 { 1.0 } else { theta(xs[n]).sin() };
+                v * (1.0 + g(i))
+            })
+            .collect()
+    }
+
+    fn evaluate_maf3(&self, objectives: usize, xs: &[f64]) -> Vec<f64> {
+        todo!()
     }
 }
