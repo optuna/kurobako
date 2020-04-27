@@ -115,8 +115,8 @@ impl<'a> Study<'a> {
              set xlabel {:?}; \
              set grid;",
             title,
-            problem.spec.values_domain.variables()[0].name(),
             problem.spec.values_domain.variables()[1].name(),
+            problem.spec.values_domain.variables()[0].name(),
         );
 
         let output = opt.output_dir.join(format!(
@@ -153,7 +153,7 @@ impl<'a> Study<'a> {
                 if let Some(vs) = trial.values(problem_steps) {
                     let end_step = trial.end_step().unwrap_or_else(|| unreachable!());
                     let budget = end_step as f64 / problem_steps as f64;
-                    track_writeln!(temp_file, "{} {} {}", budget, vs[0], vs[1])?;
+                    track_writeln!(temp_file, "{} {} {}", budget, vs[1], vs[0])?;
                 }
             }
         }
