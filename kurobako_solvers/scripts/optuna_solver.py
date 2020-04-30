@@ -54,7 +54,7 @@ def create_study(seed):
         skopt_kwargs = {"base_estimator": args.skopt_base_estimator}
         sampler = optuna.integration.SkoptSampler(skopt_kwargs=skopt_kwargs)
     elif args.sampler == "cma-es":
-        sampler = optuna.integration.CmaEsSampler(seed=seed)
+        sampler = optuna.samplers.CmaEsSampler(seed=seed)
     else:
         raise ValueError("Unknown sampler: {}".format(args.sampler))
 
