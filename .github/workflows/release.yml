@@ -1,0 +1,68 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  github:
+    name: 'GitHub Release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v1
+
+      - name: Install dependent packages
+        run: sudo apt install -y musl-tools
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: x86_64-unknown-linux-musl
+          override: true
+
+      - name: Run cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target=x86_64-unknown-linux-musl
+
+      - id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: v${{ github.ref }}
+          draft: false
+          prerelease: false
+      - uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: target/x86_64-unknown-linux-musl/release/kurobako
+          asset_name: kurobako-${{ github.ref }}.linux-amd64
+          asset_content_type: application/octet-stream
+
+  docker:
+    name: 'Docker Hub Release'
+    needs: [github]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v1
+      - name: Build docker image
+        run: |
+          docker build --build-arg KUROBAKO_VERSION=${{ github.ref }} -t sile/kurobako:latest docker/
+          docker tag sile/kurobako:latest sile/kurobako:${{ github.ref }}
+      - name: Push to Docker Hub
+        env:
+          DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+        run: |
+          echo "${DOCKER_HUB_TOKEN}" | docker login -u sile --password-stdin
+          docker push sile/kurobako:latest
+          docker push sile/kurobako:${{ github.ref }}
