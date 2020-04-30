@@ -10,6 +10,10 @@ jobs:
     name: 'GitHub Release'
     runs-on: ubuntu-latest
     steps:
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+
       - name: Checkout sources
         uses: actions/checkout@v1
 
@@ -35,17 +39,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: v${{ github.ref }}
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+          release_name: v${{ steps.get_version.outputs.VERSION }}
           draft: false
           prerelease: false
+
       - uses: actions/upload-release-asset@v1.0.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create-release.outputs.upload_url }}
           asset_path: target/x86_64-unknown-linux-musl/release/kurobako
-          asset_name: kurobako-${{ github.ref }}.linux-amd64
+          asset_name: kurobako-${{ steps.get_version.outputs.VERSION }}.linux-amd64
           asset_content_type: application/octet-stream
 
   docker:
@@ -53,16 +58,22 @@ jobs:
     needs: [github]
     runs-on: ubuntu-latest
     steps:
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+
       - name: Checkout sources
         uses: actions/checkout@v1
+
       - name: Build docker image
         run: |
-          docker build --build-arg KUROBAKO_VERSION=${{ github.ref }} -t sile/kurobako:latest docker/
-          docker tag sile/kurobako:latest sile/kurobako:${{ github.ref }}
+          docker build --build-arg KUROBAKO_VERSION=${{ steps.get_version.outputs.VERSION }} -t sile/kurobako:latest docker/
+          docker tag sile/kurobako:latest sile/kurobako:${{ steps.get_version.outputs.VERSION }}
+
       - name: Push to Docker Hub
         env:
           DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
         run: |
           echo "${DOCKER_HUB_TOKEN}" | docker login -u sile --password-stdin
           docker push sile/kurobako:latest
-          docker push sile/kurobako:${{ github.ref }}
+          docker push sile/kurobako:${{ steps.get_version.outputs.VERSION  }}
