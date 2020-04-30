@@ -260,13 +260,6 @@ impl<'a> Problem<'a> {
     fn ymin(&self) -> String {
         if let Some(y) = self.opt.ymin {
             y.to_string()
-        } else if self.opt.metric == Metric::BestValue {
-            let y = self.problem.spec.values_domain.variables()[0].range().low();
-            if y.is_finite() {
-                y.to_string()
-            } else {
-                "".to_string()
-            }
         } else {
             "".to_string()
         }
