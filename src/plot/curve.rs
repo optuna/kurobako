@@ -149,7 +149,9 @@ impl<'a> Problem<'a> {
     }
 
     fn plot(&self) -> Result<bool> {
-        if self.problem.spec.values_domain.variables().len() != 1 {
+        if self.opt.metric == Metric::BestValue
+            && self.problem.spec.values_domain.variables().len() != 1
+        {
             // This plot doesn't support multi-objective problems.
             return Ok(false);
         }
