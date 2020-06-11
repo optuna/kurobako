@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::Write as _;
 use std::sync::Mutex;
+use std::time::Duration;
 use structopt::StructOpt;
 use tempfile::{NamedTempFile, TempPath};
 
@@ -107,5 +108,10 @@ pub struct EmbeddedScriptEvaluator {
 impl Evaluator for EmbeddedScriptEvaluator {
     fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
         track!(self.inner.evaluate(next_step))
+    }
+
+    // TODO: delete
+    fn elapsed(&self) -> Option<Duration> {
+        self.inner.elapsed()
     }
 }

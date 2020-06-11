@@ -14,6 +14,7 @@ use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::atomic::{self, AtomicU64};
 use std::sync::{Arc, Mutex};
 use std::thread_local;
+use std::time::Duration;
 use structopt::StructOpt;
 
 thread_local! {
@@ -234,6 +235,11 @@ impl Evaluator for ExternalProgramEvaluator {
                 track_panic!(ErrorKind::Other, "Unexpected message: {:?}", m);
             }
         }
+    }
+
+    // TODO: delete
+    fn elapsed(&self) -> Option<Duration> {
+        None
     }
 }
 impl Drop for ExternalProgramEvaluator {

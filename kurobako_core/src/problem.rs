@@ -8,6 +8,7 @@ use crate::{ErrorKind, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;
+use std::time::Duration;
 use structopt::StructOpt;
 
 /// `ProblemSpec` builder.
@@ -260,10 +261,16 @@ pub trait Evaluator: Send {
     /// Although it's desirable that the current step matches to `next_step`,
     /// it's allowed to exceed `next_step`.
     fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)>;
+
+    fn elapsed(&self) -> Option<Duration>;
 }
 impl<T: Evaluator + ?Sized> Evaluator for Box<T> {
     fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
         (**self).evaluate(next_step)
+    }
+
+    fn elapsed(&self) -> Option<Duration> {
+        (**self).elapsed()
     }
 }
 
@@ -281,6 +288,10 @@ impl BoxEvaluator {
 impl Evaluator for BoxEvaluator {
     fn evaluate(&mut self, next_step: u64) -> Result<(u64, Values)> {
         self.0.evaluate(next_step)
+    }
+
+    fn elapsed(&self) -> Option<Duration> {
+        self.0.elapsed()
     }
 }
 impl fmt::Debug for BoxEvaluator {
