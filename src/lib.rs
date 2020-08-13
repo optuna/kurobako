@@ -27,6 +27,7 @@ pub mod problem_suites;
 pub mod report;
 pub mod runner;
 pub mod solver;
+pub mod spec;
 pub mod study;
 pub mod time;
 pub mod variable;

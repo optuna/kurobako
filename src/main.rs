@@ -9,6 +9,7 @@ use kurobako::problem_suites::ProblemSuite;
 use kurobako::report::{ReportOpt, Reporter};
 use kurobako::runner::{Runner, RunnerOpt};
 use kurobako::solver::KurobakoSolverRecipe;
+use kurobako::spec::SpecOpt;
 use kurobako::study::StudiesRecipe;
 use kurobako::variable::Var;
 use kurobako_core::json;
@@ -60,6 +61,9 @@ enum Opt {
 
     /// Evaluates parameters of a problem.
     Evaluate(EvaluateOpt),
+
+    /// Show problem or solver specification.
+    Spec(SpecOpt),
 }
 
 fn main() -> trackable::result::TopLevelResult {
@@ -105,6 +109,10 @@ fn main() -> trackable::result::TopLevelResult {
         Opt::Evaluate(opt) => {
             let evaluated = track!(opt.evaluate())?;
             print_json!(evaluated);
+        }
+        Opt::Spec(opt) => {
+            let spec = track!(opt.get_spec())?;
+            print_json!(spec);
         }
     }
 
