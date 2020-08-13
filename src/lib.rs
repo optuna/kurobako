@@ -20,12 +20,14 @@ macro_rules! track_writeln {
 }
 
 pub mod dataset;
+pub mod evaluate;
 pub mod plot;
 pub mod problem;
 pub mod problem_suites;
 pub mod report;
 pub mod runner;
 pub mod solver;
+pub mod spec;
 pub mod study;
 pub mod time;
 pub mod variable;
