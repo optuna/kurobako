@@ -20,6 +20,7 @@ macro_rules! track_writeln {
 }
 
 pub mod dataset;
+pub mod evaluate;
 pub mod plot;
 pub mod problem;
 pub mod problem_suites;

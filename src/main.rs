@@ -2,6 +2,7 @@
 extern crate trackable;
 
 use kurobako::dataset::DatasetOpt;
+use kurobako::evaluate::EvaluateOpt;
 use kurobako::plot::PlotOpt;
 use kurobako::problem::KurobakoProblemRecipe;
 use kurobako::problem_suites::ProblemSuite;
@@ -56,6 +57,9 @@ enum Opt {
 
     /// Dataset management.
     Dataset(DatasetOpt),
+
+    /// Evaluates parameters of a problem.
+    Evaluate(EvaluateOpt),
 }
 
 fn main() -> trackable::result::TopLevelResult {
@@ -97,6 +101,10 @@ fn main() -> trackable::result::TopLevelResult {
         }
         Opt::Dataset(opt) => {
             track!(opt.run())?;
+        }
+        Opt::Evaluate(opt) => {
+            let evaluated = track!(opt.evaluate())?;
+            print_json!(evaluated);
         }
     }
 
