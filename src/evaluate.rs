@@ -47,7 +47,7 @@ impl EvaluateOpt {
             ErrorKind::InvalidInput
         );
 
-        let problem = track!(problem_factory.create_problem(rng.clone()))?;
+        let problem = track!(problem_factory.create_problem(rng))?;
 
         let mut evaluator = track!(problem.create_evaluator(self.params.clone()))?;
         let step = self.step.unwrap_or_else(|| problem_spec.steps.last());
