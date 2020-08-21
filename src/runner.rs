@@ -288,7 +288,7 @@ impl StudyRunner {
         self.pb.inc(elapsed_steps);
         let end_step = self.pb.position();
 
-        if end_step < self.study_steps {
+        if end_step <= self.study_steps {
             let ((), tell_elapsed) =
                 ElapsedSeconds::try_time(|| track!(self.solver.tell(evaluated_trial.clone())))?;
 
