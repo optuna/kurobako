@@ -8,10 +8,8 @@ use kurobako_core::{Error, ErrorKind, Result};
 use rustats::fundamental::{average, stddev};
 use rustats::hypothesis_testings::MannWhitneyU;
 use serde::Serialize;
-use sha2::{Digest, Sha256};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use std::fmt::Write as _;
 use std::io::Write;
 use std::str::FromStr;
 use std::time::Duration;
@@ -80,7 +78,6 @@ impl Reporter {
         let mut writer = track!(writer.heading("Benchmark Result Report"))?;
 
         let mut list = writer.list();
-        track!(list.item(&format!("Report ID: {}", track!(self.id())?)))?;
         track!(list.item(&format!(
             "Kurobako Version: [{}](https://github.com/sile/kurobako/tree/{})",
             env!("CARGO_PKG_VERSION"),
@@ -372,20 +369,6 @@ impl Reporter {
             track_writeln!(writer.inner_mut())?;
         }
         Ok(())
-    }
-
-    fn id(&self) -> Result<String> {
-        let mut hasher = Sha256::new();
-        hasher.input(&track!(
-            serde_json::to_vec(&self.studies).map_err(Error::from)
-        )?);
-        hasher.input(&track!(serde_json::to_vec(&self.opt).map_err(Error::from))?);
-
-        let mut id = String::with_capacity(64);
-        for b in hasher.result().as_slice() {
-            track_write!(&mut id, "{:02x}", b)?;
-        }
-        Ok(id)
     }
 
     fn solvers<'a>(&'a self) -> Result<impl 'a + Iterator<Item = (String, &'a SolverRecord)>> {
