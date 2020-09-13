@@ -1,6 +1,6 @@
 //! Built-in problem suites.
 use crate::problem::KurobakoProblemRecipe;
-use kurobako_problems::{hpobench, sigopt, zdt};
+use kurobako_problems::{hpobench, sigopt, surrogate, zdt};
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -12,6 +12,7 @@ pub enum ProblemSuite {
     Sigopt(SigoptProblemSuite),
     Hpobench(HpobenchProblemSuite),
     Zdt(ZdtProblemSuite),
+    Surrogate(SurrogateProblemSuite),
 }
 impl ProblemSuite {
     /// Returns an iterator that iterates over the recipes included in the specified problem suite.
@@ -20,6 +21,7 @@ impl ProblemSuite {
             Self::Sigopt(s) => s.recipes(),
             Self::Hpobench(s) => s.recipes(),
             Self::Zdt(s) => s.recipes(),
+            Self::Surrogate(s) => s.recipes(),
         }
     }
 }
@@ -203,5 +205,41 @@ impl SigoptProblemSuite {
             ],
         };
         Box::new(specs.into_iter().map(KurobakoProblemRecipe::from))
+    }
+}
+
+/// Problem suite containing surrogate problems defined under a directory.
+#[derive(Debug, StructOpt)]
+#[structopt(rename_all = "kebab-case")]
+#[allow(missing_docs)]
+pub struct SurrogateProblemSuite {
+    /// Directory path under where target surrogated model directories exist.
+    pub dir: PathBuf,
+}
+impl SurrogateProblemSuite {
+    fn recipes(&self) -> Box<dyn Iterator<Item = KurobakoProblemRecipe>> {
+        match std::fs::read_dir(&self.dir) {
+            Err(e) => {
+                eprintln!("Cannot read the directory {:?}: {}", self.dir, e);
+                Box::new(std::iter::empty())
+            }
+            Ok(entries) => Box::new(entries.filter_map(|entry| match entry {
+                Err(e) => {
+                    eprintln!("Wrong entry: {}", e);
+                    None
+                }
+                Ok(entry) => {
+                    if entry.path().is_dir() {
+                        Some(KurobakoProblemRecipe::from(
+                            surrogate::SurrogateProblemRecipe {
+                                model: entry.path(),
+                            },
+                        ))
+                    } else {
+                        None
+                    }
+                }
+            })),
+        }
     }
 }
