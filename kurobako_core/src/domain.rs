@@ -10,6 +10,8 @@ use structopt::StructOpt;
 /// A `Domain` instance consists of a vector of `Variable`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Domain(Vec<Variable>);
+
+#[allow(clippy::len_without_is_empty)]
 impl Domain {
     /// Makes a new `Domain` instance.
     pub fn new(variables: Vec<VariableBuilder>) -> Result<Self> {
@@ -34,6 +36,11 @@ impl Domain {
     /// Returns a reference to the variables in this domain.
     pub fn variables(&self) -> &[Variable] {
         &self.0
+    }
+
+    /// Returns the number of variables in this domain.
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 }
 
@@ -198,6 +205,25 @@ impl Variable {
     /// Returns the constraint required to evaluate this variable.
     pub fn constraint(&self) -> Option<&Constraint> {
         self.constraint.as_ref()
+    }
+}
+
+impl rand::distributions::Distribution<f64> for Variable {
+    fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> f64 {
+        match &self.range {
+            Range::Continuous { low, high } => match self.distribution {
+                Distribution::Uniform => rng.gen_range(low, high),
+                Distribution::LogUniform => rng.gen_range(low.log2(), high.log2()).exp2(),
+            },
+            Range::Discrete { low, high } => match self.distribution {
+                Distribution::Uniform => rng.gen_range(low, high) as f64,
+                Distribution::LogUniform => rng
+                    .gen_range((*low as f64).log2(), (*high as f64).log2())
+                    .exp2()
+                    .floor(),
+            },
+            Range::Categorical { choices } => rng.gen_range(0, choices.len()) as f64,
+        }
     }
 }
 
