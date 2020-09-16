@@ -77,6 +77,11 @@ impl IdGen {
         Self { next: 0 }
     }
 
+    /// Makes a new `IdGen` instance which generates ID sequence started from the given ID.
+    pub const fn from_next_id(next: u64) -> Self {
+        Self { next }
+    }
+
     /// Generates a new identifier.
     pub fn generate(&mut self) -> TrialId {
         let id = TrialId(self.next);
