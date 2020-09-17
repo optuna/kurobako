@@ -1,13 +1,13 @@
 //! A solver based on random search.
-use kurobako_core::domain::{Distribution, Range};
 use kurobako_core::problem::ProblemSpec;
 use kurobako_core::registry::FactoryRegistry;
-use kurobako_core::rng::{ArcRng, Rng};
+use kurobako_core::rng::ArcRng;
 use kurobako_core::solver::{
     Capabilities, Solver, SolverFactory, SolverRecipe, SolverSpec, SolverSpecBuilder,
 };
 use kurobako_core::trial::{EvaluatedTrial, IdGen, NextTrial, Params};
 use kurobako_core::{ErrorKind, Result};
+use rand::distributions::Distribution as _;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
@@ -72,21 +72,7 @@ impl Solver for RandomSolver {
     fn ask(&mut self, idg: &mut IdGen) -> Result<NextTrial> {
         let mut params = Vec::new();
         for p in self.problem.params_domain.variables() {
-            let param = match p.range() {
-                Range::Continuous { low, high } => match p.distribution() {
-                    Distribution::Uniform => self.rng.gen_range(low, high),
-                    Distribution::LogUniform => self.rng.gen_range(low.log2(), high.log2()).exp2(),
-                },
-                Range::Discrete { low, high } => match p.distribution() {
-                    Distribution::Uniform => self.rng.gen_range(low, high) as f64,
-                    Distribution::LogUniform => self
-                        .rng
-                        .gen_range((*low as f64).log2(), (*high as f64).log2())
-                        .exp2()
-                        .floor(),
-                },
-                Range::Categorical { choices } => self.rng.gen_range(0, choices.len()) as f64,
-            };
+            let param = p.sample(&mut self.rng);
             params.push(param);
         }
 
