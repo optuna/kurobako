@@ -215,15 +215,20 @@ impl SigoptProblemSuite {
 pub struct SurrogateProblemSuite {
     /// Directory path under where target surrogated model directories exist.
     pub dir: PathBuf,
+
+    /// Disable the in-memory model cache to reduce memory usage.
+    #[structopt(long)]
+    pub disable_cache: bool,
 }
 impl SurrogateProblemSuite {
     fn recipes(&self) -> Box<dyn Iterator<Item = KurobakoProblemRecipe>> {
+        let disable_cache = self.disable_cache;
         match std::fs::read_dir(&self.dir) {
             Err(e) => {
                 eprintln!("Cannot read the directory {:?}: {}", self.dir, e);
                 Box::new(std::iter::empty())
             }
-            Ok(entries) => Box::new(entries.filter_map(|entry| match entry {
+            Ok(entries) => Box::new(entries.filter_map(move |entry| match entry {
                 Err(e) => {
                     eprintln!("Wrong entry: {}", e);
                     None
@@ -233,6 +238,7 @@ impl SurrogateProblemSuite {
                         Some(KurobakoProblemRecipe::from(
                             surrogate::SurrogateProblemRecipe {
                                 model: entry.path(),
+                                disable_cache,
                             },
                         ))
                     } else {

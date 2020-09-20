@@ -10,12 +10,19 @@ use kurobako_core::registry::FactoryRegistry;
 use kurobako_core::rng::ArcRng;
 use kurobako_core::trial::{Params, Values};
 use kurobako_core::{Error, Result};
+use lazy_static::lazy_static;
 use randomforest::RandomForestRegressor;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::io::BufReader;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use structopt::StructOpt;
+
+lazy_static! {
+    static ref CACHE: Mutex<HashMap<PathBuf, Arc<RandomForestRegressor>>> =
+        Mutex::new(HashMap::new());
+}
 
 /// Recipe of `SurrogateProblem`.
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
@@ -23,7 +30,21 @@ use structopt::StructOpt;
 pub struct SurrogateProblemRecipe {
     /// Directory path where a problem spec and a surrogate model files exist.
     pub model: PathBuf,
+
+    /// Disable the in-memory model cache to reduce memory usage.
+    #[structopt(long)]
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub disable_cache: bool,
 }
+
+impl SurrogateProblemRecipe {
+    fn load_model(&self, model_path: &PathBuf) -> Result<Arc<RandomForestRegressor>> {
+        let model_file = track!(std::fs::File::open(model_path).map_err(Error::from); model_path)?;
+        let model = RandomForestRegressor::deserialize(BufReader::new(model_file))?;
+        Ok(Arc::new(model))
+    }
+}
+
 impl ProblemRecipe for SurrogateProblemRecipe {
     type Factory = SurrogateProblemFactory;
 
@@ -33,13 +54,20 @@ impl ProblemRecipe for SurrogateProblemRecipe {
         let spec: ProblemSpec = track!(serde_json::from_reader(spec_file).map_err(Error::from))?;
 
         let model_path = self.model.join("model.bin");
-        let model_file = track!(std::fs::File::open(&model_path).map_err(Error::from); model_path)?;
-        let model = RandomForestRegressor::deserialize(BufReader::new(model_file))?;
+        let model = if self.disable_cache {
+            track!(self.load_model(&model_path))?
+        } else {
+            let mut cache = track!(CACHE.lock().map_err(Error::from))?;
+            if let Some(model) = cache.get(&model_path) {
+                Arc::clone(&model)
+            } else {
+                let model = track!(self.load_model(&model_path))?;
+                cache.insert(model_path, Arc::clone(&model));
+                model
+            }
+        };
 
-        Ok(SurrogateProblemFactory {
-            spec,
-            model: Arc::new(model),
-        })
+        Ok(SurrogateProblemFactory { spec, model })
     }
 }
 
@@ -92,4 +120,8 @@ impl Evaluator for SurrogateEvaluator {
         let value = self.model.predict(self.params.get());
         Ok((1, Values::new(vec![value])))
     }
+}
+
+fn is_false(&b: &bool) -> bool {
+    !b
 }
