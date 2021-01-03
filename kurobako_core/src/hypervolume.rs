@@ -2,7 +2,10 @@
 
 /// Computes the hypervolume.
 pub fn compute(pts: &Vec<Vec<f64>>, ref_pt: &Vec<f64>) -> f64 {
-    assert!(!ref_pt.is_empty(), "Reference point must have at least one dimension");
+    assert!(
+        !ref_pt.is_empty(),
+        "Reference point must have at least one dimension"
+    );
     get_hypervolume_recursive(pts, ref_pt)
 }
 
