@@ -8,6 +8,7 @@ pub use error::{Error, ErrorKind};
 
 pub mod domain;
 pub mod epi;
+pub mod hypervolume;
 pub mod json;
 pub mod num;
 pub mod problem;

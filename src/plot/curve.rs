@@ -19,12 +19,17 @@ use tempfile::{NamedTempFile, TempPath};
 #[allow(missing_docs)]
 pub enum Metric {
     BestValue,
+    Hypervolume,
     ElapsedTime,
     SolverElapsedTime,
 }
 impl Metric {
-    const POSSIBLE_VALUES: &'static [&'static str] =
-        &["best-value", "elapsed-time", "solver-elapsed-time"];
+    const POSSIBLE_VALUES: &'static [&'static str] = &[
+        "best-value",
+        "hypervolume",
+        "elapsed-time",
+        "solver-elapsed-time",
+    ];
 }
 impl FromStr for Metric {
     type Err = Error;
@@ -32,6 +37,7 @@ impl FromStr for Metric {
     fn from_str(s: &str) -> Result<Self> {
         match s {
             "best-value" => Ok(Metric::BestValue),
+            "hypervolume" => Ok(Metric::Hypervolume),
             "elapsed-time" => Ok(Metric::ElapsedTime),
             "solver-elapsed-time" => Ok(Metric::SolverElapsedTime),
             _ => track_panic!(ErrorKind::InvalidInput, "Unknown metric name: {:?}", s),
@@ -167,6 +173,7 @@ impl<'a> Problem<'a> {
     fn make_gnuplot_script(&self, data_path: &TempPath) -> Result<String> {
         let ylabel = match self.opt.metric {
             Metric::BestValue => self.problem.spec.values_domain.variables()[0].name(),
+            Metric::Hypervolume => "Hypervolume",
             Metric::ElapsedTime => "Cumulative Elapsed Seconds (Ask + Evaluate + Tell)",
             Metric::SolverElapsedTime => "Cumulative Elapsed Seconds (Ask + Tell)",
         };
@@ -320,6 +327,7 @@ impl Solver {
             .iter()
             .map(|study| match opt.metric {
                 Metric::BestValue => study.best_values(),
+                Metric::Hypervolume => study.hypervolumes(),
                 Metric::ElapsedTime => study.elapsed_times(true),
                 Metric::SolverElapsedTime => study.elapsed_times(false),
             })
