@@ -19,7 +19,10 @@ impl DatasetOpt {
     pub fn run(&self) -> Result<()> {
         match self {
             Self::Nasbench(opt) => track!(opt.run()),
-            Self::Hpobench(opt) => track!(opt.run()),
+            Self::Hpobench(opt) => {
+                opt.run();
+                Ok(())
+            }
         }
     }
 }
@@ -86,8 +89,7 @@ pub enum HpobenchOpt {
 }
 
 impl HpobenchOpt {
-    fn run(&self) -> Result<()> {
+    fn run(&self) {
         println!("http://ml4aad.org/wp-content/uploads/2019/01/fcnet_tabular_benchmarks.tar.gz");
-        Ok(())
     }
 }
