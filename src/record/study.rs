@@ -202,14 +202,7 @@ impl StudyRecord {
                         .expect("Could not parse the reference point coordinate to float")
                 })
                 .collect(),
-            None => {
-                let n_objectives = trials
-                    .first()
-                    .expect("At least one trial must be finished")
-                    .1
-                    .len();
-                vec![100.0; n_objectives]
-            }
+            None => vec![100.0; self.problem.spec.values_domain.len()],
         };
 
         let mut pts = Vec::new();

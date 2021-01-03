@@ -52,7 +52,7 @@ fn get_max_coordinates(pt0: &Vec<f64>, pt1: &Vec<f64>) -> Vec<f64> {
 fn get_exclusive_hypervolume(pt: &Vec<f64>, pts: &[Vec<f64>], ref_pt: &Vec<f64>) -> f64 {
     let mut limited_pts: Vec<Vec<f64>> = Vec::new();
 
-    if pts.len() > 0 {
+    if !pts.is_empty() {
         let intersection_pts: Vec<Vec<f64>> = (0..pts.len())
             .map(|i| get_max_coordinates(&pts[i], &pt))
             .collect();
