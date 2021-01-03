@@ -4,6 +4,7 @@ use crate::record::{
 use crate::study::{Scheduling, StudyRecipe};
 use crate::time::DateTime;
 use chrono::Local;
+use kurobako_core::hypervolume;
 use kurobako_core::num::OrderedFloat;
 use kurobako_core::problem::ProblemSpec;
 use kurobako_core::solver::SolverSpec;
@@ -173,6 +174,45 @@ impl StudyRecord {
         }
 
         best_values
+    }
+
+    pub fn hypervolumes(&self) -> BTreeMap<u64, f64> {
+        let mut hypervolumes = BTreeMap::new();
+
+        let problem_steps = self.problem.spec.steps.last();
+        let mut trials = self
+            .trials
+            .iter()
+            .filter_map(|t| {
+                if let (Some(step), Some(value)) = (t.end_step(), t.values(problem_steps)) {
+                    Some((step, value))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        trials.sort_by_key(|t| t.0);
+
+        let ref_pt = match self.problem.spec.attrs.get("reference_point") {
+            Some(ref_pt_str) => ref_pt_str
+                .split(",")
+                .map(|cor| {
+                    cor.parse()
+                        .expect("Could not parse the reference point coordinate to float")
+                })
+                .collect(),
+            None => vec![100.0; self.problem.spec.values_domain.len()],
+        };
+
+        let mut pts = Vec::new();
+        for (step, values) in trials {
+            pts.push(values.to_vec());
+            let hv = hypervolume::compute(&pts, &ref_pt);
+            hypervolumes.insert(step, hv);
+        }
+
+        hypervolumes
     }
 
     pub fn elapsed_times(&self, include_evaluate_time: bool) -> BTreeMap<u64, f64> {
