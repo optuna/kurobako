@@ -371,7 +371,7 @@ impl Reporter {
         Ok(())
     }
 
-    fn solvers<'a>(&'a self) -> Result<impl 'a + Iterator<Item = (String, &'a SolverRecord)>> {
+    fn solvers(&self) -> Result<impl '_ + Iterator<Item = (String, &SolverRecord)>> {
         let mut map = BTreeMap::new();
         for study in &self.studies {
             let id = track!(study.solver.id())?;
@@ -380,7 +380,7 @@ impl Reporter {
         Ok(map.into_iter().map(|(k, v)| (k.1, v)))
     }
 
-    fn problems<'a>(&'a self) -> Result<impl 'a + Iterator<Item = (String, &'a ProblemRecord)>> {
+    fn problems(&self) -> Result<impl '_ + Iterator<Item = (String, &ProblemRecord)>> {
         let mut map = BTreeMap::new();
         for study in &self.studies {
             let id = track!(study.problem.id())?;
@@ -466,21 +466,21 @@ struct Competitor<'a> {
     studies: Vec<&'a StudyRecord>,
 }
 impl<'a> Competitor<'a> {
-    fn best_values<'b>(&'b self) -> impl 'b + Iterator<Item = OrderedFloat<f64>> {
+    fn best_values(&self) -> impl '_ + Iterator<Item = OrderedFloat<f64>> {
         self.studies
             .iter()
             .filter_map(|s| s.best_value())
             .map(OrderedFloat)
     }
 
-    fn aucs<'b>(&'b self, start_step: u64) -> impl 'b + Iterator<Item = OrderedFloat<f64>> {
+    fn aucs(&self, start_step: u64) -> impl '_ + Iterator<Item = OrderedFloat<f64>> {
         self.studies
             .iter()
             .filter_map(move |s| s.auc(start_step))
             .map(OrderedFloat)
     }
 
-    fn elapsed_times<'b>(&'b self) -> impl 'b + Iterator<Item = Duration> {
+    fn elapsed_times(&self) -> impl '_ + Iterator<Item = Duration> {
         self.studies.iter().map(|s| s.solver_elapsed())
     }
 }

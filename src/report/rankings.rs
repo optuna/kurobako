@@ -30,7 +30,7 @@ impl<T: Ord> Borda<T> {
         }
     }
 
-    pub fn scores<'a>(&'a self) -> impl 'a + Iterator<Item = Score> {
+    pub fn scores(&self) -> impl '_ + Iterator<Item = Score> {
         self.items.iter().map(|t| t.1)
     }
 }
@@ -67,7 +67,7 @@ impl<T: Ord> Firsts<T> {
         }
     }
 
-    pub fn scores<'a>(&'a self) -> impl 'a + Iterator<Item = Score> {
+    pub fn scores(&self) -> impl '_ + Iterator<Item = Score> {
         self.items.iter().map(|t| t.1)
     }
 }

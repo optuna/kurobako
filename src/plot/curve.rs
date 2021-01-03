@@ -163,14 +163,14 @@ impl<'a> Problem<'a> {
         }
 
         let data_path = track!(self.generate_data())?;
-        let script = track!(self.make_gnuplot_script(&data_path))?;
+        let script = self.make_gnuplot_script(&data_path);
         track!(execute_gnuplot(&script))?;
         std::mem::drop(data_path);
 
         Ok(true)
     }
 
-    fn make_gnuplot_script(&self, data_path: &TempPath) -> Result<String> {
+    fn make_gnuplot_script(&self, data_path: &TempPath) -> String {
         let ylabel = match self.opt.metric {
             Metric::BestValue => self.problem.spec.values_domain.variables()[0].name(),
             Metric::Hypervolume => "Hypervolume",
@@ -237,7 +237,7 @@ impl<'a> Problem<'a> {
             }
         }
 
-        Ok(s)
+        s
     }
 
     fn ymax(&self) -> String {

@@ -117,7 +117,7 @@ impl Params {
         &self.0
     }
 
-    fn ordered_floats<'a>(&'a self) -> impl 'a + Iterator<Item = OrderedFloat<f64>> {
+    fn ordered_floats(&self) -> impl '_ + Iterator<Item = OrderedFloat<f64>> {
         self.0.iter().copied().map(OrderedFloat)
     }
 }
@@ -156,7 +156,7 @@ impl Values {
         self.0
     }
 
-    fn ordered_floats<'a>(&'a self) -> impl 'a + Iterator<Item = OrderedFloat<f64>> {
+    fn ordered_floats(&self) -> impl '_ + Iterator<Item = OrderedFloat<f64>> {
         self.0.iter().copied().map(OrderedFloat)
     }
 }

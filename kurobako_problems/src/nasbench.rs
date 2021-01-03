@@ -284,37 +284,37 @@ impl Encoding {
         }
         ops.push(Op::Output);
 
-        let edges = track!(self.edges(&params[5..]))?;
+        let edges = self.edges(&params[5..]);
         Ok((ops, edges))
     }
 
-    fn edges(self, params: &[f64]) -> Result<HashSet<usize>> {
+    fn edges(self, params: &[f64]) -> HashSet<usize> {
         match self {
-            Encoding::A => track!(Self::edges_a(params)),
-            Encoding::B => track!(Self::edges_b(params)),
-            Encoding::C => track!(Self::edges_c(params)),
+            Encoding::A => Self::edges_a(params),
+            Encoding::B => Self::edges_b(params),
+            Encoding::C => Self::edges_c(params),
         }
     }
 
-    fn edges_a(params: &[f64]) -> Result<HashSet<usize>> {
+    fn edges_a(params: &[f64]) -> HashSet<usize> {
         let mut edges = HashSet::new();
         for (i, p) in params.iter().enumerate() {
             if (*p - 1.0).abs() < std::f64::EPSILON {
                 edges.insert(i);
             }
         }
-        Ok(edges)
+        edges
     }
 
-    fn edges_b(params: &[f64]) -> Result<HashSet<usize>> {
+    fn edges_b(params: &[f64]) -> HashSet<usize> {
         let mut edges = HashSet::new();
         for p in params {
             edges.insert(*p as usize);
         }
-        Ok(edges)
+        edges
     }
 
-    fn edges_c(params: &[f64]) -> Result<HashSet<usize>> {
+    fn edges_c(params: &[f64]) -> HashSet<usize> {
         let num_edges = params[0] as usize;
 
         let mut edges = Vec::new();
@@ -324,12 +324,12 @@ impl Encoding {
         assert_eq!(edges.len(), EDGE_KINDS);
 
         edges.sort_by_key(|&(a, b)| (OrderedFloat(a), b));
-        Ok(edges
+        edges
             .iter()
             .rev()
             .take(num_edges)
             .map(|t| t.1)
-            .collect::<HashSet<_>>())
+            .collect::<HashSet<_>>()
     }
 }
 impl FromStr for Encoding {

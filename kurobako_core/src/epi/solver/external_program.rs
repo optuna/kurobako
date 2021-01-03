@@ -65,13 +65,13 @@ impl ExternalProgramSolverRecipe {
         )))
     }
 
-    fn cache_key(&self) -> Result<Vec<u8>> {
+    fn cache_key(&self) -> Vec<u8> {
         let mut hasher = Sha256::new();
         hasher.input(&*self.path.to_string_lossy());
         for arg in &self.args {
             hasher.input(arg.as_bytes());
         }
-        Ok(hasher.result().to_vec())
+        hasher.result().to_vec()
     }
 }
 impl SolverRecipe for ExternalProgramSolverRecipe {
@@ -80,7 +80,7 @@ impl SolverRecipe for ExternalProgramSolverRecipe {
     fn create_factory(&self, registry: &FactoryRegistry) -> Result<Self::Factory> {
         FACTORIES.with(|f| {
             let mut f = f.borrow_mut();
-            let key = track!(self.cache_key())?;
+            let key = self.cache_key();
             if !f.contains_key(&key) {
                 f.insert(key.clone(), track!(self.create_new_factory(registry))?);
             }

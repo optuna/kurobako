@@ -304,7 +304,7 @@ impl EvaluableSteps {
     }
 
     /// Returns an iterator that iterates over all the steps.
-    pub fn iter<'a>(&'a self) -> impl 'a + Iterator<Item = u64> {
+    pub fn iter(&self) -> impl '_ + Iterator<Item = u64> {
         self.0.iter()
     }
 }
@@ -339,7 +339,7 @@ impl EvaluableStepsInner {
         }
     }
 
-    fn iter<'a>(&'a self) -> impl 'a + Iterator<Item = u64> {
+    fn iter(&self) -> impl '_ + Iterator<Item = u64> {
         match self {
             Self::Max(n) => itertools::Either::Left(1..=*n),
             Self::Steps(ns) => itertools::Either::Right(ns.iter().copied()),

@@ -54,7 +54,7 @@ impl VarPath {
     }
 
     /// Returns an iterator that iterates over the components in this path.
-    pub fn components<'a>(&'a self) -> impl 'a + Iterator<Item = &'a str> {
+    pub fn components(&self) -> impl '_ + Iterator<Item = &str> {
         self.0.iter().map(|x| x.as_str())
     }
 }

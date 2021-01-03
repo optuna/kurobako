@@ -77,9 +77,7 @@ impl StudyRecordBuilder {
         }
     }
 
-    pub fn pareto_frontier<'a>(
-        &'a self,
-    ) -> impl 'a + Iterator<Item = (TrialId, &'a Params, &'a Values)> {
+    pub fn pareto_frontier(&self) -> impl '_ + Iterator<Item = (TrialId, &Params, &Values)> {
         self.pareto_frontier
             .iter()
             .map(|(&id, (params, values))| (id, params, values))
@@ -196,7 +194,7 @@ impl StudyRecord {
 
         let ref_pt = match self.problem.spec.attrs.get("reference_point") {
             Some(ref_pt_str) => ref_pt_str
-                .split(",")
+                .split(',')
                 .map(|cor| {
                     cor.parse()
                         .expect("Could not parse the reference point coordinate to float")
@@ -228,7 +226,7 @@ impl StudyRecord {
         times
     }
 
-    pub fn evaluations<'a>(&'a self) -> impl 'a + Iterator<Item = &'a EvaluationRecord> {
+    pub fn evaluations(&self) -> impl '_ + Iterator<Item = &EvaluationRecord> {
         struct Entry<'a> {
             trial: &'a TrialRecord,
             index: usize,
