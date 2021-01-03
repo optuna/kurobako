@@ -413,7 +413,7 @@ impl McCourtBase {
 #[derive(Debug)]
 pub struct McCourt01;
 impl McCourt01 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[f64]] = &[
             &[0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
             &[0.3, 0.1, 0.5, 0.1, 0.8, 0.8, 0.6],
@@ -452,7 +452,7 @@ impl TestFunction for McCourt01 {
 #[derive(Debug)]
 pub struct McCourt02;
 impl McCourt02 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[
             &[0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
             &[0.3, 0.1, 0.5, 0.1, 0.8, 0.8, 0.6],
@@ -491,7 +491,7 @@ impl TestFunction for McCourt02 {
 #[derive(Debug)]
 pub struct McCourt03;
 impl McCourt03 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[
             &[0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
             &[0.3, 0.1, 0.5, 0.1, 0.8, 0.8, 0.6, 0.4, 0.2],
@@ -536,7 +536,7 @@ impl TestFunction for McCourt03 {
 #[derive(Debug)]
 pub struct McCourt06;
 impl McCourt06 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[
             &[0.1, 0.1, 0.1, 0.1, 0.1],
             &[0.3, 0.8, 0.8, 0.6, 0.9],
@@ -577,7 +577,7 @@ impl TestFunction for McCourt06 {
 #[derive(Debug)]
 pub struct McCourt07;
 impl McCourt07 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[
             &[0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
             &[0.3, 0.8, 0.8, 0.6, 0.9, 0.4],
@@ -620,7 +620,7 @@ impl TestFunction for McCourt07 {
 #[derive(Debug)]
 pub struct McCourt08;
 impl McCourt08 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[
             &[0.1, 0.1, 0.1, 0.1],
             &[0.3, 0.8, 0.9, 0.4],
@@ -670,7 +670,7 @@ impl TestFunction for McCourt08 {
 #[derive(Debug)]
 pub struct McCourt09;
 impl McCourt09 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[
             &[0.1, 0.1, 0.1],
             &[0.3, 0.8, 0.9],
@@ -713,7 +713,7 @@ impl TestFunction for McCourt09 {
 #[derive(Debug)]
 pub struct McCourt10;
 impl McCourt10 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[
             &[0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
             &[0.3, 0.1, 0.5, 0.1, 0.8, 0.8, 0.6, 0.4],
@@ -769,7 +769,7 @@ impl TestFunction for McCourt10 {
 #[derive(Debug)]
 pub struct McCourt11;
 impl McCourt11 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[
             &[0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
             &[0.3, 0.1, 0.5, 0.1, 0.8, 0.8, 0.6, 0.4],
@@ -818,7 +818,7 @@ impl TestFunction for McCourt11 {
 #[derive(Debug)]
 pub struct McCourt12;
 impl McCourt12 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[
             &[0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
             &[0.3, 0.1, 0.5, 0.1, 0.8, 0.8, 0.6],
@@ -867,7 +867,7 @@ impl TestFunction for McCourt12 {
 #[derive(Debug)]
 pub struct McCourt13;
 impl McCourt13 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[
             &[0.9, 0.9, 0.9],
             &[0.9, 0.9, 1.0],
@@ -926,7 +926,7 @@ impl TestFunction for McCourt13 {
 #[derive(Debug)]
 pub struct McCourt14;
 impl McCourt14 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[&[0.1, 0.8, 0.3]];
         let e_mat: &[&[_]] = &[&[5.0, 5.0, 5.0]];
         McCourtBase::dist_sq_2(xs, centers, e_mat).map(|r2| (-r2).exp())
@@ -951,7 +951,7 @@ impl TestFunction for McCourt14 {
 #[derive(Debug)]
 pub struct McCourt16;
 impl McCourt16 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[&[0.3, 0.8, 0.3, 0.6], &[0.4, 0.9, 0.4, 0.7]];
         let e_mat: &[&[_]] = &[&[5.0, 5.0, 5.0, 5.0], &[5.0, 5.0, 5.0, 5.0]];
         McCourtBase::dist_sq_2(xs, centers, e_mat).map(|r2| 1.0 / (1.0 + r2).sqrt())
@@ -976,7 +976,7 @@ impl TestFunction for McCourt16 {
 #[derive(Debug)]
 pub struct McCourt17;
 impl McCourt17 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[
             &[0.3, 0.8, 0.3, 0.6, 0.2, 0.8, 0.5],
             &[0.8, 0.3, 0.8, 0.2, 0.5, 0.2, 0.8],
@@ -1009,7 +1009,7 @@ impl TestFunction for McCourt17 {
 #[derive(Debug)]
 pub struct McCourt18;
 impl McCourt18 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[
             &[0.3, 0.8, 0.3, 0.6, 0.2, 0.8, 0.2, 0.4],
             &[0.3, 0.8, 0.3, 0.6, 0.2, 0.8, 0.2, 0.4],
@@ -1048,7 +1048,7 @@ impl TestFunction for McCourt18 {
 #[derive(Debug)]
 pub struct McCourt19;
 impl McCourt19 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[
             &[0.1, 0.1],
             &[0.3, 0.8],
@@ -1095,7 +1095,7 @@ impl TestFunction for McCourt19 {
 #[derive(Debug)]
 pub struct McCourt20;
 impl McCourt20 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[
             &[0.1, 0.1],
             &[0.3, 0.8],
@@ -1142,7 +1142,7 @@ impl TestFunction for McCourt20 {
 #[derive(Debug)]
 pub struct McCourt22;
 impl McCourt22 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[
             &[1.0, 0.3, 0.1, 0.4, 0.1],
             &[0.9, 0.7, 0.0, 0.5, 0.8],
@@ -1183,7 +1183,7 @@ impl TestFunction for McCourt22 {
 #[derive(Debug)]
 pub struct McCourt23;
 impl McCourt23 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[
             &[0.1, 0.1, 1.0, 0.3, 0.4, 0.1],
             &[0.0, 0.0, 0.1, 0.6, 0.0, 0.7],
@@ -1240,7 +1240,7 @@ impl TestFunction for McCourt23 {
 #[derive(Debug)]
 pub struct McCourt26;
 impl McCourt26 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[
             &[0.5, 0.2, 0.0],
             &[0.6, 0.2, 0.5],
@@ -1289,7 +1289,7 @@ impl TestFunction for McCourt26 {
 #[derive(Debug)]
 pub struct McCourt27;
 impl McCourt27 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[
             &[0.6, 0.3, 0.5],
             &[0.5, 0.2, 0.0],
@@ -1338,7 +1338,7 @@ impl TestFunction for McCourt27 {
 #[derive(Debug)]
 pub struct McCourt28;
 impl McCourt28 {
-    fn kernel<'a>(xs: &'a [f64]) -> impl 'a + Iterator<Item = f64> {
+    fn kernel(xs: &[f64]) -> impl '_ + Iterator<Item = f64> {
         let centers: &[&[_]] = &[
             &[0.6, 0.2, 0.8, 0.4],
             &[0.1, 0.1, 0.7, 0.9],

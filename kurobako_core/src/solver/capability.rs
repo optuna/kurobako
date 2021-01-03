@@ -52,7 +52,7 @@ impl Capabilities {
     }
 
     /// Iterates over all the capabilities that this instance has.
-    pub fn iter<'a>(&'a self) -> impl 'a + Iterator<Item = Capability> {
+    pub fn iter(&self) -> impl '_ + Iterator<Item = Capability> {
         self.0.iter().copied()
     }
 
