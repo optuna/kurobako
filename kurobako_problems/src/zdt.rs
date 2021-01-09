@@ -54,7 +54,7 @@ impl ProblemFactory for ZdtProblemFactory {
                 "paper",
                 "Zitzler, Eckart, Kalyanmoy Deb, and Lothar Thiele. \"Comparison of multiobjective \
                  evolutionary algorithms: Empirical results.\" Evolutionary computation 8.2 (2000): 173-195."
-            ).value(domain::var("f1")).value(domain::var("f2"));
+            ).value(domain::var("f1")).value(domain::var("f2")).reference_point(Some(Params::new(vec![11.0, 11.0])));
 
         for (i, range) in self.zdt.ranges().into_iter().enumerate() {
             spec = spec.param(domain::var(&format!("x{}", i)).range(range));

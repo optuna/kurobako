@@ -192,14 +192,8 @@ impl StudyRecord {
 
         trials.sort_by_key(|t| t.0);
 
-        let ref_pt = match self.problem.spec.attrs.get("reference_point") {
-            Some(ref_pt_str) => ref_pt_str
-                .split(',')
-                .map(|cor| {
-                    cor.parse()
-                        .expect("Could not parse the reference point coordinate to float")
-                })
-                .collect(),
+        let ref_pt = match &self.problem.spec.reference_point {
+            Some(reference_point) => reference_point.to_vec(),
             None => vec![100.0; self.problem.spec.values_domain.len()],
         };
 

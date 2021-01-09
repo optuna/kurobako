@@ -18,6 +18,7 @@ pub struct ProblemSpecBuilder {
     params: Vec<VariableBuilder>,
     values: Vec<VariableBuilder>,
     steps: Vec<u64>,
+    reference_point: Option<Params>,
 }
 impl ProblemSpecBuilder {
     /// Makes a new `ProblemSpecBuilder` instance.
@@ -28,6 +29,7 @@ impl ProblemSpecBuilder {
             params: Vec::new(),
             values: Vec::new(),
             steps: vec![1],
+            reference_point: None,
         }
     }
 
@@ -64,6 +66,12 @@ impl ProblemSpecBuilder {
         self
     }
 
+    /// Sets the value reference point of this problem.
+    pub fn reference_point(mut self, reference_point: Option<Params>) -> Self {
+        self.reference_point = reference_point;
+        self
+    }
+
     /// Builds a `ProblemSpec` with the given settings.
     pub fn finish(self) -> Result<ProblemSpec> {
         let params_domain = track!(Domain::new(self.params))?;
@@ -76,6 +84,7 @@ impl ProblemSpecBuilder {
             params_domain,
             values_domain,
             steps,
+            reference_point: self.reference_point,
         })
     }
 }
@@ -100,6 +109,9 @@ pub struct ProblemSpec {
     ///
     /// This problem can evaluate a given parameter set at a step in this list.
     pub steps: EvaluableSteps,
+
+    /// Problem reference point.
+    pub reference_point: Option<Params>,
 }
 impl ProblemSpec {
     /// Returns the capabilities required to solver to handle this problem.
