@@ -15,7 +15,7 @@ use randomforest::RandomForestRegressor;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::BufReader;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use structopt::StructOpt;
 
@@ -38,7 +38,7 @@ pub struct SurrogateProblemRecipe {
 }
 
 impl SurrogateProblemRecipe {
-    fn load_model(&self, model_path: &PathBuf) -> Result<Arc<RandomForestRegressor>> {
+    fn load_model(&self, model_path: &Path) -> Result<Arc<RandomForestRegressor>> {
         let model_file = track!(std::fs::File::open(model_path).map_err(Error::from); model_path)?;
         let model = RandomForestRegressor::deserialize(BufReader::new(model_file))?;
         Ok(Arc::new(model))
