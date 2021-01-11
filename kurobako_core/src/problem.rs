@@ -74,7 +74,7 @@ impl ProblemSpecBuilder {
 
     /// Builds a `ProblemSpec` with the given settings.
     pub fn finish(self) -> Result<ProblemSpec> {
-        self.validate()?;
+        track!(self.validate())?;
 
         let params_domain = track!(Domain::new(self.params))?;
         let values_domain = track!(Domain::new(self.values))?;
@@ -92,14 +92,14 @@ impl ProblemSpecBuilder {
 
     fn validate(&self) -> Result<()> {
         if let Some(reference_point) = &self.reference_point {
-            if reference_point.len() != self.values.len() {
-                track_panic!(
-                    ErrorKind::InvalidInput,
-                    "Unexpected dimensions of values {} and reference point {}",
-                    self.values.len(),
-                    reference_point.len()
-                )
-            }
+            track_assert_eq!(
+                reference_point.len(),
+                self.values.len(),
+                ErrorKind::InvalidInput,
+                "Unexpected dimensions of values {} and reference point {}",
+                self.values.len(),
+                reference_point.len()
+            )
         }
         Ok(())
     }
