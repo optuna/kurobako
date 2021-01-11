@@ -15,7 +15,7 @@ jobs:
         run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
 
       - name: Checkout sources
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
 
       - name: Install dependent packages
         run: sudo apt install -y musl-tools
@@ -63,7 +63,7 @@ jobs:
         run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
 
       - name: Checkout sources
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
 
       - name: Build docker image
         run: |
