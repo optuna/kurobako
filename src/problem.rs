@@ -6,7 +6,7 @@ use kurobako_core::problem::{
 use kurobako_core::registry::FactoryRegistry;
 use kurobako_core::rng::ArcRng;
 use kurobako_core::Result;
-use kurobako_problems::{hpobench, nasbench, sigopt, surrogate, zdt};
+use kurobako_problems::{hpobench, nasbench, sigopt, surrogate, warm_starting, zdt};
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
@@ -86,6 +86,7 @@ enum InnerRecipe {
     Rank(self::rank::RankProblemRecipe),
     Average(self::average::AverageProblemRecipe),
     Ln(self::ln::LnProblemRecipe),
+    WarmStarting(warm_starting::WarmStartingProblemRecipe),
 }
 impl ProblemRecipe for InnerRecipe {
     type Factory = BoxProblemFactory;
@@ -102,6 +103,7 @@ impl ProblemRecipe for InnerRecipe {
             Self::Rank(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
             Self::Average(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
             Self::Ln(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
+            Self::WarmStarting(p) => track!(p.create_factory(registry).map(BoxProblemFactory::new)),
         }
     }
 }

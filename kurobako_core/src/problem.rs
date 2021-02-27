@@ -57,6 +57,12 @@ impl ProblemSpecBuilder {
         self
     }
 
+    /// Sets variables of the value domain of this problem.
+    pub fn values(mut self, vars: Vec<VariableBuilder>) -> Self {
+        self.values = vars;
+        self
+    }
+
     /// Sets the evaluable steps of this problem.
     pub fn steps<I>(mut self, steps: I) -> Self
     where
@@ -346,7 +352,6 @@ enum EvaluableStepsInner {
 impl EvaluableStepsInner {
     fn new(steps: Vec<u64>) -> Result<Self> {
         track_assert!(!steps.is_empty(), ErrorKind::InvalidInput);
-        track_assert!(steps[0] > 0, ErrorKind::InvalidInput);
 
         for (a, b) in steps.iter().zip(steps.iter().skip(1)) {
             track_assert!(a < b, ErrorKind::InvalidInput);
