@@ -8,4 +8,5 @@ pub mod hpobench;
 pub mod nasbench;
 pub mod sigopt;
 pub mod surrogate;
+pub mod warm_starting;
 pub mod zdt;
