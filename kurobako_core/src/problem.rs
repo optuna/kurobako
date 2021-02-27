@@ -57,6 +57,12 @@ impl ProblemSpecBuilder {
         self
     }
 
+    /// Sets variables of the value domain of this problem.
+    pub fn values(mut self, vars: Vec<VariableBuilder>) -> Self {
+        self.values = vars;
+        self
+    }
+
     /// Sets the evaluable steps of this problem.
     pub fn steps<I>(mut self, steps: I) -> Self
     where
