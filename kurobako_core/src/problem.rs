@@ -352,7 +352,6 @@ enum EvaluableStepsInner {
 impl EvaluableStepsInner {
     fn new(steps: Vec<u64>) -> Result<Self> {
         track_assert!(!steps.is_empty(), ErrorKind::InvalidInput);
-        track_assert!(steps[0] > 0, ErrorKind::InvalidInput);
 
         for (a, b) in steps.iter().zip(steps.iter().skip(1)) {
             track_assert!(a < b, ErrorKind::InvalidInput);
