@@ -85,7 +85,7 @@ impl ProblemFactory for WarmStartingProblemFactory {
         let source_last_step = source_spec.steps.last();
 
         let source_problem = track!(self.source_factory.create_problem(rng.clone()))?;
-        let target_problem = track!(self.target_factory.create_problem(rng.clone()))?;
+        let target_problem = track!(self.target_factory.create_problem(rng))?;
         Ok(WarmStartingProblem {
             source_last_step,
             source_problem,
@@ -107,7 +107,7 @@ impl Problem for WarmStartingProblem {
 
     fn create_evaluator(&self, params: Params) -> Result<Self::Evaluator> {
         let source_evaluator = track!(self.source_problem.create_evaluator(params.clone()))?;
-        let target_evaluator = track!(self.target_problem.create_evaluator(params.clone()))?;
+        let target_evaluator = track!(self.target_problem.create_evaluator(params))?;
         Ok(WarmStartingEvaluator {
             source_last_step: self.source_last_step,
             source_evaluator,
