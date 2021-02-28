@@ -14,7 +14,7 @@ coveralls = {repository = "sile/kurobako"}
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
-indicatif = "0.13"
+indicatif = "0.15"
 kurobako_core = { path = "kurobako_core", version = "0.1" }
 kurobako_problems = { path = "kurobako_problems", version = "0.1" }
 kurobako_solvers = { path = "kurobako_solvers", version = "0.2" }
