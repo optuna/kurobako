@@ -228,6 +228,7 @@ struct Trial {
 }
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
+#[allow(clippy::enum_variant_names)]
 enum Distribution {
     UniformDistribution { low: f64, high: f64 },
     LogUniformDistribution { low: f64, high: f64 },
