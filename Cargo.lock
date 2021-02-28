@@ -325,7 +325,7 @@ checksum = "dd25036021b0de88a0aff6b850051563c6516d0bf53f8638938edbb9de732736"
 
 [[package]]
 name = "kurobako"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "chrono",
  "indicatif",
@@ -349,7 +349,7 @@ dependencies = [
 
 [[package]]
 name = "kurobako_core"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "itertools 0.10.0",
  "lazy_static",
@@ -366,7 +366,7 @@ dependencies = [
 
 [[package]]
 name = "kurobako_problems"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "hdf5file",
  "kurobako_core",
@@ -381,7 +381,7 @@ dependencies = [
 
 [[package]]
 name = "kurobako_solvers"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "kurobako_core",
  "rand 0.8.3",
