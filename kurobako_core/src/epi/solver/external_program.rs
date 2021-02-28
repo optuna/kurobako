@@ -67,11 +67,11 @@ impl ExternalProgramSolverRecipe {
 
     fn cache_key(&self) -> Vec<u8> {
         let mut hasher = Sha256::new();
-        hasher.input(&*self.path.to_string_lossy());
+        hasher.update(&*self.path.to_string_lossy());
         for arg in &self.args {
-            hasher.input(arg.as_bytes());
+            hasher.update(arg.as_bytes());
         }
-        hasher.result().to_vec()
+        hasher.finalize().to_vec()
     }
 }
 impl SolverRecipe for ExternalProgramSolverRecipe {

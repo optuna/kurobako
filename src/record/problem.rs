@@ -13,13 +13,13 @@ pub struct ProblemRecord {
 impl ProblemRecord {
     pub fn id(&self) -> Result<String> {
         let mut hasher = Sha256::new();
-        hasher.input(&track!(
+        hasher.update(&track!(
             serde_json::to_vec(&self.recipe).map_err(Error::from)
         )?);
-        hasher.input(&track!(serde_json::to_vec(&self.spec).map_err(Error::from))?);
+        hasher.update(&track!(serde_json::to_vec(&self.spec).map_err(Error::from))?);
 
         let mut id = String::with_capacity(64);
-        for b in hasher.result().as_slice() {
+        for b in hasher.finalize().as_slice() {
             track_write!(&mut id, "{:02x}", b)?;
         }
         Ok(id)

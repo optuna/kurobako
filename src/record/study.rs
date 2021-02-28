@@ -119,24 +119,24 @@ pub struct StudyRecord {
 impl StudyRecord {
     pub fn id(&self) -> Result<String> {
         let mut hasher = Sha256::new();
-        hasher.input(&track!(
+        hasher.update(&track!(
             serde_json::to_vec(&self.budget).map_err(Error::from)
         )?);
-        hasher.input(&track!(
+        hasher.update(&track!(
             serde_json::to_vec(&self.concurrency).map_err(Error::from)
         )?);
-        hasher.input(&track!(
+        hasher.update(&track!(
             serde_json::to_vec(&self.scheduling).map_err(Error::from)
         )?);
-        hasher.input(&track!(
+        hasher.update(&track!(
             serde_json::to_vec(&self.solver).map_err(Error::from)
         )?);
-        hasher.input(&track!(
+        hasher.update(&track!(
             serde_json::to_vec(&self.problem).map_err(Error::from)
         )?);
 
         let mut id = String::with_capacity(64);
-        for b in hasher.result().as_slice() {
+        for b in hasher.finalize().as_slice() {
             track_write!(&mut id, "{:02x}", b)?;
         }
         Ok(id)
