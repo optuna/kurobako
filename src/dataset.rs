@@ -15,6 +15,7 @@ pub enum DatasetOpt {
     /// Dataset management for `kurobako problem hpobench`.
     Hpobench(HpobenchOpt),
 
+    /// Builds a surrogate model problem from Optuna studies.
     SurrogateOptunaStudy(self::surrogate::SurrogateOpt),
 }
 

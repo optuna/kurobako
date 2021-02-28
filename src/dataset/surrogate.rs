@@ -1,3 +1,4 @@
+//! Subcommand to build Surrogate model.
 use kurobako_core::domain;
 use kurobako_core::problem::{ProblemSpec, ProblemSpecBuilder};
 use kurobako_core::{Error, ErrorKind, Result};
@@ -12,15 +13,19 @@ use std::path::PathBuf;
 use tempfile::NamedTempFile;
 use trackable::error::ErrorKindExt;
 
+/// Options of the `kurobako dataset surrogate-optuna-study` command.
 #[derive(Debug, Clone, structopt::StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub struct SurrogateOpt {
+    /// Problem name.
     #[structopt(long)]
     pub problem_name: String,
 
+    /// Optuna storage URI.
     #[structopt(long)]
     pub storage: String,
 
+    /// Target study name (regexp).
     #[structopt(long, default_value = ".*")]
     pub target_study_name: String,
 
@@ -42,7 +47,7 @@ pub struct SurrogateOpt {
 }
 
 impl SurrogateOpt {
-    pub fn run(&self) -> Result<()> {
+    pub(crate) fn run(&self) -> Result<()> {
         let trials = track!(self.load_trials())?;
 
         track_assert!(!trials.is_empty(), ErrorKind::InvalidInput);
@@ -188,7 +193,7 @@ impl SurrogateOpt {
             })
             .collect::<Result<Vec<_>>>()?;
         let values = (0..trials[0].values.len())
-            .map(|i| domain::var(&format!("objective value {}", i + 1)))
+            .map(|i| domain::var(&format!("Objective Value {}", i + 1)))
             .collect();
         track!(ProblemSpecBuilder::new(&self.problem_name)
             .params(params)
