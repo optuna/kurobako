@@ -212,17 +212,17 @@ impl rand::distributions::Distribution<f64> for Variable {
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> f64 {
         match &self.range {
             Range::Continuous { low, high } => match self.distribution {
-                Distribution::Uniform => rng.gen_range(low, high),
-                Distribution::LogUniform => rng.gen_range(low.log2(), high.log2()).exp2(),
+                Distribution::Uniform => rng.gen_range(*low..*high),
+                Distribution::LogUniform => rng.gen_range(low.log2()..high.log2()).exp2(),
             },
             Range::Discrete { low, high } => match self.distribution {
-                Distribution::Uniform => rng.gen_range(low, high) as f64,
+                Distribution::Uniform => rng.gen_range(*low..*high) as f64,
                 Distribution::LogUniform => rng
-                    .gen_range((*low as f64).log2(), (*high as f64).log2())
+                    .gen_range((*low as f64).log2()..(*high as f64).log2())
                     .exp2()
                     .floor(),
             },
-            Range::Categorical { choices } => rng.gen_range(0, choices.len()) as f64,
+            Range::Categorical { choices } => rng.gen_range(0..choices.len()) as f64,
         }
     }
 }

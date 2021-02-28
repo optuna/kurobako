@@ -14,20 +14,20 @@ coveralls = {repository = "sile/kurobako"}
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
-indicatif = "0.13"
+indicatif = "0.15"
 kurobako_core = { path = "kurobako_core", version = "0.1" }
 kurobako_problems = { path = "kurobako_problems", version = "0.1" }
 kurobako_solvers = { path = "kurobako_solvers", version = "0.2" }
 nasbench = "0.1"
-num = "0.2"
+num = "0.3"
 num-integer = "0.1"
 ordered-float = "2"
-rand = "0.7"
+rand = "0.8"
 randomforest = "0.1"
 rustats = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sha2 = "0.8"
+sha2 = "0.9"
 structopt = "0.3"
 tempfile = "3"
 trackable = "0.2"
