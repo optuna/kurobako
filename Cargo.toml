@@ -22,7 +22,7 @@ nasbench = "0.1"
 num = "0.2"
 num-integer = "0.1"
 ordered-float = "2"
-rand = "0.7"
+rand = "0.8"
 randomforest = "0.1"
 rustats = "0.1"
 serde = { version = "1", features = ["derive"] }
