@@ -14,7 +14,7 @@ travis-ci = {repository = "sile/kurobako"}
 codecov = {repository = "sile/kurobako"}
 
 [dependencies]
-itertools = "0.8"
+itertools = "0.10"
 lazy_static = "1"
 ordered-float = "2"
 rand = "0.8"
