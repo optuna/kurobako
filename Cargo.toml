@@ -19,7 +19,7 @@ kurobako_core = { path = "kurobako_core", version = "0.1" }
 kurobako_problems = { path = "kurobako_problems", version = "0.1" }
 kurobako_solvers = { path = "kurobako_solvers", version = "0.2" }
 nasbench = "0.1"
-num = "0.2"
+num = "0.3"
 num-integer = "0.1"
 ordered-float = "2"
 rand = "0.8"
