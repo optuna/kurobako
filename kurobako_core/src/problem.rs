@@ -133,6 +133,7 @@ pub struct ProblemSpec {
     pub steps: EvaluableSteps,
 
     /// Problem reference point.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reference_point: Option<Params>,
 }
 impl ProblemSpec {

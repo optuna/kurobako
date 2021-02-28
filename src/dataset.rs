@@ -3,6 +3,8 @@ use kurobako_core::{Error, Result};
 use std::path::PathBuf;
 use structopt::StructOpt;
 
+pub mod surrogate;
+
 /// Options of the `kurobako dataset` command.
 #[derive(Debug, Clone, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
@@ -12,6 +14,9 @@ pub enum DatasetOpt {
 
     /// Dataset management for `kurobako problem hpobench`.
     Hpobench(HpobenchOpt),
+
+    /// Builds a surrogate model problem from Optuna studies.
+    SurrogateOptunaStudy(self::surrogate::SurrogateOpt),
 }
 
 impl DatasetOpt {
@@ -22,6 +27,9 @@ impl DatasetOpt {
             Self::Hpobench(opt) => {
                 opt.run();
                 Ok(())
+            }
+            Self::SurrogateOptunaStudy(opt) => {
+                track!(opt.run())
             }
         }
     }

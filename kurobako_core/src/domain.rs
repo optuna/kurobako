@@ -183,7 +183,7 @@ pub struct Variable {
     name: String,
     range: Range,
     distribution: Distribution,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     constraint: Option<Constraint>,
 }
 impl Variable {
