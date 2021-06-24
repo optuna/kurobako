@@ -1,4 +1,4 @@
-//! The core crate of [`kurobako`](https://github.com/sile/kurobako).
+//! The core crate of [`kurobako`](https://github.com/optuna/kurobako).
 #![warn(missing_docs)]
 
 #[macro_use]

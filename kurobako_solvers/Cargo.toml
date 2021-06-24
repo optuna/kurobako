@@ -4,14 +4,13 @@ version = "0.2.1"
 authors = ["Takeru Ohta <phjgt308@gmail.com>"]
 edition = "2018"
 description = "A collection of black-box optimization solvers"
-homepage = "https://github.com/sile/kurobako"
-repository = "https://github.com/sile/kurobako"
+homepage = "https://github.com/optuna/kurobako"
+repository = "https://github.com/optuna/kurobako"
 readme = "README.md"
 license = "MIT"
 
 [badges]
-travis-ci = {repository = "sile/kurobako"}
-codecov = {repository = "sile/kurobako"}
+coveralls = {repository = "optuna/kurobako"}
 
 [dependencies]
 kurobako_core = { path = "../kurobako_core/", version = "0.1" }

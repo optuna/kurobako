@@ -79,7 +79,7 @@ impl Reporter {
 
         let mut list = writer.list();
         track!(list.item(&format!(
-            "Kurobako Version: [{}](https://github.com/sile/kurobako/tree/{})",
+            "Kurobako Version: [{}](https://github.com/optuna/kurobako/tree/{})",
             env!("CARGO_PKG_VERSION"),
             env!("CARGO_PKG_VERSION"),
         )))?;

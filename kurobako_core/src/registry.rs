@@ -38,12 +38,12 @@ impl FactoryRegistry {
 
     /// Creates a problem factory associated with the given recipe JSON.
     pub fn create_problem_factory_from_json(&self, json: &JsonRecipe) -> Result<BoxProblemFactory> {
-        track!((self.create_problem_factory)(&json, self); json)
+        track!((self.create_problem_factory)(json, self); json)
     }
 
     /// Creates a solver factory associated with the given recipe JSON.
     pub fn create_solver_factory_from_json(&self, json: &JsonRecipe) -> Result<BoxSolverFactory> {
-        track!((self.create_solver_factory)(&json, self); json)
+        track!((self.create_solver_factory)(json, self); json)
     }
 }
 impl fmt::Debug for FactoryRegistry {

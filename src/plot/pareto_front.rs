@@ -63,7 +63,7 @@ impl PlotParetoFrontOpt {
         let pb = ProgressBar::new(studies.len() as u64);
         let template =
             "(PLOT) [{elapsed_precise}] [{pos}/{len} {percent:>3}%] [ETA {eta:>3}] {msg}";
-        pb.set_style(ProgressStyle::default_bar().template(&template));
+        pb.set_style(ProgressStyle::default_bar().template(template));
 
         track!(fs::create_dir_all(&self.output_dir).map_err(Error::from); self.output_dir)?;
 

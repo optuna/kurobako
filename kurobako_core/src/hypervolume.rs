@@ -11,11 +11,11 @@ pub fn compute(pts: &[Vec<f64>], ref_pt: &[f64]) -> f64 {
 
 fn get_hypervolume_recursive(pts: &[Vec<f64>], ref_pt: &[f64]) -> f64 {
     match pts.len() {
-        1 => get_hypervolume_two_points(&pts[0], &ref_pt),
+        1 => get_hypervolume_two_points(&pts[0], ref_pt),
         2 => {
-            get_hypervolume_two_points(&pts[0], &ref_pt)
-                + get_hypervolume_two_points(&pts[1], &ref_pt)
-                - get_hypervolume_two_points(&get_max_coordinates(&pts[0], &pts[1]), &ref_pt)
+            get_hypervolume_two_points(&pts[0], ref_pt)
+                + get_hypervolume_two_points(&pts[1], ref_pt)
+                - get_hypervolume_two_points(&get_max_coordinates(&pts[0], &pts[1]), ref_pt)
         }
         _ => {
             // get_exclusive_hypervolume depends on the points being sorted by the first dimension.
@@ -54,7 +54,7 @@ fn get_exclusive_hypervolume(pt: &[f64], pts: &[Vec<f64>], ref_pt: &[f64]) -> f6
 
     if !pts.is_empty() {
         let intersection_pts: Vec<Vec<f64>> = (0..pts.len())
-            .map(|i| get_max_coordinates(&pts[i], &pt))
+            .map(|i| get_max_coordinates(&pts[i], pt))
             .collect();
 
         limited_pts.push(intersection_pts[0].to_vec());
