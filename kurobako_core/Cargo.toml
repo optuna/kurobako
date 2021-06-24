@@ -10,8 +10,7 @@ readme = "README.md"
 license = "MIT"
 
 [badges]
-travis-ci = {repository = "optuna/kurobako"}
-codecov = {repository = "optuna/kurobako"}
+coveralls = {repository = "optuna/kurobako"}
 
 [dependencies]
 itertools = "0.10"
