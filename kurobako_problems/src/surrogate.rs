@@ -59,7 +59,7 @@ impl ProblemRecipe for SurrogateProblemRecipe {
         } else {
             let mut cache = track!(CACHE.lock().map_err(Error::from))?;
             if let Some(model) = cache.get(&model_path) {
-                Arc::clone(&model)
+                Arc::clone(model)
             } else {
                 let model = track!(self.load_model(&model_path))?;
                 cache.insert(model_path, Arc::clone(&model));
