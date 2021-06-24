@@ -4,13 +4,13 @@ version = "0.2.9"
 authors = ["Takeru Ohta <phjgt308@gmail.com>"]
 edition = "2018"
 description = "A black-box optimization benchmarking framework"
-homepage = "https://github.com/sile/kurobako"
-repository = "https://github.com/sile/kurobako"
+homepage = "https://github.com/optuna/kurobako"
+repository = "https://github.com/optuna/kurobako"
 readme = "README.md"
 license = "MIT"
 
 [badges]
-coveralls = {repository = "sile/kurobako"}
+coveralls = {repository = "optuna/kurobako"}
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }

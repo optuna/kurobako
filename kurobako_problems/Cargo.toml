@@ -4,14 +4,14 @@ version = "0.1.13"
 authors = ["Takeru Ohta <phjgt308@gmail.com>"]
 edition = "2018"
 description = "A collection of black-box optimization problems"
-homepage = "https://github.com/sile/kurobako"
-repository = "https://github.com/sile/kurobako"
+homepage = "https://github.com/optuna/kurobako"
+repository = "https://github.com/optuna/kurobako"
 readme = "README.md"
 license = "MIT"
 
 [badges]
-travis-ci = {repository = "sile/kurobako"}
-codecov = {repository = "sile/kurobako"}
+travis-ci = {repository = "optuna/kurobako"}
+codecov = {repository = "optuna/kurobako"}
 
 [dependencies]
 hdf5file = "0.1"

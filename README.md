@@ -3,8 +3,8 @@ kurobako
 
 [![kurobako](https://img.shields.io/crates/v/kurobako.svg)](https://crates.io/crates/kurobako)
 [![Documentation](https://docs.rs/kurobako/badge.svg)](https://docs.rs/kurobako)
-[![Actions Status](https://github.com/sile/kurobako/workflows/CI/badge.svg)](https://github.com/sile/kurobako/actions)
-[![Coverage Status](https://coveralls.io/repos/github/sile/kurobako/badge.svg?branch=master)](https://coveralls.io/github/sile/kurobako?branch=master)
+[![Actions Status](https://github.com/optuna/kurobako/workflows/CI/badge.svg)](https://github.com/optuna/kurobako/actions)
+[![Coverage Status](https://coveralls.io/repos/github/optuna/kurobako/badge.svg?branch=master)](https://coveralls.io/github/optuna/kurobako?branch=master)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Docker Hub](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/r/sile/kurobako)
 
@@ -32,12 +32,12 @@ Installation
 Precompiled binaries for Linux are available in the [releases] page.
 
 ```console
-$ curl -L https://github.com/sile/kurobako/releases/download/${VERSION}/kurobako-${VERSION}.linux-amd64 -o kurobako
+$ curl -L https://github.com/optuna/kurobako/releases/download/${VERSION}/kurobako-${VERSION}.linux-amd64 -o kurobako
 $ chmod +x kurobako
 $ ./kurobako -h
 ```
 
-[releases]: https://github.com/sile/kurobako/releases
+[releases]: https://github.com/optuna/kurobako/releases
 
 ### Using Cargo
 
@@ -90,7 +90,7 @@ Solvers:
 - [Optuna](https://github.com/optuna/optuna)
 
 Problems:
-- [NASBench](https://github.com/automl/nas_benchmarks) ([detail](https://github.com/sile/kurobako/wiki/NASBench))
+- [NASBench](https://github.com/automl/nas_benchmarks) ([detail](https://github.com/optuna/kurobako/wiki/NASBench))
 - [HPOBench](https://github.com/automl/nas_benchmarks)
 - [sigopt/evalset](https://github.com/sigopt/evalset)
 - [Two-objective ZDT functions](http://repository.ias.ac.in/9404/1/306.pdf)

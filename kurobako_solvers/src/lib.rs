@@ -1,4 +1,4 @@
-//! Built-in solvers of [`kurobako`](https://github.com/sile/kurobako).
+//! Built-in solvers of [`kurobako`](https://github.com/optuna/kurobako).
 #![warn(missing_docs)]
 
 #[macro_use]
