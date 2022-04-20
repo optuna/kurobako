@@ -8,7 +8,6 @@ use crate::{Error, ErrorKind, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::atomic::{self, AtomicU64};
@@ -17,8 +16,8 @@ use std::thread_local;
 use structopt::StructOpt;
 
 thread_local! {
-    static FACTORIES: RefCell<HashMap<Vec<u8>, ExternalProgramProblemFactory>> =
-        RefCell::new(HashMap::new());
+    static FACTORY_CACHE : RefCell<Option<(Vec<u8>, ExternalProgramProblemFactory)>> =
+        RefCell::new(None);
 }
 
 /// Recipe for the problem implemented by an external program.
@@ -78,13 +77,17 @@ impl ProblemRecipe for ExternalProgramProblemRecipe {
     type Factory = ExternalProgramProblemFactory;
 
     fn create_factory(&self, registry: &FactoryRegistry) -> Result<Self::Factory> {
-        FACTORIES.with(|f| {
+        FACTORY_CACHE.with(|f| {
             let mut f = f.borrow_mut();
             let key = self.cache_key();
-            if !f.contains_key(&key) {
-                f.insert(key.clone(), track!(self.create_new_factory(registry))?);
+
+            if let Some((k, factory)) = f.as_ref() {
+                if k == &key {
+                    return Ok(factory.clone());
+                }
             }
-            Ok(f[&key].clone())
+            *f = Some((key, track!(self.create_new_factory(registry))?));
+            return Ok(f.as_ref().unwrap().1.clone());
         })
     }
 }
