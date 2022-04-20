@@ -44,7 +44,7 @@ impl<'a, W: Write> MarkdownWriter<'a, W> {
     }
 
     pub fn list(&mut self) -> ListWriter<&mut W> {
-        ListWriter::new(&mut self.writer)
+        ListWriter::new(self.writer)
     }
 
     pub fn write_table(&mut self, table: &Table) -> Result<()> {

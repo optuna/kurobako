@@ -149,13 +149,18 @@ impl<'a> Study<'a> {
 
         let problem_steps = self.instances[0].problem.spec.steps.last();
         for study in &self.instances {
+            eprintln!("trials: {:?}", study.trials.len());
+            dbg!(problem_steps);
+            let mut c = 0;
             for trial in &study.trials {
                 if let Some(vs) = trial.values(problem_steps) {
+                    c += 1;
                     let end_step = trial.end_step().unwrap_or_else(|| unreachable!());
                     let budget = end_step as f64 / problem_steps as f64;
                     track_writeln!(temp_file, "{} {} {}", budget, vs[1], vs[0])?;
                 }
             }
+            dbg!(c);
         }
 
         Ok(temp_file.into_temp_path())
