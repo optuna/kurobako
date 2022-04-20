@@ -81,8 +81,8 @@ impl ProblemRecipe for ExternalProgramProblemRecipe {
             let mut f = f.borrow_mut();
             let key = self.cache_key();
 
-            if let Some((k, factory)) = f.as_ref(){
-                if k == &key{
+            if let Some((k, factory)) = f.as_ref() {
+                if k == &key {
                     return Ok(factory.clone());
                 }
             }
