@@ -106,8 +106,8 @@ impl StudiesRecipe {
     /// Returns a iterator that iterates over the study recipes specified by this recipe.
     pub fn studies(&self) -> impl Iterator<Item = StudyRecipe> {
         let mut studies = Vec::new();
-        for i in 0..self.repeats {
-            for problem in &self.problems {
+        for problem in &self.problems {
+            for i in 0..self.repeats {
                 for solver in &self.solvers {
                     let seed = self.seed.map(|s| s + i as u64);
                     let study = StudyRecipe {
