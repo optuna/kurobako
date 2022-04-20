@@ -404,7 +404,7 @@ dependencies = [
 
 [[package]]
 name = "kurobako_solvers"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "kurobako_core",
  "rand 0.8.5",
