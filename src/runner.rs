@@ -11,9 +11,7 @@ use kurobako_core::problem::{
 };
 use kurobako_core::registry::FactoryRegistry;
 use kurobako_core::rng::ArcRng;
-use kurobako_core::solver::{
-    BoxSolver, Solver as _, SolverFactory as _, SolverRecipe as _, SolverSpec,
-};
+use kurobako_core::solver::{BoxSolver, Solver as _, SolverFactory as _, SolverRecipe as _};
 use kurobako_core::trial::Values;
 use kurobako_core::trial::{EvaluatedTrial, IdGen, NextTrial, TrialId};
 use kurobako_core::{Error, ErrorKind, Result};
@@ -132,7 +130,7 @@ impl Runner {
                         recipes[i].take().unwrap_or_else(|| unreachable!())
                     };
 
-                    let result = track!(StudyRunner::with_mpb(&recipe, &opt, &mpb, cancel.clone()))
+                    let result = track!(StudyRunner::with_mpb(&recipe, &opt, &mpb))
                         .and_then(|runner| track!(runner.run()));
 
                     fn output(record: StudyRecord) -> Result<()> {
@@ -178,13 +176,10 @@ impl Runner {
 #[derive(Debug)]
 pub(crate) struct StudyRunner {
     solver: BoxSolver,
-    solver_spec: SolverSpec,
     problem: BoxProblem,
     problem_spec: ProblemSpec,
     study_record: StudyRecordBuilder,
-    rng: ArcRng,
     pb: ProgressBar,
-    cancel: Cancel,
     idg: IdGen,
     threads: EvaluationThreads,
     evaluators: HashMap<TrialId, EvaluatorState>,
@@ -199,17 +194,12 @@ impl StudyRunner {
             quiet: true,
         };
         let mpb = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
-        let mut this = track!(Self::with_mpb(study, &opt, &mpb, Cancel::new()))?;
+        let mut this = track!(Self::with_mpb(study, &opt, &mpb))?;
         this._mpb = Some(mpb);
         Ok(this)
     }
 
-    fn with_mpb(
-        study: &StudyRecipe,
-        opt: &RunnerOpt,
-        mpb: &MultiProgress,
-        cancel: Cancel,
-    ) -> Result<Self> {
+    fn with_mpb(study: &StudyRecipe, opt: &RunnerOpt, mpb: &MultiProgress) -> Result<Self> {
         let registry = FactoryRegistry::new::<KurobakoProblemRecipe, KurobakoSolverRecipe>();
 
         let random_seed = study.seed.unwrap_or_else(rand::random);
@@ -241,18 +231,14 @@ impl StudyRunner {
 
         let mut recipe = study.clone();
         recipe.seed = Some(random_seed);
-        let study_record =
-            StudyRecordBuilder::new(recipe, solver_spec.clone(), problem_spec.clone());
-        let threads = EvaluationThreads::new(study, rng.clone());
+        let study_record = StudyRecordBuilder::new(recipe, solver_spec, problem_spec.clone());
+        let threads = EvaluationThreads::new(study, rng);
         Ok(Self {
             solver,
-            solver_spec,
             problem,
             problem_spec,
             study_record,
-            rng,
             pb,
-            cancel,
             idg: IdGen::new(),
             threads,
             evaluators: HashMap::new(),
@@ -379,7 +365,6 @@ impl StudyRunner {
 #[derive(Debug)]
 struct EvaluationThreads {
     threads: Vec<EvaluationThread>,
-    evaluators: HashMap<TrialId, EvaluatorState>,
     scheduling: Scheduling,
     rng: ArcRng,
 }
@@ -389,7 +374,6 @@ impl EvaluationThreads {
             threads: (0..recipe.concurrency.get())
                 .map(EvaluationThread::new)
                 .collect(),
-            evaluators: HashMap::new(),
             scheduling: recipe.scheduling,
             rng,
         }

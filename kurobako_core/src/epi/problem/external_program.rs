@@ -86,8 +86,9 @@ impl ProblemRecipe for ExternalProgramProblemRecipe {
                     return Ok(factory.clone());
                 }
             }
-            *f = Some((key, track!(self.create_new_factory(registry))?));
-            return Ok(f.as_ref().unwrap().1.clone());
+            let factory = track!(self.create_new_factory(registry))?;
+            *f = Some((key, factory.clone()));
+            Ok(factory)
         })
     }
 }

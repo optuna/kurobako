@@ -80,11 +80,10 @@ impl ProblemFactory for StudyProblemFactory {
         track!(spec.finish())
     }
 
-    fn create_problem(&self, rng: ArcRng) -> Result<Self::Problem> {
+    fn create_problem(&self, _rng: ArcRng) -> Result<Self::Problem> {
         Ok(StudyProblem {
             study: self.study.clone(),
             vars: self.vars.clone(),
-            rng,
         })
     }
 }
@@ -93,7 +92,6 @@ impl ProblemFactory for StudyProblemFactory {
 pub struct StudyProblem {
     study: JsonRecipe,
     vars: Vec<Var>,
-    rng: ArcRng,
 }
 impl StudyProblem {
     fn bind(&self, vals: &[f64]) -> Result<JsonRecipe> {

@@ -160,7 +160,6 @@ impl Problem for NasbenchProblem {
 
         Ok(NasbenchEvaluator {
             nasbench: Arc::clone(&self.nasbench),
-            encoding: self.encoding,
             metrics: self.metrics.clone(),
             model_spec,
             sample_index: track!(self.rng.with_lock(|rng| rng.gen()))?,
@@ -172,7 +171,6 @@ impl Problem for NasbenchProblem {
 #[derive(Debug)]
 pub struct NasbenchEvaluator {
     nasbench: Arc<NasBench>,
-    encoding: Encoding,
     metrics: Vec<Metric>,
     model_spec: ModelSpec,
     sample_index: usize,
