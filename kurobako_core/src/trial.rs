@@ -171,9 +171,7 @@ impl PartialOrd for Values {
         for (a, b) in self.0.iter().zip(other.0.iter()) {
             if ord.is_none() {
                 ord = a.partial_cmp(b);
-                if ord.is_none() {
-                    return None;
-                }
+                ord?;
             } else if ord != a.partial_cmp(b) {
                 return None;
             }
