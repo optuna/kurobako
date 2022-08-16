@@ -3,6 +3,7 @@ extern crate trackable;
 
 use kurobako::dataset::DatasetOpt;
 use kurobako::evaluate::EvaluateOpt;
+use kurobako::batch_eval::BatchEvaluateOpt;
 use kurobako::plot::PlotOpt;
 use kurobako::problem::KurobakoProblemRecipe;
 use kurobako::problem_suites::ProblemSuite;
@@ -62,6 +63,9 @@ enum Opt {
     /// Evaluates parameters of a problem.
     Evaluate(EvaluateOpt),
 
+    /// Evaluates a set of parameters of a problem through stdio.
+    BatchEvaluate(BatchEvaluateOpt),
+
     /// Show problem or solver specification.
     Spec(SpecOpt),
 }
@@ -113,6 +117,9 @@ fn main() -> trackable::result::TopLevelResult {
         Opt::Spec(opt) => {
             let spec = track!(opt.get_spec())?;
             print_json!(spec);
+        }
+        Opt::BatchEvaluate(opt) => {
+            track!(opt.run())?;
         }
     }
 
