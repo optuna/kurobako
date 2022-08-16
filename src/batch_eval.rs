@@ -14,7 +14,7 @@ use serde::Serialize;
 use std::io;
 use structopt::StructOpt;
 
-/// Options of the `kurobako evaluate` command.
+/// Options of the `kurobako batch-evaluate` command.
 #[derive(Debug, Clone, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub struct BatchEvaluateOpt {
