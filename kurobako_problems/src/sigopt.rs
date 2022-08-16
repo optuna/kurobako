@@ -6,6 +6,7 @@
 //! If you want to use an unimplemented function, please create an issue or PR.
 //!
 //! [sigopt/evalset]: https://github.com/sigopt/evalset
+#![allow(clippy::format_push_string)]
 use self::functions::TestFunction;
 use kurobako_core::domain;
 use kurobako_core::problem::{

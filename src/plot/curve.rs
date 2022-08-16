@@ -1,4 +1,5 @@
 //! `kurobako plot curve` command.
+#![allow(clippy::format_push_string)]
 use super::{execute_gnuplot, normalize_filename};
 use crate::record::{ProblemRecord, StudyRecord};
 use indicatif::{ProgressBar, ProgressStyle};
