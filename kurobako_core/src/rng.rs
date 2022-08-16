@@ -13,7 +13,7 @@ impl ArcRng {
     /// Makes a new `ArcRng` with the given random seed.
     pub fn new(seed: u64) -> Self {
         let mut seed256 = [0; 32];
-        (&mut seed256[0..8]).copy_from_slice(&seed.to_be_bytes());
+        seed256[0..8].copy_from_slice(&seed.to_be_bytes());
 
         let inner = StdRng::from_seed(seed256);
         Self(Arc::new(Mutex::new(inner)))
