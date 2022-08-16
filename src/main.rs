@@ -1,9 +1,9 @@
 #[macro_use]
 extern crate trackable;
 
+use kurobako::batch_eval::BatchEvaluateOpt;
 use kurobako::dataset::DatasetOpt;
 use kurobako::evaluate::EvaluateOpt;
-use kurobako::batch_eval::BatchEvaluateOpt;
 use kurobako::plot::PlotOpt;
 use kurobako::problem::KurobakoProblemRecipe;
 use kurobako::problem_suites::ProblemSuite;

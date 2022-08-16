@@ -2,21 +2,17 @@
 use crate::problem::KurobakoProblemRecipe;
 use crate::solver::KurobakoSolverRecipe;
 use kurobako_core::epi::channel::{MessageReceiver, MessageSender};
+use kurobako_core::json;
 use kurobako_core::problem::ProblemRecipe as _;
-use kurobako_core::problem::{
-    Evaluator as _, Problem as _, ProblemFactory as _,
-};
+use kurobako_core::problem::{Evaluator as _, Problem as _, ProblemFactory as _};
 use kurobako_core::registry::FactoryRegistry;
 use kurobako_core::rng::ArcRng;
-use kurobako_core::trial::{Values, Params};
+use kurobako_core::trial::{Params, Values};
 use kurobako_core::{ErrorKind, Result};
-use structopt::StructOpt;
-use std::io;
-use serde::Serialize;
 use serde::Deserialize;
-use kurobako_core::json;
-
-
+use serde::Serialize;
+use std::io;
+use structopt::StructOpt;
 
 /// Options of the `kurobako evaluate` command.
 #[derive(Debug, Clone, StructOpt)]
@@ -46,7 +42,6 @@ pub enum BatchEvaluateMessage {
     EvalEnd,
 }
 
-
 impl BatchEvaluateOpt {
     /// Evaluates the given parameters.
     pub fn run(&self) -> Result<()> {
@@ -57,10 +52,10 @@ impl BatchEvaluateOpt {
         let registry = FactoryRegistry::new::<KurobakoProblemRecipe, KurobakoSolverRecipe>();
         let problem_factory = track!(self.problem.create_factory(&registry))?;
         let problem_spec = track!(problem_factory.specification())?;
-        
+
         let problem = track!(problem_factory.create_problem(rng))?;
-        
-        loop{
+
+        loop {
             match track!(rx.recv())? {
                 BatchEvaluateMessage::EvalCall { params, step } => {
                     track_assert_eq!(
@@ -72,14 +67,13 @@ impl BatchEvaluateOpt {
                     let s = step.unwrap_or_else(|| problem_spec.steps.last());
                     let (_, values) = track!(evaluator.evaluate(s))?;
                     track!(tx.send(&BatchEvaluateMessage::EvalReply { values }))?;
-                },
+                }
                 BatchEvaluateMessage::EvalEnd => {
                     break;
                 }
                 m => track_panic!(ErrorKind::InvalidInput, "Unexpected message: {:?}", m),
             };
-        };
+        }
         Ok(())
     }
 }
-
