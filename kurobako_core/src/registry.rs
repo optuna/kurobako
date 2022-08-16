@@ -6,12 +6,14 @@ use crate::solver::{BoxSolverFactory, SolverRecipe};
 use crate::{Error, Result};
 use std::fmt;
 
+type CreateProblemFactory =
+    dyn Fn(&JsonRecipe, &FactoryRegistry) -> Result<BoxProblemFactory> + Send;
+type CreateSolverFactory = dyn Fn(&JsonRecipe, &FactoryRegistry) -> Result<BoxSolverFactory> + Send;
+
 /// Factory registry.
 pub struct FactoryRegistry {
-    create_problem_factory:
-        Box<dyn Fn(&JsonRecipe, &FactoryRegistry) -> Result<BoxProblemFactory> + Send>,
-    create_solver_factory:
-        Box<dyn Fn(&JsonRecipe, &FactoryRegistry) -> Result<BoxSolverFactory> + Send>,
+    create_problem_factory: Box<CreateProblemFactory>,
+    create_solver_factory: Box<CreateSolverFactory>,
 }
 impl FactoryRegistry {
     /// Makes a new `FactoryRegistry` instance.

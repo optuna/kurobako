@@ -169,16 +169,14 @@ impl PartialOrd for Values {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         let mut ord = None;
         for (a, b) in self.0.iter().zip(other.0.iter()) {
-            if ord == None {
+            if ord.is_none() {
                 ord = a.partial_cmp(b);
-                if ord == None {
-                    return None;
-                }
+                ord?;
             } else if ord != a.partial_cmp(b) {
                 return None;
             }
         }
-        if ord == None {
+        if ord.is_none() {
             Some(Ordering::Equal) // Both instances are empty.
         } else {
             ord

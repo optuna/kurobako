@@ -29,7 +29,7 @@ impl<'a, W: Write> MarkdownWriter<'a, W> {
     }
 
     pub fn inner_mut(&mut self) -> &mut W {
-        &mut self.writer
+        self.writer
     }
 
     pub fn newline(&mut self) -> Result<()> {
