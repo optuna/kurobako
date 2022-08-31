@@ -1,7 +1,6 @@
 //! `kurobako run` command.
 use crate::problem::KurobakoProblemRecipe;
 use crate::solver::KurobakoSolverRecipe;
-use kurobako_core::epi::channel::{MessageReceiver, MessageSender};
 use kurobako_core::json;
 use kurobako_core::problem::ProblemRecipe as _;
 use kurobako_core::problem::{Evaluator as _, Problem as _, ProblemFactory as _};
@@ -13,6 +12,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::io;
 use structopt::StructOpt;
+use serde_json::Error;
+use std::io::Write;
 
 /// Options of the `kurobako batch-evaluate` command.
 #[derive(Debug, Clone, StructOpt)]
@@ -26,27 +27,21 @@ pub struct BatchEvaluateOpt {
     #[structopt(long)]
     pub seed: Option<u64>,
 }
-/// Messages that are used to communicate with external solvers.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(missing_docs)]
-#[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum BatchEvaluateMessage {
-    EvalCall {
-        /// Parameters to be evaluated.
-        params: Params,
-        step: Option<u64>,
-    },
-    EvalReply {
-        values: Values,
-    },
-    EvalEnd,
+
+#[derive(Debug, Clone, Deserialize)]
+struct EvalCall {
+    params: Params,
+    step: Option<u64>
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct EvalReply {
+    values: Values,
 }
 
 impl BatchEvaluateOpt {
     /// Evaluates the given parameters.
     pub fn run(&self) -> Result<()> {
-        let mut rx: MessageReceiver<BatchEvaluateMessage, _> = MessageReceiver::new(io::stdin());
-        let mut tx: MessageSender<BatchEvaluateMessage, _> = MessageSender::new(io::stdout());
         let random_seed = self.seed.unwrap_or_else(rand::random);
         let rng = ArcRng::new(random_seed);
         let registry = FactoryRegistry::new::<KurobakoProblemRecipe, KurobakoSolverRecipe>();
@@ -54,25 +49,27 @@ impl BatchEvaluateOpt {
         let problem_spec = track!(problem_factory.specification())?;
 
         let problem = track!(problem_factory.create_problem(rng))?;
+        let mut writer = io::stdout();
+        loop{
+            let mut line = String::new();
+            let n = io::stdin().read_line(&mut line)?;
+            if n == 0 {
+                break;
+            }
+            let EvalCall { params, step } = serde_json::from_str(&line).map_err(Error::from)?;
 
-        loop {
-            match track!(rx.recv())? {
-                BatchEvaluateMessage::EvalCall { params, step } => {
-                    track_assert_eq!(
-                        params.len(),
-                        problem_spec.params_domain.variables().len(),
-                        ErrorKind::InvalidInput
-                    );
-                    let mut evaluator = track!(problem.create_evaluator(params.clone()))?;
-                    let s = step.unwrap_or_else(|| problem_spec.steps.last());
-                    let (_, values) = track!(evaluator.evaluate(s))?;
-                    track!(tx.send(&BatchEvaluateMessage::EvalReply { values }))?;
-                }
-                BatchEvaluateMessage::EvalEnd => {
-                    break;
-                }
-                m => track_panic!(ErrorKind::InvalidInput, "Unexpected message: {:?}", m),
-            };
+            track_assert_eq!(
+                params.len(),
+                problem_spec.params_domain.variables().len(),
+                ErrorKind::InvalidInput
+            );
+            let mut evaluator = track!(problem.create_evaluator(params.clone()))?;
+            let s = step.unwrap_or_else(|| problem_spec.steps.last());
+            let (_, values) = track!(evaluator.evaluate(s))?;
+
+            serde_json::to_writer(&mut writer, &EvalReply{values}).map_err(Error::from)?;
+            writer.write("\n".as_bytes())?;
+            writer.flush()?;
         }
         Ok(())
     }
