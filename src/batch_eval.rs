@@ -63,9 +63,24 @@ impl BatchEvaluateOpt {
                 problem_spec.params_domain.variables().len(),
                 ErrorKind::InvalidInput
             );
-            let mut evaluator = track!(problem.create_evaluator(params.clone()))?;
-            let s = step.unwrap_or_else(|| problem_spec.steps.last());
-            let (_, values) = track!(evaluator.evaluate(s))?;
+
+            
+            let evaluator_or_error = track!(problem.create_evaluator(params.clone()));
+
+            let values = match evaluator_or_error {
+                Ok(mut evaluator) => {
+                    let s = step.unwrap_or_else(|| problem_spec.steps.last());
+                    let (_, values) = track!(evaluator.evaluate(s))?;
+                    values
+                },
+                Err(e) => {
+                    if *e.kind() != ErrorKind::UnevaluableParams {
+                        return Err(e);
+                    } else {
+                        Values::new(vec![])
+                    }
+                }
+            };
 
             serde_json::to_writer(&mut writer, &EvalReply{values}).map_err(Error::from)?;
             writer.write("\n".as_bytes())?;
