@@ -70,7 +70,7 @@ impl SolverFactory for KurobakoSolverFactory {
     fn specification(&self) -> Result<SolverSpec> {
         let mut spec = track!(self.inner.specification())?;
         if let Some(name) = &self.name {
-            spec.name = name.clone();
+            spec.name.clone_from(name)
         }
         Ok(spec)
     }

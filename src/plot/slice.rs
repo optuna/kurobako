@@ -56,8 +56,7 @@ impl PlotSliceOpt {
                 .push(record);
         }
 
-        let pb =
-            ProgressBar::new(studies.iter().map(|(_, s)| s.params_len()).sum::<usize>() as u64);
+        let pb = ProgressBar::new(studies.values().map(|s| s.params_len()).sum::<usize>() as u64);
         let template =
             "(PLOT) [{elapsed_precise}] [{pos}/{len} {percent:>3}%] [ETA {eta:>3}] {msg}";
         pb.set_style(ProgressStyle::default_bar().template(template));

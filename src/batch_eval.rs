@@ -10,10 +10,10 @@ use kurobako_core::trial::{Params, Values};
 use kurobako_core::{ErrorKind, Result};
 use serde::Deserialize;
 use serde::Serialize;
-use std::io;
-use structopt::StructOpt;
 use serde_json::Error;
+use std::io;
 use std::io::Write;
+use structopt::StructOpt;
 
 /// Options of the `kurobako batch-evaluate` command.
 #[derive(Debug, Clone, StructOpt)]
@@ -31,7 +31,7 @@ pub struct BatchEvaluateOpt {
 #[derive(Debug, Clone, Deserialize)]
 struct EvalCall {
     params: Params,
-    step: Option<u64>
+    step: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -50,7 +50,7 @@ impl BatchEvaluateOpt {
 
         let problem = track!(problem_factory.create_problem(rng))?;
         let mut writer = io::stdout();
-        loop{
+        loop {
             let mut line = String::new();
             let n = io::stdin().read_line(&mut line)?;
             if n == 0 {
@@ -64,7 +64,6 @@ impl BatchEvaluateOpt {
                 ErrorKind::InvalidInput
             );
 
-            
             let evaluator_or_error = track!(problem.create_evaluator(params.clone()));
 
             let values = match evaluator_or_error {
@@ -72,7 +71,7 @@ impl BatchEvaluateOpt {
                     let s = step.unwrap_or_else(|| problem_spec.steps.last());
                     let (_, values) = track!(evaluator.evaluate(s))?;
                     values
-                },
+                }
                 Err(e) => {
                     if *e.kind() != ErrorKind::UnevaluableParams {
                         return Err(e);
@@ -82,8 +81,8 @@ impl BatchEvaluateOpt {
                 }
             };
 
-            serde_json::to_writer(&mut writer, &EvalReply{values}).map_err(Error::from)?;
-            writer.write("\n".as_bytes())?;
+            serde_json::to_writer(&mut writer, &EvalReply { values }).map_err(Error::from)?;
+            writer.write_all("\n".as_bytes())?;
             writer.flush()?;
         }
         Ok(())

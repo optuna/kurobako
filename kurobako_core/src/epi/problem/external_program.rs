@@ -17,7 +17,7 @@ use structopt::StructOpt;
 
 thread_local! {
     static FACTORY_CACHE : RefCell<Option<(Vec<u8>, ExternalProgramProblemFactory)>> =
-        RefCell::new(None);
+        const { RefCell::new(None) };
 }
 
 /// Recipe for the problem implemented by an external program.

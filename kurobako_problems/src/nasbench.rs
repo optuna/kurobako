@@ -214,7 +214,9 @@ impl Evaluator for NasbenchEvaluator {
 /// [nas_cifar10.py]: https://github.com/automl/nas_benchmarks/blob/c1bae6632bf15d45ba49c269c04dbbeb3f0379f0/tabular_benchmarks/nas_cifar10.py
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[allow(missing_docs)]
+#[derive(Default)]
 pub enum Encoding {
+    #[default]
     A,
     B,
     C,
@@ -233,7 +235,7 @@ impl Encoding {
     fn common_params() -> Vec<VariableBuilder> {
         let mut params = Vec::new();
         for i in 0..5 {
-            params.push(domain::var(&format!("op{}", i)).categorical(&[
+            params.push(domain::var(&format!("op{}", i)).categorical([
                 "conv1x1-bn-relu",
                 "conv3x3-bn-relu",
                 "maxpool3x3",
@@ -297,7 +299,7 @@ impl Encoding {
     fn edges_a(params: &[f64]) -> HashSet<usize> {
         let mut edges = HashSet::new();
         for (i, p) in params.iter().enumerate() {
-            if (*p - 1.0).abs() < std::f64::EPSILON {
+            if (*p - 1.0).abs() < f64::EPSILON {
                 edges.insert(i);
             }
         }
@@ -340,11 +342,6 @@ impl FromStr for Encoding {
             "C" => Ok(Encoding::C),
             _ => track_panic!(ErrorKind::InvalidInput, "Unknown encoding: {:?}", s),
         }
-    }
-}
-impl Default for Encoding {
-    fn default() -> Self {
-        Encoding::A
     }
 }
 

@@ -71,6 +71,11 @@ pub struct EvaluatedTrial {
 pub struct IdGen {
     next: u64,
 }
+impl Default for IdGen {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl IdGen {
     /// Makes a new `IdGen` instance.
     pub const fn new() -> Self {
@@ -201,7 +206,6 @@ impl Deref for Values {
 
 mod nullable_f64_vec {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use std::f64::NAN;
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<f64>, D::Error>
     where
@@ -209,7 +213,7 @@ mod nullable_f64_vec {
     {
         let v: Vec<Option<f64>> = Deserialize::deserialize(deserializer)?;
         Ok(v.into_iter()
-            .map(|v| if let Some(v) = v { v } else { NAN })
+            .map(|v| if let Some(v) = v { v } else { f64::NAN })
             .collect())
     }
 

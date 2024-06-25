@@ -90,8 +90,8 @@ impl SurrogateOpt {
         let mut table = TableBuilder::new();
         let column_types = trials[0]
             .distributions
-            .iter()
-            .map(|(_, d)| {
+            .values()
+            .map(|d| {
                 if matches!(d, Distribution::CategoricalDistribution { .. }) {
                     ColumnType::Categorical
                 } else {
@@ -208,11 +208,11 @@ impl SurrogateOpt {
         track!(std::fs::create_dir_all(&dir).map_err(Error::from))?;
 
         let spec_path = dir.join("spec.json");
-        let spec_file = track!(std::fs::File::create(&spec_path).map_err(Error::from))?;
+        let spec_file = track!(std::fs::File::create(spec_path).map_err(Error::from))?;
         serde_json::to_writer(spec_file, &spec)?;
 
         let regressor_path = dir.join("model.bin");
-        let regressor_file = track!(std::fs::File::create(&regressor_path).map_err(Error::from))?;
+        let regressor_file = track!(std::fs::File::create(regressor_path).map_err(Error::from))?;
         model.regressor.serialize(BufWriter::new(regressor_file))?;
 
         eprintln!("Saved the surrogate model to the direcotry {:?}", dir);

@@ -79,7 +79,7 @@ impl TrialRecord {
     }
 
     pub fn start_step(&self) -> Option<u64> {
-        self.evaluations.get(0).map(|e| e.start_step)
+        self.evaluations.first().map(|e| e.start_step)
     }
 
     pub fn end_step(&self) -> Option<u64> {
