@@ -19,6 +19,7 @@ macro_rules! track_writeln {
     }
 }
 
+pub mod batch_eval;
 pub mod dataset;
 pub mod evaluate;
 pub mod plot;
