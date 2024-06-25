@@ -276,17 +276,11 @@ impl<'a> Problem<'a> {
     }
 
     fn xmin(&self) -> String {
-        self.opt
-            .xmin
-            .map(|v| v.to_string())
-            .unwrap_or_else(|| "".to_string())
+        self.opt.xmin.map(|v| v.to_string()).unwrap_or_default()
     }
 
     fn xmax(&self) -> String {
-        self.opt
-            .xmax
-            .map(|v| v.to_string())
-            .unwrap_or_else(|| "".to_string())
+        self.opt.xmax.map(|v| v.to_string()).unwrap_or_default()
     }
 
     fn generate_data(&self) -> Result<TempPath> {
@@ -362,4 +356,5 @@ struct Value {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct BestValues {}

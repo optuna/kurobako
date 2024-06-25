@@ -99,7 +99,7 @@ impl StudyRecordBuilder {
                 recipe: self.recipe.problem,
                 spec: self.problem,
             },
-            trials: self.trials.into_iter().map(|(_, v)| v).collect(),
+            trials: self.trials.into_values().collect(),
         }
     }
 }
@@ -163,7 +163,7 @@ impl StudyRecord {
             .collect::<Vec<_>>();
         trials.sort_by_key(|t| t.0);
 
-        let mut min = std::f64::INFINITY;
+        let mut min = f64::INFINITY;
         for (step, value) in trials {
             if value < min {
                 min = value;
@@ -238,7 +238,7 @@ impl StudyRecord {
         impl<'a> Eq for Entry<'a> {}
         impl<'a> PartialOrd for Entry<'a> {
             fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-                other.step().partial_cmp(&self.step())
+                Some(self.cmp(other))
             }
         }
         impl<'a> Ord for Entry<'a> {
@@ -313,7 +313,7 @@ impl StudyRecord {
         trials.sort_by_key(|t| t.0);
 
         let mut prev_step = 0;
-        let mut current_min = std::f64::INFINITY;
+        let mut current_min = f64::INFINITY;
         let mut auc = 0.0;
         for (mut step, value) in trials {
             if step <= start_step {

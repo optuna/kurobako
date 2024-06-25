@@ -65,8 +65,8 @@ impl VariableBuilder {
         Self {
             name: name.to_owned(),
             range: Range::Continuous {
-                low: std::f64::NEG_INFINITY,
-                high: std::f64::INFINITY,
+                low: f64::NEG_INFINITY,
+                high: f64::INFINITY,
             },
             distribution: Distribution::Uniform,
             constraint: None,
@@ -75,7 +75,7 @@ impl VariableBuilder {
 
     /// Sets the name of this variable.
     pub fn name(mut self, name: &str) -> Self {
-        self.name = name.to_owned();
+        name.clone_into(&mut self.name);
         self
     }
 
@@ -121,7 +121,7 @@ impl VariableBuilder {
     ///
     /// This is equivalent to `self.categorical(&["false", "true"])`.
     pub fn boolean(self) -> Self {
-        self.categorical(&["false", "true"])
+        self.categorical(["false", "true"])
     }
 
     /// Sets the range of this variable.
@@ -242,11 +242,11 @@ fn is_not_finite(x: &f64) -> bool {
 }
 
 fn neg_infinity() -> f64 {
-    std::f64::NEG_INFINITY
+    f64::NEG_INFINITY
 }
 
 fn infinity() -> f64 {
-    std::f64::INFINITY
+    f64::INFINITY
 }
 
 /// Variable range.
@@ -396,7 +396,7 @@ mod tests {
         let vars = vec![
             var("a").continuous(-10.0, 10.0).finish()?,
             var("b").discrete(0, 5).finish()?,
-            var("c").categorical(&["foo", "bar", "baz"]).finish()?,
+            var("c").categorical(["foo", "bar", "baz"]).finish()?,
         ];
 
         let constraint = Constraint::new("(a + b) < 2");

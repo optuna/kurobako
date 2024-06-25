@@ -4,7 +4,6 @@
 use super::bessel::bessel0;
 use kurobako_core::{ErrorKind, Result};
 use std::f64::consts::PI;
-use std::f64::EPSILON;
 use std::fmt;
 use std::iter;
 
@@ -122,7 +121,7 @@ impl TestFunction for Csendes {
 
     fn evaluate(&self, xs: &[f64]) -> f64 {
         xs.iter()
-            .map(|&x| x.powi(6) * (2.0 + (1.0 / (x + EPSILON)).sin()))
+            .map(|&x| x.powi(6) * (2.0 + (1.0 / (x + f64::EPSILON)).sin()))
             .sum()
     }
 }
@@ -394,7 +393,7 @@ impl McCourtBase {
         e_mat: &'static [&'static [f64]],
     ) -> impl 'a + Iterator<Item = f64> {
         e_mat.iter().zip(centers.iter()).map(move |(evec, center)| {
-            let mut max = std::f64::NEG_INFINITY;
+            let mut max = f64::NEG_INFINITY;
             for x in xs
                 .iter()
                 .zip(center.iter())
@@ -2374,7 +2373,7 @@ mod tests {
     fn shekel05_works() {
         assert_eq!(
             Shekel05.evaluate(&[4.0, 4.0, 4.0, 4.0]),
-            -10.152719932456289
+            -10.152_719_932_456_29
         );
     }
 
@@ -2402,7 +2401,11 @@ mod tests {
     #[test]
     fn styblinskitang_works() {
         assert_eq!(
-            StyblinskiTang.evaluate(&[-2.903534018185960, -2.903534018185960, -2.903534018185960]),
+            StyblinskiTang.evaluate(&[
+                -2.903_534_018_185_96,
+                -2.903_534_018_185_96,
+                -2.903_534_018_185_96
+            ]),
             -117.49849711131424
         );
     }

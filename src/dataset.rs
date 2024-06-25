@@ -69,7 +69,7 @@ impl NasbenchOpt {
                 );
 
                 let file = track!(
-                    std::fs::File::open(&tfrecord_format_dataset_path).map_err(Error::from);
+                    std::fs::File::open(tfrecord_format_dataset_path).map_err(Error::from);
                     tfrecord_format_dataset_path
                 )?;
                 let nasbench = track!(nasbench::NasBench::from_tfrecord_reader(

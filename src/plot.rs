@@ -34,7 +34,7 @@ impl PlotOpt {
 
 fn execute_gnuplot(script: &str) -> Result<()> {
     let output = track!(Command::new("gnuplot")
-        .args(&["-e", script])
+        .args(["-e", script])
         .output()
         .map_err(Error::from))?;
     if !output.status.success() {

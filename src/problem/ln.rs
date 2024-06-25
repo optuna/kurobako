@@ -80,7 +80,7 @@ impl Problem for LnProblem {
             .params_domain
             .variables()
             .iter()
-            .zip(params.into_vec().into_iter())
+            .zip(params.into_vec())
             .map(|(var, val)| {
                 if let Range::Continuous { .. } = var.range() {
                     assert_eq!(var.distribution(), Distribution::LogUniform);
