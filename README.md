@@ -6,7 +6,6 @@ kurobako
 [![Actions Status](https://github.com/optuna/kurobako/workflows/CI/badge.svg)](https://github.com/optuna/kurobako/actions)
 [![Coverage Status](https://coveralls.io/repos/github/optuna/kurobako/badge.svg?branch=master)](https://coveralls.io/github/optuna/kurobako?branch=master)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Docker Hub](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/r/sile/kurobako)
 
 `kurobako` is a command-line tool to benchmark black-box optimization algorithms.
 

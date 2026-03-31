@@ -53,27 +53,3 @@ jobs:
           asset_name: kurobako-${{ steps.get_version.outputs.VERSION }}.linux-amd64
           asset_content_type: application/octet-stream
 
-  docker:
-    name: 'Docker Hub Release'
-    needs: [github]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Get the version
-        id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
-
-      - name: Checkout sources
-        uses: actions/checkout@v2
-
-      - name: Build docker image
-        run: |
-          docker build --build-arg KUROBAKO_VERSION=${{ steps.get_version.outputs.VERSION }} -t sile/kurobako:latest docker/
-          docker tag sile/kurobako:latest sile/kurobako:${{ steps.get_version.outputs.VERSION }}
-
-      - name: Push to Docker Hub
-        env:
-          DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
-        run: |
-          echo "${DOCKER_HUB_TOKEN}" | docker login -u sile --password-stdin
-          docker push sile/kurobako:latest
-          docker push sile/kurobako:${{ steps.get_version.outputs.VERSION  }}
